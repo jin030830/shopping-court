@@ -1,73 +1,13 @@
-# React + TypeScript + Vite
+# ⚖️ 소비재판소 (Shopping Court)
+> **"살까 말까 고민되고 잘 산 건지 고민될떄 전국 배심원에게 판결을 맡기세요!"** > 토스 앱 내에서 즐기는 합리적인 소비 커뮤니티 서비스 
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+---
 
-Currently, two official plugins are available:
+## 👨‍판사님, 이 소비... 무죄인가요? 유죄인가요?
+**소비재판소**는 사용자가 소비 고민이나 이미 저지른 소비에 대해 상황을 공유하면, 다른 사용자들이 '배심원'이 되어 **무죄(합리적 소비)**와 **유죄(비합리적 소비)**를 투표로 판결해주는 커뮤니티 기반 서비스입니다.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
-
-## React Compiler
-
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
-
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
-
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
-
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
+### ✨ 주요 기능
+* **🏛️ 기소하기 (고민 업로드):** 제품 사진, 가격, 내 현재 상황을 올리고 배심원들에게 소명합니다.
+* **🗳️ 공방전 (실시간 투표):** 배심원들은 3일간의 투표 기간 동안 의견을 나눕니다.
+* **📜 최종 판결:** 투표 결과에 따라 '무죄' 또는 '유죄' 판결문이 발행됩니다.
+* **👩‍⚖️ 명예의 전당:** 날카로운 판결을 내리는 '수석 배심원' 랭킹 시스템.
