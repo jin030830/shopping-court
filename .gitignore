@@ -24,3 +24,4 @@ dist-ssr
 *.sw?
 
 .granite
+\n# 명세서 파일\n통합명세서.md
