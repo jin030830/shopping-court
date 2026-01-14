@@ -1,4 +1,29 @@
-# Logs
+# --- OS & IDE Files ---
+.DS_Store
+Thumbs.db
+.vscode/
+!.vscode/extensions.json
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# --- Dependencies & Build Outputs ---
+node_modules/
+dist/
+dist-ssr/
+coverage/
+.vite/
+.granite
+
+# --- Firebase & Logs ---
+.firebase/
+*-debug.log*
+firebase-debug.log*
+firestore-debug.log*
+ui-debug.log*
 logs
 *.log
 npm-debug.log*
@@ -7,21 +32,16 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
-node_modules
-dist
-dist-ssr
-*.local
+# --- Environment Variables (Security) ---
+.env
+.env.*
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
 
-# Editor directories and files
-.vscode/*
-!.vscode/extensions.json
-.idea
-.DS_Store
-*.suo
-*.ntvs*
-*.njsproj
-*.sln
-*.sw?
+# --- Except for Example files ---
+!.env.example
 
-.granite
-\n# 명세서 파일\n통합명세서.md
+# --- Documentation ---
+통합명세서.md
