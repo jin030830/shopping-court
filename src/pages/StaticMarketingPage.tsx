@@ -1,20 +1,20 @@
 import { Link } from 'react-router-dom'
-import './Terms.css'
+import './StaticPage.css'
 
-function MarketingConsent() {
+function StaticMarketingPage() {
   return (
-    <div className="terms-container">
-      <div className="terms-header">
-        <Link to="/" className="back-link">← 홈으로</Link>
+    <div className="static-page-container">
+      <div className="static-page-header">
+        <Link to="/terms" className="back-link">← 뒤로가기</Link>
       </div>
       
-      <div className="terms-content">
+      <div className="static-page-content">
         <h1>마케팅 정보 수신 동의</h1>
         
-        <p className="terms-meta">
-          시행일: 2026.01.12<br />
-          회사: 다향관 구멍가게(이하 "회사")<br />
-          문의: hhon0213@naver.com / 010-4049-8130
+        <p>
+          <strong>시행일:</strong> 2026.01.12<br />
+          <strong>회사:</strong> 다향관 구멍가게(이하 "회사")<br />
+          <strong>문의:</strong> hhon0213@naver.com / 010-4049-8130
         </p>
 
         <p>
@@ -64,4 +64,4 @@ function MarketingConsent() {
   )
 }
 
-export default MarketingConsent
+export default StaticMarketingPage
