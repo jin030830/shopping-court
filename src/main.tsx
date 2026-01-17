@@ -1,14 +1,17 @@
-import { StrictMode } from 'react'
-import { createRoot } from 'react-dom/client'
-import { BrowserRouter } from 'react-router-dom'
-import './index.css'
-import App from './App.tsx'
-import './api/firebase';
+import { AuthProvider } from './hooks/useAuth';
+import React from 'react';
+import ReactDOM from 'react-dom/client';
+import { BrowserRouter } from 'react-router-dom';
+import App from './App.tsx';
+import './index.css';
+import './api/firebase'; // 에뮬레이터 연결 로직을 포함하므로 import 유지
 
-createRoot(document.getElementById('root')!).render(
-  <StrictMode>
+ReactDOM.createRoot(document.getElementById('root')!).render(
+  <React.StrictMode>
     <BrowserRouter>
-      <App />
+      <AuthProvider>
+        <App />
+      </AuthProvider>
     </BrowserRouter>
-  </StrictMode>,
-)
+  </React.StrictMode>
+);

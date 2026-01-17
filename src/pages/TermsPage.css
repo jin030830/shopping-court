@@ -1,0 +1,121 @@
+.terms-container {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  padding: 1rem;
+  box-sizing: border-box;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+}
+
+.terms-header {
+  flex-shrink: 0;
+  margin-bottom: 1.5rem;
+}
+
+.back-button {
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  cursor: pointer;
+  padding: 0;
+  color: #333; /* Default text color */
+}
+
+.terms-content {
+  flex-grow: 1;
+}
+
+.terms-content h1 {
+  font-size: 1.8rem;
+  line-height: 1.4;
+  margin-bottom: 2rem;
+  color: #333;
+}
+
+.agreement-section {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.agreement-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 1.1rem;
+}
+
+.agreement-item label {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  white-space: nowrap; /* 텍스트 줄바꿈 방지 */
+  flex-grow: 1; /* 라벨이 공간을 최대로 차지하도록 */
+  overflow: hidden; /* 넘치는 텍스트 숨김 */
+  text-overflow: ellipsis; /* 넘치는 텍스트에 ... 표시 */
+}
+
+.agreement-item input[type="checkbox"] {
+  width: 1.5rem;
+  height: 1.5rem;
+  flex-shrink: 0; /* 체크박스 크기 고정 */
+}
+
+.all-agree {
+  font-weight: bold;
+  font-size: 1.2rem;
+  padding-bottom: 1rem;
+}
+
+.divider {
+  border: none;
+  border-top: 1px solid #eee;
+  margin: 0.5rem 0;
+}
+
+.view-link {
+  color: #888;
+  text-decoration: underline;
+  flex-shrink: 0; /* 링크 너비 축소 방지 */
+  margin-left: 0.5rem; /* 링크와 텍스트 사이 간격 */
+}
+
+.terms-footer {
+  flex-shrink: 0;
+  padding-top: 1rem;
+}
+
+.start-button {
+  width: 100%;
+  padding: 1rem;
+  font-size: 1.2rem;
+  background-color: #007bff; /* Toss blue-ish color */
+  color: white;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.start-button:disabled {
+  background-color: #cccccc;
+  cursor: not-allowed;
+}
+
+.error-container {
+  text-align: center;
+  margin-top: 1rem;
+}
+
+.error-message {
+  color: #c62828; /* Red color for error */
+}
+
+.retry-button {
+  margin-top: 0.5rem;
+  padding: 0.5rem 1rem;
+  font-size: 1rem;
+  background-color: #f1f1f1;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  cursor: pointer;
+}

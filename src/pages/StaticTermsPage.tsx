@@ -1,20 +1,20 @@
 import { Link } from 'react-router-dom'
-import './Terms.css'
+import './StaticPage.css'
 
-function Terms() {
+function StaticTermsPage() {
   return (
-    <div className="terms-container">
-      <div className="terms-header">
-        <Link to="/" className="back-link">← 뒤로가기(홈)</Link>
+    <div className="static-page-container">
+      <div className="static-page-header">
+        <Link to="/terms" className="back-link">← 뒤로가기</Link>
       </div>
       
-      <div className="terms-content">
+      <div className="static-page-content">
         <h1>소비재판소 서비스 이용약관</h1>
         
-        <p className="terms-meta">
-          시행일: 2026.01.12<br />
-          회사: 다향관 구멍가게(이하 "회사")<br />
-          문의: <a href="mailto:hhon0213@naver.com">hhon0213@naver.com</a> / 010-4049-8130
+        <p>
+          <strong>시행일:</strong> 2026.01.12<br />
+          <strong>회사:</strong> 다향관 구멍가게(이하 "회사")<br />
+          <strong>문의:</strong> <a href="mailto:hhon0213@naver.com">hhon0213@naver.com</a> / 010-4049-8130
         </p>
 
         <hr />
@@ -161,4 +161,4 @@ function Terms() {
   )
 }
 
-export default Terms
+export default StaticTermsPage

@@ -1,66 +1,56 @@
-import { Routes, Route, Navigate, useLocation } from 'react-router-dom'
-import Home from '../pages/Home'
-import Terms from '../pages/Terms'
-import MarketingConsent from '../pages/MarketingConsent'
+import { Routes, Route, useLocation, Navigate } from 'react-router-dom';
+import HomePage from '../pages/HomePage';
+import CaseDetailPage from '../pages/CaseDetailPage';
+import CreatePostPage from '../pages/CreatePostPage';
+import EditPostPage from '../pages/EditPostPage';
+import TermsPage from '../pages/TermsPage';
+import StaticTermsPage from '../pages/StaticTermsPage';
+import StaticMarketingPage from '../pages/StaticMarketingPage';
 
-// 경로를 소문자로 강제 변환하는 래퍼 컴포넌트
-// 실제 컴포넌트가 렌더링되기 전에 경로를 체크하여 대문자가 있으면 리다이렉트
-function LowercaseRedirect({ children }: { children: React.ReactElement }) {
-  const location = useLocation()
-  const pathname = location.pathname
-  const lowercasePath = pathname.toLowerCase()
+// 경로를 소문자로 강제 변환하고, 필요한 경우 리다이렉트하는 컴포넌트
+function LowercaseRedirectWrapper({ children }: { children: React.ReactElement }) {
+  const location = useLocation();
+  const pathname = location.pathname;
+  const lowercasePath = pathname.toLowerCase();
   
-  // 경로에 대문자가 포함되어 있으면 소문자로 리다이렉트
   if (pathname !== lowercasePath) {
-    return <Navigate to={lowercasePath + location.search + location.hash} replace />
+    return <Navigate to={lowercasePath + location.search + location.hash} replace />;
   }
   
-  return children
+  return children;
 }
+
 
 function AppRoutes() {
   return (
     <Routes>
-      <Route path="/" element={<Home />} />
+      <Route path="/" element={<HomePage />} />
+      <Route path="/case/:id" element={<CaseDetailPage />} />
+      <Route path="/create-post" element={<CreatePostPage />} />
+      <Route path="/edit-post/:id" element={<EditPostPage />} />
       
-      {/* 
-        Canonical 소문자 경로만 실제 컴포넌트 렌더링
-        LowercaseRedirect로 한 번 더 체크하여 안전성 확보
-      */}
+      {/* 약관 동의 플로우를 위한 페이지 */}
+      <Route path="/terms" element={<TermsPage />} />
+
+      {/* 약관 내용만 보여주는 정적 페이지 */}
       <Route 
-        path="/terms" 
+        path="/terms-static" 
         element={
-          <LowercaseRedirect>
-            <Terms />
-          </LowercaseRedirect>
+          <LowercaseRedirectWrapper>
+            <StaticTermsPage />
+          </LowercaseRedirectWrapper>
         } 
       />
       <Route 
         path="/marketing-consent" 
         element={
-          <LowercaseRedirect>
-            <MarketingConsent />
-          </LowercaseRedirect>
+          <LowercaseRedirectWrapper>
+            <StaticMarketingPage />
+          </LowercaseRedirectWrapper>
         } 
       />
-      
-      {/* 
-        대소문자 혼합 경로는 모두 소문자로 리다이렉트만 수행
-        실제 컴포넌트를 렌더링하지 않음
-      */}
-      <Route path="/Terms" element={<Navigate to="/terms" replace />} />
-      <Route path="/TERMS" element={<Navigate to="/terms" replace />} />
-      <Route path="/TeRms" element={<Navigate to="/terms" replace />} />
-      <Route path="/tErMs" element={<Navigate to="/terms" replace />} />
-      
-      <Route path="/Marketing-consent" element={<Navigate to="/marketing-consent" replace />} />
-      <Route path="/MARKETING-CONSENT" element={<Navigate to="/marketing-consent" replace />} />
-      <Route path="/Marketing-Consent" element={<Navigate to="/marketing-consent" replace />} />
-      <Route path="/marketing-Consent" element={<Navigate to="/marketing-consent" replace />} />
-      <Route path="/MARKETING-consent" element={<Navigate to="/marketing-consent" replace />} />
-      <Route path="/marketing-CONSENT" element={<Navigate to="/marketing-consent" replace />} />
     </Routes>
-  )
+  );
 }
 
-export default AppRoutes
+export default AppRoutes;

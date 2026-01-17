@@ -44,4 +44,4 @@ lerna-debug.log*
 !.env.example
 
 # --- Documentation ---
-통합명세서.md
+통합명세서.mdbackend/certs/

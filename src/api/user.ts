@@ -3,7 +3,6 @@ import {
   getDoc,
   setDoc,
   serverTimestamp,
-  runTransaction,
   collection,
   query,
   where,
@@ -34,7 +33,7 @@ function generateRandomDigits(): string {
  * 고유한 닉네임 생성
  */
 async function generateUniqueNickname(
-  baseNickname: string = '익명',
+  baseNickname: string = '배심원',
   maxRetries: number = 5
 ): Promise<string> {
   let nickname = `${baseNickname}${generateRandomDigits()}`
@@ -45,7 +44,6 @@ async function generateUniqueNickname(
       throw new Error('Firestore가 초기화되지 않았습니다.')
     }
 
-    // 중복 체크
     const nicknameQuery = query(
       collection(db, 'users'),
       where('nickname', '==', nickname)
@@ -53,30 +51,23 @@ async function generateUniqueNickname(
     const snapshot = await getDocs(nicknameQuery)
 
     if (snapshot.empty) {
-      // 중복 없음, 사용 가능
       return nickname
     }
 
-    // 중복 발견, 숫자 추가 후 재시도
     attempts++
-    if (attempts < maxRetries) {
-      nickname = `${baseNickname}${generateRandomDigits()}_${attempts}`
-    } else {
-      // 최대 재시도 횟수 초과, 타임스탬프 추가
-      nickname = `${baseNickname}${generateRandomDigits()}_${Date.now()}`
-    }
+    nickname = `${baseNickname}${generateRandomDigits()}`
   }
 
-  return nickname
+  // 최대 재시도 후에도 실패하면 타임스탬프 추가
+  return `${baseNickname}${Date.now()}`
 }
 
 /**
  * Firestore에 사용자 문서 생성/업데이트
- * 트랜잭션을 사용하여 안전하게 처리
+ * 사용자가 처음 로그인할 때만 닉네임을 생성합니다.
  */
 export async function createOrUpdateUser(
   firebaseUser: FirebaseUser,
-  tossUserKey: string
 ): Promise<UserDocument> {
   if (!db) {
     throw new Error('Firestore가 초기화되지 않았습니다.')
@@ -85,52 +76,34 @@ export async function createOrUpdateUser(
   const userRef = doc(db, 'users', firebaseUser.uid)
 
   try {
-    // 먼저 기존 문서 확인 (트랜잭션 밖에서)
     const userSnap = await getDoc(userRef)
-    const existingData = userSnap.data() as UserDocument | undefined
 
-    // 닉네임 생성/확인 (트랜잭션 밖에서)
-    let nickname: string
-    if (existingData?.nickname) {
-      nickname = existingData.nickname
-    } else {
-      nickname = await generateUniqueNickname()
-    }
-
-    // 트랜잭션으로 안전하게 저장
-    const userDoc = await runTransaction(db, async (transaction) => {
-      const snap = await transaction.get(userRef)
-      const data = snap.data() as UserDocument | undefined
-
-      const createdAt: Timestamp | null = data?.createdAt || (serverTimestamp() as Timestamp | null)
-
-      // tossUserKey가 없으면 업데이트
-      const updateData: Partial<UserDocument> = {
-        tossUserKey,
-        nickname: data?.nickname || nickname,
-        updatedAt: serverTimestamp() as Timestamp | null,
-      }
-
-      if (!data) {
-        updateData.createdAt = createdAt
-      }
-
-      transaction.set(userRef, updateData, { merge: true })
-
+    if (userSnap.exists()) {
+      // 기존 유저면 정보 반환
+      const existingData = userSnap.data() as UserDocument;
+      await setDoc(userRef, { updatedAt: serverTimestamp() }, { merge: true });
       return {
-        tossUserKey,
-        nickname: updateData.nickname!,
-        createdAt,
-        updatedAt: updateData.updatedAt,
-      } as UserDocument
-    })
-
-    return userDoc
+        ...existingData,
+        updatedAt: Timestamp.now()
+      };
+    } else {
+      // 신규 유저면 닉네임 생성 후 문서 생성
+      const nickname = await generateUniqueNickname()
+      const newUserDocument: UserDocument = {
+        tossUserKey: firebaseUser.uid, // tossUserKey를 Firebase UID로 사용
+        nickname,
+        createdAt: serverTimestamp() as Timestamp,
+        updatedAt: serverTimestamp() as Timestamp,
+      }
+      await setDoc(userRef, newUserDocument)
+      return newUserDocument
+    }
   } catch (error) {
     console.error('사용자 문서 생성/업데이트 실패:', error)
     throw new Error('사용자 정보 저장에 실패했습니다.')
   }
 }
+
 
 /**
  * 현재 사용자 정보 조회
