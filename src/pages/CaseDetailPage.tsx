@@ -2,23 +2,27 @@ import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import { Asset } from '@toss/tds-mobile';
+import likeIcon from '../assets/좋아요_누기.png';
+import replyIcon from '../assets/대댓글.png';
 
-// Mock 데이터 (기본 게시물)
-const mockPosts: Record<string, { title: string; author: string; content: string }> = {
+// Mock 데이터 (기본 게시물) - 모두 투표 종료 상태
+const mockPosts: Record<string, { title: string; author: string; content: string; timestamp: string }> = {
   '1': {
     title: '37만원 헤드셋 살까 말까?',
     author: 'alstjs',
     content: '24살 대학생입니다. 현재 알바로 월에 50만원 정도 벌고 있는데, 몇 달 전부터 헤드셋이 계속 갖고 싶더라구요.. 운동하거나 공부할 때 ~~~',
+    timestamp: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(), // 3일 전 (투표 종료)
   },
   '2': {
     title: '배달비 5000원, 적당한가요?',
     author: 'toss_user',
     content: '배달비 인상에 대한 여러분의 의견을 들려주세요. 소비자와 자영업자 모두 상생할 방법은 없을까요?',
+    timestamp: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(), // 2일 전 (투표 종료)
   },
 };
 
 // localStorage에서 사용자가 작성한 게시물 가져오기
-function getUserPost(postId: string): { title: string; author: string; content: string } | null {
+function getUserPost(postId: string): { title: string; author: string; content: string; timestamp: string } | null {
   try {
     const userPostsStr = localStorage.getItem('user_posts');
     if (userPostsStr) {
@@ -28,7 +32,8 @@ function getUserPost(postId: string): { title: string; author: string; content: 
         return {
           title: post.title,
           author: post.author,
-          content: post.content
+          content: post.content,
+          timestamp: post.timestamp || new Date().toISOString()
         };
       }
     }
@@ -77,9 +82,42 @@ function CaseDetailPage() {
   const [showMenuFor, setShowMenuFor] = useState<string | null>(null);
   const [showPostMenu, setShowPostMenu] = useState(false);
   const [postAuthorId, setPostAuthorId] = useState<string | null>(null);
+  const [timeRemaining, setTimeRemaining] = useState<{ hours: number; minutes: number; seconds: number } | null>(null);
+  const [isVotingExpired, setIsVotingExpired] = useState(false);
 
   // Mock 게시물 또는 사용자 게시물 가져오기
   const post = id ? (mockPosts[id] || getUserPost(id)) : undefined;
+
+  // 투표 가능 시간 계산 (48시간)
+  useEffect(() => {
+    if (!post?.timestamp) return;
+
+    const calculateTimeRemaining = () => {
+      const createdAt = new Date(post.timestamp).getTime();
+      const now = Date.now();
+      const votingPeriod = 48 * 60 * 60 * 1000; // 48시간
+      const endTime = createdAt + votingPeriod;
+      const remaining = endTime - now;
+
+      if (remaining <= 0) {
+        setIsVotingExpired(true);
+        setTimeRemaining({ hours: 0, minutes: 0, seconds: 0 });
+        return;
+      }
+
+      const hours = Math.floor(remaining / (1000 * 60 * 60));
+      const minutes = Math.floor((remaining % (1000 * 60 * 60)) / (1000 * 60));
+      const seconds = Math.floor((remaining % (1000 * 60)) / 1000);
+
+      setIsVotingExpired(false);
+      setTimeRemaining({ hours, minutes, seconds });
+    };
+
+    calculateTimeRemaining();
+    const interval = setInterval(calculateTimeRemaining, 1000);
+
+    return () => clearInterval(interval);
+  }, [post?.timestamp]);
 
   // 게시물 작성자 ID 가져오기
   useEffect(() => {
@@ -279,13 +317,19 @@ function CaseDetailPage() {
   }, [isLoading, user, userData]);
 
   const handleVoteSelect = (voteType: 'agree' | 'disagree') => {
-    if (!hasVoted) {
+    if (!hasVoted && !isVotingExpired) {
       setSelectedVote(voteType);
     }
   };
 
   const handleVoteClick = () => {
     if (isLoading) {
+      return;
+    }
+
+    // 투표 시간 만료 확인
+    if (isVotingExpired) {
+      alert('투표 가능 시간이 종료되었습니다!');
       return;
     }
     
@@ -557,7 +601,10 @@ function CaseDetailPage() {
         boxSizing: 'border-box'
       }}>
         <button 
-          onClick={() => navigate('/')}
+          onClick={() => {
+            const fromTab = (location.state as any)?.fromTab || '재판 중';
+            navigate('/', { state: { selectedTab: fromTab } });
+          }}
           style={{ 
             background: 'none', 
             border: 'none', 
@@ -731,7 +778,7 @@ function CaseDetailPage() {
           <div style={{ display: 'flex', gap: '12px', marginBottom: '16px' }}>
             <button 
               onClick={() => handleVoteSelect('agree')}
-              disabled={hasVoted}
+              disabled={hasVoted || isVotingExpired}
               style={{ 
                 flex: 1, 
                 padding: '12px', 
@@ -741,15 +788,15 @@ function CaseDetailPage() {
                 borderRadius: '8px',
                 fontSize: '15px',
                 fontWeight: '600',
-                cursor: hasVoted ? 'not-allowed' : 'pointer',
-                opacity: hasVoted && selectedVote !== 'agree' ? 0.5 : 1
+                cursor: (hasVoted || isVotingExpired) ? 'not-allowed' : 'pointer',
+                opacity: (hasVoted && selectedVote !== 'agree') || isVotingExpired ? 0.5 : 1
               }}
             >
               합리적이다
             </button>
             <button 
               onClick={() => handleVoteSelect('disagree')}
-              disabled={hasVoted}
+              disabled={hasVoted || isVotingExpired}
               style={{ 
                 flex: 1, 
                 padding: '12px', 
@@ -759,8 +806,8 @@ function CaseDetailPage() {
                 borderRadius: '8px',
                 fontSize: '15px',
                 fontWeight: '600',
-                cursor: hasVoted ? 'not-allowed' : 'pointer',
-                opacity: hasVoted && selectedVote !== 'disagree' ? 0.5 : 1
+                cursor: (hasVoted || isVotingExpired) ? 'not-allowed' : 'pointer',
+                opacity: (hasVoted && selectedVote !== 'disagree') || isVotingExpired ? 0.5 : 1
               }}
             >
               비합리적이다
@@ -770,30 +817,31 @@ function CaseDetailPage() {
           {/* 투표하기 버튼 */}
           <button
             onClick={handleVoteClick}
-            disabled={isLoading || hasVoted}
+            disabled={isLoading || hasVoted || isVotingExpired}
             style={{ 
               width: '100%',
               padding: '16px',
-              backgroundColor: (isLoading || hasVoted) ? '#ccc' : '#3182F6',
+              backgroundColor: (isLoading || hasVoted || isVotingExpired) ? '#ccc' : '#3182F6',
               color: 'white',
               border: 'none',
               borderRadius: '8px',
               fontSize: '16px',
               fontWeight: '600',
-              cursor: (isLoading || hasVoted) ? 'not-allowed' : 'pointer'
+              cursor: (isLoading || hasVoted || isVotingExpired) ? 'not-allowed' : 'pointer'
             }}
           >
-            {isLoading ? '로딩 중...' : hasVoted ? '투표 완료' : '투표하기'}
+            {isLoading ? '로딩 중...' : isVotingExpired ? '투표 시간 종료' : hasVoted ? '투표 완료' : '투표하기'}
           </button>
 
-          {user && userData && (
+          {timeRemaining && !isVotingExpired && (
             <div style={{ 
               marginTop: '12px', 
               textAlign: 'center',
-              color: '#666',
-              fontSize: '14px'
+              fontSize: '15px',
+              color: '#191F28',
+              fontWeight: '500'
             }}>
-              {userData.nickname}님으로 투표합니다
+              {`남은 투표 시간 : ${String(timeRemaining.hours).padStart(2, '0')} : ${String(timeRemaining.minutes).padStart(2, '0')} : ${String(timeRemaining.seconds).padStart(2, '0')}`}
             </div>
           )}
         </div>
@@ -953,7 +1001,7 @@ function CaseDetailPage() {
               </button>
               <div style={{ clear: 'both' }} />
             </div>
-          ) : user && userData && !hasVoted ? (
+          ) : user && userData && !hasVoted && !isVotingExpired ? (
             <div style={{ 
               marginBottom: '20px',
               padding: '16px',
@@ -979,19 +1027,37 @@ function CaseDetailPage() {
                   {/* 댓글 */}
                   <div 
                     style={{
-                      padding: '16px',
+                      padding: '12px 16px',
                       backgroundColor: '#f8f9fa',
                       borderRadius: '8px',
-                      position: 'relative'
+                      position: 'relative',
+                      display: 'flex',
+                      gap: '12px'
                     }}
                   >
-                    {/* 상단: 작성자 + 무죄/유죄 */}
-                    <div style={{ 
-                      display: 'flex', 
-                      justifyContent: 'space-between',
-                      marginBottom: '8px'
+                    {/* 왼쪽: 무죄/유죄 배지 */}
+                    <div style={{
+                      padding: '6px 10px',
+                      backgroundColor: comment.vote === 'agree' ? '#E3F2FD' : '#FFEBEE',
+                      color: comment.vote === 'agree' ? '#1976D2' : '#D32F2F',
+                      fontSize: '13px',
+                      fontWeight: '600',
+                      borderRadius: '6px',
+                      height: 'fit-content',
+                      whiteSpace: 'nowrap'
                     }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1 }}>
+                      {comment.vote === 'agree' ? '무죄' : '유죄'}
+                    </div>
+
+                    {/* 오른쪽: 내용 영역 */}
+                    <div style={{ flex: 1 }}>
+                      {/* 상단: 작성자 + 우측 버튼들 */}
+                      <div style={{ 
+                        display: 'flex', 
+                        justifyContent: 'space-between',
+                        alignItems: 'flex-start',
+                        marginBottom: '6px'
+                      }}>
                         <span style={{ 
                           color: '#191F28', 
                           fontSize: '14px',
@@ -999,65 +1065,186 @@ function CaseDetailPage() {
                         }}>
                           {comment.author}
                         </span>
-                        <span style={{
-                          padding: '4px 8px',
-                          backgroundColor: comment.vote === 'agree' ? '#E3F2FD' : '#FFEBEE',
-                          color: comment.vote === 'agree' ? '#1976D2' : '#D32F2F',
-                          fontSize: '12px',
-                          fontWeight: '600',
-                          borderRadius: '4px'
+                        
+                        {/* 우측 버튼들 - 가로 배치 */}
+                        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                          <button
+                            onClick={() => handleLikeComment(comment.id)}
+                            style={{
+                              background: 'none',
+                              border: 'none',
+                              cursor: 'pointer',
+                              fontSize: '13px',
+                              color: likedComments.has(comment.id) ? '#3182F6' : '#666',
+                              padding: '0',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '4px'
+                            }}
+                          >
+                            <img 
+                              src={likeIcon} 
+                              alt="좋아요" 
+                              style={{ 
+                                width: '18px', 
+                                height: '18px',
+                                objectFit: 'contain'
+                              }} 
+                            />
+                            <span style={{ fontSize: '12px' }}>{comment.likes}</span>
+                          </button>
+                          <button
+                            onClick={() => setReplyingTo(comment.id)}
+                            style={{
+                              background: 'none',
+                              border: 'none',
+                              cursor: 'pointer',
+                              fontSize: '13px',
+                              color: '#666',
+                              padding: '0',
+                              display: 'flex',
+                              alignItems: 'center'
+                            }}
+                          >
+                            <img 
+                              src={replyIcon} 
+                              alt="댓글" 
+                              style={{ 
+                                width: '18px', 
+                                height: '18px',
+                                objectFit: 'contain'
+                              }} 
+                            />
+                          </button>
+                          <button
+                            onClick={() => setShowMenuFor(showMenuFor === comment.id ? null : comment.id)}
+                            style={{
+                              background: 'none',
+                              border: 'none',
+                              cursor: 'pointer',
+                              fontSize: '13px',
+                              color: '#666',
+                              padding: '0'
+                            }}
+                          >
+                            ⋯
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* 댓글 내용 또는 수정 폼 */}
+                      {editingComment === comment.id ? (
+                        <div>
+                          <textarea
+                            value={editContent}
+                            onChange={(e) => setEditContent(e.target.value)}
+                            style={{
+                              width: '100%',
+                              minHeight: '60px',
+                              padding: '8px',
+                              border: '1px solid #ddd',
+                              borderRadius: '4px',
+                              fontSize: '14px',
+                              marginBottom: '8px',
+                              boxSizing: 'border-box'
+                            }}
+                          />
+                          <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+                            <button
+                              onClick={() => {
+                                setEditingComment(null);
+                                setEditContent('');
+                              }}
+                              style={{
+                                padding: '6px 12px',
+                                backgroundColor: '#f0f0f0',
+                                border: 'none',
+                                borderRadius: '4px',
+                                cursor: 'pointer',
+                                fontSize: '13px'
+                              }}
+                            >
+                              취소
+                            </button>
+                            <button
+                              onClick={() => handleEditComment(comment.id)}
+                              style={{
+                                padding: '6px 12px',
+                                backgroundColor: '#3182F6',
+                                color: 'white',
+                                border: 'none',
+                                borderRadius: '4px',
+                                cursor: 'pointer',
+                                fontSize: '13px'
+                              }}
+                            >
+                              수정
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <p style={{ 
+                          color: '#191F28', 
+                          fontSize: '14px',
+                          margin: '0',
+                          lineHeight: '1.4'
                         }}>
-                          {comment.vote === 'agree' ? '무죄' : '유죄'}
-                        </span>
-                      </div>
-                      
-                      {/* 우측 버튼들 - 세로 배치 */}
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', alignItems: 'center' }}>
-                        <button
-                          onClick={() => handleLikeComment(comment.id)}
-                          style={{
-                            background: 'none',
-                            border: 'none',
-                            cursor: 'pointer',
-                            fontSize: '14px',
-                            color: likedComments.has(comment.id) ? '#3182F6' : '#666',
-                            padding: '2px',
-                            display: 'flex',
-                            flexDirection: 'column',
-                            alignItems: 'center',
-                            gap: '2px'
-                          }}
-                        >
-                          <span>👍</span>
-                          <span style={{ fontSize: '11px' }}>{comment.likes}</span>
-                        </button>
-                        <button
-                          onClick={() => setReplyingTo(comment.id)}
-                          style={{
-                            background: 'none',
-                            border: 'none',
-                            cursor: 'pointer',
-                            fontSize: '14px',
-                            color: '#666',
-                            padding: '2px'
-                          }}
-                        >
-                          💬
-                        </button>
-                        <button
-                          onClick={() => setShowMenuFor(showMenuFor === comment.id ? null : comment.id)}
-                          style={{
-                            background: 'none',
-                            border: 'none',
-                            cursor: 'pointer',
-                            fontSize: '14px',
-                            color: '#666',
-                            padding: '2px'
-                          }}
-                        >
-                          ⋯
-                        </button>
-                      </div>
+                          {comment.content}
+                        </p>
+                      )}
+
+                      {/* 답글 작성 폼 */}
+                      {replyingTo === comment.id && (
+                        <div style={{ marginTop: '12px' }}>
+                          <textarea
+                            value={replyContent}
+                            onChange={(e) => setReplyContent(e.target.value)}
+                            placeholder="답글을 입력하세요..."
+                            style={{
+                              width: '100%',
+                              minHeight: '60px',
+                              padding: '8px',
+                              border: '1px solid #ddd',
+                              borderRadius: '4px',
+                              fontSize: '13px',
+                              marginBottom: '8px',
+                              boxSizing: 'border-box'
+                            }}
+                          />
+                          <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+                            <button
+                              onClick={() => {
+                                setReplyingTo(null);
+                                setReplyContent('');
+                              }}
+                              style={{
+                                padding: '6px 12px',
+                                backgroundColor: '#f0f0f0',
+                                border: 'none',
+                                borderRadius: '4px',
+                                cursor: 'pointer',
+                                fontSize: '13px'
+                              }}
+                            >
+                              취소
+                            </button>
+                            <button
+                              onClick={() => handleReplySubmit(comment.id)}
+                              style={{
+                                padding: '6px 12px',
+                                backgroundColor: '#3182F6',
+                                color: 'white',
+                                border: 'none',
+                                borderRadius: '4px',
+                                cursor: 'pointer',
+                                fontSize: '13px'
+                              }}
+                            >
+                              답글 작성
+                            </button>
+                          </div>
+                        </div>
+                      )}
                     </div>
 
                     {/* 더보기 메뉴 */}
@@ -1131,120 +1318,6 @@ function CaseDetailPage() {
                         )}
                       </div>
                     )}
-
-                    {/* 댓글 내용 또는 수정 폼 */}
-                    {editingComment === comment.id ? (
-                      <div>
-                        <textarea
-                          value={editContent}
-                          onChange={(e) => setEditContent(e.target.value)}
-                          style={{
-                            width: '100%',
-                            minHeight: '60px',
-                            padding: '8px',
-                            border: '1px solid #ddd',
-                            borderRadius: '4px',
-                            fontSize: '14px',
-                            marginBottom: '8px',
-                            boxSizing: 'border-box'
-                          }}
-                        />
-                        <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
-                          <button
-                            onClick={() => {
-                              setEditingComment(null);
-                              setEditContent('');
-                            }}
-                            style={{
-                              padding: '6px 12px',
-                              backgroundColor: '#f0f0f0',
-                              border: 'none',
-                              borderRadius: '4px',
-                              cursor: 'pointer',
-                              fontSize: '13px'
-                            }}
-                          >
-                            취소
-                          </button>
-                          <button
-                            onClick={() => handleEditComment(comment.id)}
-                            style={{
-                              padding: '6px 12px',
-                              backgroundColor: '#3182F6',
-                              color: 'white',
-                              border: 'none',
-                              borderRadius: '4px',
-                              cursor: 'pointer',
-                              fontSize: '13px'
-                            }}
-                          >
-                            수정
-                          </button>
-                        </div>
-                      </div>
-                    ) : (
-                      <p style={{ 
-                        color: '#191F28', 
-                        fontSize: '14px',
-                        margin: '0',
-                        lineHeight: '1.5'
-                      }}>
-                        {comment.content}
-                      </p>
-                    )}
-
-                    {/* 답글 작성 폼 */}
-                    {replyingTo === comment.id && (
-                      <div style={{ marginTop: '12px' }}>
-                        <textarea
-                          value={replyContent}
-                          onChange={(e) => setReplyContent(e.target.value)}
-                          placeholder="답글을 입력하세요..."
-                          style={{
-                            width: '100%',
-                            minHeight: '60px',
-                            padding: '8px',
-                            border: '1px solid #ddd',
-                            borderRadius: '4px',
-                            fontSize: '13px',
-                            marginBottom: '8px',
-                            boxSizing: 'border-box'
-                          }}
-                        />
-                        <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
-                          <button
-                            onClick={() => {
-                              setReplyingTo(null);
-                              setReplyContent('');
-                            }}
-                            style={{
-                              padding: '6px 12px',
-                              backgroundColor: '#f0f0f0',
-                              border: 'none',
-                              borderRadius: '4px',
-                              cursor: 'pointer',
-                              fontSize: '13px'
-                            }}
-                          >
-                            취소
-                          </button>
-                          <button
-                            onClick={() => handleReplySubmit(comment.id)}
-                            style={{
-                              padding: '6px 12px',
-                              backgroundColor: '#3182F6',
-                              color: 'white',
-                              border: 'none',
-                              borderRadius: '4px',
-                              cursor: 'pointer',
-                              fontSize: '13px'
-                            }}
-                          >
-                            답글 작성
-                          </button>
-                        </div>
-                      </div>
-                    )}
                   </div>
 
                   {/* 답글 목록 */}
@@ -1254,46 +1327,79 @@ function CaseDetailPage() {
                         <div
                           key={reply.id}
                           style={{
-                            padding: '12px',
+                            padding: '10px 12px',
                             backgroundColor: '#fff',
                             borderRadius: '8px',
                             marginBottom: '8px',
-                            border: '1px solid #e0e0e0'
+                            border: '1px solid #e0e0e0',
+                            display: 'flex',
+                            gap: '10px'
                           }}
                         >
-                          <div style={{ 
-                            display: 'flex', 
-                            justifyContent: 'space-between',
-                            marginBottom: '8px'
+                          {/* 왼쪽: 답글 아이콘 */}
+                          <div style={{
+                            padding: '4px 8px',
+                            backgroundColor: '#F0F0F0',
+                            color: '#666',
+                            fontSize: '12px',
+                            fontWeight: '600',
+                            borderRadius: '4px',
+                            height: 'fit-content',
+                            whiteSpace: 'nowrap'
                           }}>
-                            <span style={{ 
+                            ↳
+                          </div>
+
+                          {/* 오른쪽: 내용 영역 */}
+                          <div style={{ flex: 1 }}>
+                            <div style={{ 
+                              display: 'flex', 
+                              justifyContent: 'space-between',
+                              alignItems: 'flex-start',
+                              marginBottom: '6px'
+                            }}>
+                              <span style={{ 
+                                color: '#191F28', 
+                                fontSize: '13px',
+                                fontWeight: '600'
+                              }}>
+                                {reply.author}
+                              </span>
+                              <button
+                                onClick={() => handleLikeReply(comment.id, reply.id)}
+                                style={{
+                                  background: 'none',
+                                  border: 'none',
+                                  cursor: 'pointer',
+                                  fontSize: '12px',
+                                  color: likedComments.has(`${comment.id}_${reply.id}`) ? '#3182F6' : '#666',
+                                  padding: '0',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: '4px'
+                                }}
+                              >
+                                <img 
+                                  src={likeIcon} 
+                                  alt="좋아요" 
+                                  style={{ 
+                                    width: '18px', 
+                                    height: '18px',
+                                    objectFit: 'contain'
+                                  }} 
+                                />
+                                <span>{reply.likes}</span>
+                              </button>
+                            </div>
+                            <p style={{ 
                               color: '#191F28', 
                               fontSize: '13px',
-                              fontWeight: '600'
+                              margin: '0',
+                              lineHeight: '1.4'
                             }}>
-                              ↳ {reply.author}
-                            </span>
-                            <button
-                              onClick={() => handleLikeReply(comment.id, reply.id)}
-                              style={{
-                                background: 'none',
-                                border: 'none',
-                                cursor: 'pointer',
-                                fontSize: '14px',
-                                color: likedComments.has(`${comment.id}_${reply.id}`) ? '#3182F6' : '#666'
-                              }}
-                            >
-                              👍 {reply.likes}
-                            </button>
+                              {reply.content}
+                            </p>
                           </div>
-                          <p style={{ 
-                            color: '#191F28', 
-                            fontSize: '13px',
-                            margin: '0',
-                            lineHeight: '1.5'
-                          }}>
-                            {reply.content}
-                          </p>
                         </div>
                       ))}
                     </div>
