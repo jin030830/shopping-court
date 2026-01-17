@@ -1,10 +1,10 @@
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { Asset, Text, Spacing } from '@toss/tds-mobile';
 import { adaptive } from '@toss/tds-colors';
 import { useState, useEffect } from 'react';
 
-// Mock 데이터 (기본 게시물)
+// Mock 데이터 (기본 게시물) - 모두 투표 종료 상태
 const mockPosts = [
   {
     id: '1',
@@ -13,6 +13,7 @@ const mockPosts = [
     content: '24살 대학생입니다. 현재 알바로 월에 50만원 정도 벌고 있는데, 몇 달 전부터 헤드셋이 계속 갖고 싶더라구요.. 운동하거나 공부할 때 ~~~',
     description: '24살 대학생입니다. 현재 알바로 월에 50만원 정도 벌고 있는데, 몇 달 전부터 헤드셋이 계속 갖고 싶더라구요.. 운동하거나 공부할 때 ~~~',
     voteCount: 1138,
+    timestamp: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(), // 3일 전 (투표 종료)
   },
   {
     id: '2',
@@ -21,14 +22,25 @@ const mockPosts = [
     content: '배달비 인상에 대한 여러분의 의견을 들려주세요. 소비자와 자영업자 모두 상생할 방법은 없을까요?',
     description: '배달비 인상에 대한 여러분의 의견을 들려주세요. 소비자와 자영업자 모두 상생할 방법은 없을까요?',
     voteCount: 2048,
+    timestamp: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(), // 2일 전 (투표 종료)
   },
 ];
 
 function HomePage() {
   const { user, userData, isLoading, logout } = useAuth();
-  const [selectedTab, setSelectedTab] = useState('재판 중');
+  const location = useLocation();
+  const [selectedTab, setSelectedTab] = useState((location.state as any)?.selectedTab || '재판 중');
   const [allPosts, setAllPosts] = useState(mockPosts);
   const navigate = useNavigate();
+
+  // location.state에서 탭 정보를 받아오면 탭 변경
+  useEffect(() => {
+    if ((location.state as any)?.selectedTab) {
+      setSelectedTab((location.state as any).selectedTab);
+      // state를 초기화하여 다시 뒤로가기 해도 계속 같은 탭이 선택되지 않도록
+      window.history.replaceState({}, document.title);
+    }
+  }, [location.state]);
 
   // localStorage에서 사용자가 작성한 게시물 불러오기
   useEffect(() => {
@@ -208,7 +220,7 @@ function HomePage() {
 
       <Spacing size={16} />
 
-      {/* 재판 중인 글 */}
+      {/* 게시글 목록 */}
       <div style={{ padding: '0 20px' }}>
         <Text 
           display="block" 
@@ -217,46 +229,183 @@ function HomePage() {
           fontWeight="bold"
           style={{ marginBottom: '16px' }}
         >
-          재판 중인 글
+          {selectedTab === 'HOT 게시판' ? 'HOT 게시판' : selectedTab === '재판 완료' ? '재판 완료된 글' : '재판 중인 글'}
         </Text>
         
         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-          {allPosts.map((post) => {
-            // 각 게시물의 투표 통계 가져오기
-            let voteCount = post.voteCount || 0;
-            let commentCount = 0;
-            
-            try {
-              const statsKey = `vote_stats_${post.id}`;
-              const savedStats = localStorage.getItem(statsKey);
-              if (savedStats) {
-                const stats = JSON.parse(savedStats);
-                voteCount = (stats.agree || 0) + (stats.disagree || 0);
+          {(() => {
+            // 각 게시물의 HOT 점수 계산 및 재판 완료 여부 확인
+            const postsWithScore = allPosts.map((post) => {
+              // 게시물 timestamp 가져오기
+              let postTimestamp = post.timestamp || new Date().toISOString();
+              
+              // 투표 시간 만료 여부 계산 (48시간)
+              const createdAt = new Date(postTimestamp).getTime();
+              const now = Date.now();
+              const votingPeriod = 48 * 60 * 60 * 1000; // 48시간
+              const endTime = createdAt + votingPeriod;
+              const isVotingExpired = now > endTime;
+              const completedDate = isVotingExpired ? new Date(endTime) : null;
+
+              // 각 게시물의 투표 통계 가져오기
+              let voteCount = post.voteCount || 0;
+              let agreeCount = 0;
+              let disagreeCount = 0;
+              let commentCount = 0;
+              
+              try {
+                const statsKey = `vote_stats_${post.id}`;
+                const savedStats = localStorage.getItem(statsKey);
+                if (savedStats) {
+                  const stats = JSON.parse(savedStats);
+                  agreeCount = stats.agree || 0;
+                  disagreeCount = stats.disagree || 0;
+                  voteCount = agreeCount + disagreeCount;
+                }
+
+                // 댓글 수 가져오기
+                const commentsKey = `comments_${post.id}`;
+                const savedComments = localStorage.getItem(commentsKey);
+                if (savedComments) {
+                  const comments = JSON.parse(savedComments);
+                  if (Array.isArray(comments)) {
+                    commentCount = comments.length;
+                    // 답글도 카운트
+                    comments.forEach(comment => {
+                      if (Array.isArray(comment.replies)) {
+                        commentCount += comment.replies.length;
+                      }
+                    });
+                  }
+                }
+              } catch (e) {
+                console.error('통계 로드 실패:', e);
               }
 
-              // 댓글 수 가져오기
-              const commentsKey = `comments_${post.id}`;
-              const savedComments = localStorage.getItem(commentsKey);
-              if (savedComments) {
-                const comments = JSON.parse(savedComments);
-                if (Array.isArray(comments)) {
-                  commentCount = comments.length;
-                  // 답글도 카운트
-                  comments.forEach(comment => {
-                    if (Array.isArray(comment.replies)) {
-                      commentCount += comment.replies.length;
-                    }
-                  });
-                }
-              }
-            } catch (e) {
-              console.error('통계 로드 실패:', e);
+              // HOT 점수 계산: 투표수 + 2*댓글수
+              const hotScore = voteCount + (2 * commentCount);
+
+              // 재판 결과 결정 (agree가 많으면 무죄, disagree가 많으면 유죄)
+              const verdict = voteCount > 0 
+                ? (agreeCount >= disagreeCount ? '무죄' : '유죄')
+                : null;
+
+              return {
+                ...post,
+                timestamp: postTimestamp,
+                voteCount,
+                agreeCount,
+                disagreeCount,
+                commentCount,
+                hotScore,
+                isVotingExpired,
+                completedDate: completedDate ? new Date(completedDate) : null,
+                verdict
+              };
+            });
+
+            // 탭별 게시물 필터링 및 정렬
+            let displayPosts = postsWithScore;
+            
+            if (selectedTab === 'HOT 게시판') {
+              // 재판 중인 게시물만 필터링하고 HOT 점수로 정렬, 상위 5개만 표시
+              displayPosts = postsWithScore
+                .filter(post => !post.isVotingExpired) // 재판 중인 게시물만
+                .sort((a, b) => b.hotScore - a.hotScore)
+                .slice(0, 5);
+            } else if (selectedTab === '재판 완료') {
+              // 투표 시간이 만료된 게시물만 필터링하고 완료일 최신순으로 정렬
+              displayPosts = postsWithScore
+                .filter(post => post.isVotingExpired)
+                .sort((a, b) => {
+                  const dateA = a.completedDate?.getTime() || 0;
+                  const dateB = b.completedDate?.getTime() || 0;
+                  return dateB - dateA; // 최신순
+                });
+            } else {
+              // 재판 중: 투표 시간이 아직 남은 게시물만 표시
+              displayPosts = postsWithScore.filter(post => !post.isVotingExpired);
             }
 
-            return (
+            return displayPosts.map((post, index) => {
+              // 재판 완료 탭일 경우 다른 레이아웃
+              if (selectedTab === '재판 완료') {
+                const formatDate = (date: Date | null) => {
+                  if (!date) return '';
+                  const year = date.getFullYear();
+                  const month = String(date.getMonth() + 1).padStart(2, '0');
+                  const day = String(date.getDate()).padStart(2, '0');
+                  return `${year}.${month}.${day}`;
+                };
+
+                return (
+                  <div 
+                    key={post.id}
+                    onClick={() => navigate(`/case/${post.id}`, { state: { fromTab: selectedTab } })}
+                    style={{ 
+                      backgroundColor: 'white', 
+                      padding: '16px', 
+                      borderRadius: '8px',
+                      border: '1px solid #e5e5e5',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '12px'
+                    }}
+                  >
+                    {/* 왼쪽: 무죄/유죄 배지 */}
+                    <div style={{
+                      padding: '8px 16px',
+                      backgroundColor: post.verdict === '무죄' ? '#E3F2FD' : '#FFEBEE',
+                      color: post.verdict === '무죄' ? '#1976D2' : '#D32F2F',
+                      fontSize: '14px',
+                      fontWeight: '600',
+                      borderRadius: '6px',
+                      whiteSpace: 'nowrap',
+                      minWidth: 'fit-content'
+                    }}>
+                      {post.verdict || '미결정'}
+                    </div>
+
+                    {/* 가운데: 날짜와 제목 */}
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      {/* 판결 완료 날짜 */}
+                      <div style={{ 
+                        fontSize: '12px', 
+                        color: adaptive.grey600,
+                        marginBottom: '4px'
+                      }}>
+                        {formatDate(post.completedDate)}
+                      </div>
+                      {/* 제목 */}
+                      <div style={{ 
+                        fontSize: '15px', 
+                        color: '#191F28',
+                        fontWeight: '500',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap'
+                      }}>
+                        {post.title}
+                      </div>
+                    </div>
+
+                    {/* 오른쪽: 화살표 아이콘 */}
+                    <Asset.Icon
+                      frameShape={Asset.frameShape.CleanW20}
+                      name="icon-arrow-right-mono"
+                      color="rgba(0, 19, 43, 0.38)"
+                      aria-label="자세히 보기"
+                    />
+                  </div>
+                );
+              }
+
+              // 재판 중 / HOT 게시판 레이아웃
+              return (
               <div 
                 key={post.id}
-                onClick={() => navigate(`/case/${post.id}`)}
+                onClick={() => navigate(`/case/${post.id}`, { state: { fromTab: selectedTab } })}
                 style={{ 
                   backgroundColor: 'white', 
                   padding: '16px', 
@@ -297,20 +446,29 @@ function HomePage() {
                 </Text>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <Text color={adaptive.grey600} typography="t8" fontWeight="regular">
-                    {voteCount.toLocaleString()}명 투표 중
+                    {post.voteCount.toLocaleString()}명 투표 중
                   </Text>
-                  {commentCount > 0 && (
+                  {post.commentCount > 0 && (
                     <>
                       <span style={{ color: adaptive.grey400 }}>•</span>
                       <Text color={adaptive.grey600} typography="t8" fontWeight="regular">
-                        댓글 {commentCount}
+                        댓글 {post.commentCount}
+                      </Text>
+                    </>
+                  )}
+                  {selectedTab === 'HOT 게시판' && (
+                    <>
+                      <span style={{ color: adaptive.grey400 }}>•</span>
+                      <Text color="#FF6B6B" typography="t8" fontWeight="semibold">
+                        🔥 TOP {index + 1}
                       </Text>
                     </>
                   )}
                 </div>
               </div>
-            );
-          })}
+              );
+            });
+          })()}
         </div>
       </div>
 
