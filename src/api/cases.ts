@@ -51,6 +51,20 @@ export interface CommentData {
 export interface CommentDocument extends CommentData {
   id: string;
   createdAt: Timestamp;
+  likes?: number;
+}
+
+export interface ReplyData {
+  authorId: string;
+  authorNickname: string;
+  content: string;
+  vote: VoteType;
+}
+
+export interface ReplyDocument extends ReplyData {
+  id: string;
+  createdAt: Timestamp;
+  likes?: number;
 }
 
 /**
@@ -263,6 +277,134 @@ export const addComment = async (caseId: string, commentData: CommentData): Prom
   const docRef = await addDoc(commentsCollection, {
     ...commentData,
     createdAt: serverTimestamp(),
+    likes: 0,
   });
   return docRef.id;
+};
+
+/**
+ * 댓글에 좋아요를 추가합니다.
+ * @param caseId - 고민 ID
+ * @param commentId - 댓글 ID
+ */
+export const addCommentLike = async (caseId: string, commentId: string): Promise<void> => {
+  if (!db) throw new Error('Firebase가 초기화되지 않았습니다.');
+  const commentRef = doc(db, 'cases', caseId, 'comments', commentId);
+  await updateDoc(commentRef, {
+    likes: increment(1),
+  });
+};
+
+/**
+ * 특정 댓글의 대댓글을 조회합니다.
+ * @param caseId - 고민 ID
+ * @param commentId - 댓글 ID
+ * @returns 대댓글 문서의 배열
+ */
+export const getReplies = async (caseId: string, commentId: string): Promise<ReplyDocument[]> => {
+  if (!db) throw new Error('Firebase가 초기화되지 않았습니다.');
+  const repliesCollection = collection(db, 'cases', caseId, 'comments', commentId, 'replies');
+  const q = query(repliesCollection, orderBy('createdAt', 'asc'));
+  const querySnapshot = await getDocs(q);
+  return querySnapshot.docs.map(doc => ({
+    id: doc.id,
+    ...doc.data(),
+  } as ReplyDocument));
+};
+
+/**
+ * 댓글에 대댓글을 추가합니다.
+ * @param caseId - 고민 ID
+ * @param commentId - 댓글 ID
+ * @param replyData - 대댓글 데이터
+ * @returns 생성된 대댓글의 ID
+ */
+export const addReply = async (caseId: string, commentId: string, replyData: ReplyData): Promise<string> => {
+  if (!db) throw new Error('Firebase가 초기화되지 않았습니다.');
+  const repliesCollection = collection(db, 'cases', caseId, 'comments', commentId, 'replies');
+  const docRef = await addDoc(repliesCollection, {
+    ...replyData,
+    createdAt: serverTimestamp(),
+    likes: 0,
+  });
+  return docRef.id;
+};
+
+/**
+ * 댓글을 수정합니다.
+ * @param caseId - 고민 ID
+ * @param commentId - 댓글 ID
+ * @param content - 수정할 내용
+ */
+export const updateComment = async (caseId: string, commentId: string, content: string): Promise<void> => {
+  if (!db) throw new Error('Firebase가 초기화되지 않았습니다.');
+  const commentRef = doc(db, 'cases', caseId, 'comments', commentId);
+  await updateDoc(commentRef, {
+    content,
+  });
+};
+
+/**
+ * 댓글을 삭제합니다.
+ * @param caseId - 고민 ID
+ * @param commentId - 댓글 ID
+ */
+export const deleteComment = async (caseId: string, commentId: string): Promise<void> => {
+  if (!db) throw new Error('Firebase가 초기화되지 않았습니다.');
+  const commentRef = doc(db, 'cases', caseId, 'comments', commentId);
+  await deleteDoc(commentRef);
+};
+
+/**
+ * 대댓글을 수정합니다.
+ * @param caseId - 고민 ID
+ * @param commentId - 댓글 ID
+ * @param replyId - 대댓글 ID
+ * @param content - 수정할 내용
+ */
+export const updateReply = async (caseId: string, commentId: string, replyId: string, content: string): Promise<void> => {
+  if (!db) throw new Error('Firebase가 초기화되지 않았습니다.');
+  const replyRef = doc(db, 'cases', caseId, 'comments', commentId, 'replies', replyId);
+  await updateDoc(replyRef, {
+    content,
+  });
+};
+
+/**
+ * 대댓글을 삭제합니다.
+ * @param caseId - 고민 ID
+ * @param commentId - 댓글 ID
+ * @param replyId - 대댓글 ID
+ */
+export const deleteReply = async (caseId: string, commentId: string, replyId: string): Promise<void> => {
+  if (!db) throw new Error('Firebase가 초기화되지 않았습니다.');
+  const replyRef = doc(db, 'cases', caseId, 'comments', commentId, 'replies', replyId);
+  await deleteDoc(replyRef);
+};
+
+/**
+ * 특정 고민의 총 댓글 개수(대댓글 포함)를 조회합니다.
+ * @param caseId - 고민 ID
+ * @returns 총 댓글 및 대댓글 개수
+ */
+export const getCommentCount = async (caseId: string): Promise<number> => {
+  if (!db) throw new Error('Firebase가 초기화되지 않았습니다.');
+  try {
+    const commentsCollection = collection(db, 'cases', caseId, 'comments');
+    const commentsSnapshot = await getDocs(commentsCollection);
+    
+    let totalCount = commentsSnapshot.size;
+    
+    // 각 댓글의 대댓글 개수 합산
+    for (const commentDoc of commentsSnapshot.docs) {
+      const repliesCollection = collection(db, 'cases', caseId, 'comments', commentDoc.id, 'replies');
+      const repliesSnapshot = await getDocs(repliesCollection);
+      totalCount += repliesSnapshot.size;
+    }
+    
+    return totalCount;
+  } catch (error) {
+    console.error('댓글 개수 조회 실패:', error);
+    return 0;
+  }
 };
