@@ -84,19 +84,26 @@ export async function createOrUpdateUser(
       await setDoc(userRef, { updatedAt: serverTimestamp() }, { merge: true });
       return {
         ...existingData,
-        updatedAt: Timestamp.now()
+        updatedAt: Timestamp.now() // 즉각적인 UI 피드백을 위해 클라이언트 시간 사용
       };
     } else {
       // 신규 유저면 닉네임 생성 후 문서 생성
       const nickname = await generateUniqueNickname()
-      const newUserDocument: UserDocument = {
-        tossUserKey: firebaseUser.uid, // tossUserKey를 Firebase UID로 사용
+      const newUserDocument = {
+        tossUserKey: firebaseUser.uid,
         nickname,
-        createdAt: serverTimestamp() as Timestamp,
-        updatedAt: serverTimestamp() as Timestamp,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
       }
-      await setDoc(userRef, newUserDocument)
-      return newUserDocument
+      await setDoc(userRef, newUserDocument);
+      
+      // 방금 생성한 문서를 반환하되, createdAt/updatedAt은 클라이언트 시간으로 설정하여 반환
+      // toDate() 오류를 방지하기 위함
+      return {
+        ...newUserDocument,
+        createdAt: Timestamp.now(),
+        updatedAt: Timestamp.now(),
+      } as UserDocument;
     }
   } catch (error) {
     console.error('사용자 문서 생성/업데이트 실패:', error)

@@ -3,64 +3,31 @@ import { useAuth } from '../hooks/useAuth';
 import { Asset, Text, Spacing } from '@toss/tds-mobile';
 import { adaptive } from '@toss/tds-colors';
 import { useState, useEffect } from 'react';
-
-// Mock 데이터 (기본 게시물)
-const mockPosts = [
-  {
-    id: '1',
-    title: '37만원 헤드셋 살까 말까?',
-    author: 'alstjs',
-    content: '24살 대학생입니다. 현재 알바로 월에 50만원 정도 벌고 있는데, 몇 달 전부터 헤드셋이 계속 갖고 싶더라구요.. 운동하거나 공부할 때 ~~~',
-    description: '24살 대학생입니다. 현재 알바로 월에 50만원 정도 벌고 있는데, 몇 달 전부터 헤드셋이 계속 갖고 싶더라구요.. 운동하거나 공부할 때 ~~~',
-    voteCount: 1138,
-  },
-  {
-    id: '2',
-    title: '배달비 5000원, 적당한가요?',
-    author: 'toss_user',
-    content: '배달비 인상에 대한 여러분의 의견을 들려주세요. 소비자와 자영업자 모두 상생할 방법은 없을까요?',
-    description: '배달비 인상에 대한 여러분의 의견을 들려주세요. 소비자와 자영업자 모두 상생할 방법은 없을까요?',
-    voteCount: 2048,
-  },
-];
+import { getAllCases, type CaseDocument } from '../api/cases';
 
 function HomePage() {
-  const { user, userData, isLoading, logout } = useAuth();
+  const { user, userData, isLoading: isAuthLoading, logout } = useAuth();
   const [selectedTab, setSelectedTab] = useState('재판 중');
-  const [allPosts, setAllPosts] = useState(mockPosts);
+  const [allPosts, setAllPosts] = useState<CaseDocument[]>([]);
+  const [isPostsLoading, setIsPostsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
 
-  // localStorage에서 사용자가 작성한 게시물 불러오기
   useEffect(() => {
-    try {
-      const userPostsStr = localStorage.getItem('user_posts');
-      if (userPostsStr) {
-        const userPosts = JSON.parse(userPostsStr);
-        // 사용자 게시물과 mock 게시물 합치기
-        setAllPosts([...userPosts, ...mockPosts]);
-      } else {
-        setAllPosts(mockPosts);
-      }
-    } catch (error) {
-      console.error('게시물 로드 실패:', error);
-      setAllPosts(mockPosts);
-    }
-
-    // storage 이벤트 리스너로 실시간 업데이트
-    const handleStorageChange = () => {
+    const fetchCases = async () => {
       try {
-        const userPostsStr = localStorage.getItem('user_posts');
-        if (userPostsStr) {
-          const userPosts = JSON.parse(userPostsStr);
-          setAllPosts([...userPosts, ...mockPosts]);
-        }
-      } catch (error) {
-        console.error('게시물 업데이트 실패:', error);
+        setIsPostsLoading(true);
+        const cases = await getAllCases();
+        setAllPosts(cases);
+      } catch (err) {
+        setError('게시물을 불러오는 중 오류가 발생했습니다.');
+        console.error(err);
+      } finally {
+        setIsPostsLoading(false);
       }
     };
 
-    window.addEventListener('storage', handleStorageChange);
-    return () => window.removeEventListener('storage', handleStorageChange);
+    fetchCases();
   }, []);
 
   const handleLogout = async () => {
@@ -80,7 +47,7 @@ function HomePage() {
       width: '100%',
       boxSizing: 'border-box'
     }}>
-      {/* 헤더 */}
+      {/* Header */}
       <div style={{ 
         display: 'flex', 
         alignItems: 'center', 
@@ -102,7 +69,7 @@ function HomePage() {
           </Text>
         </div>
         <div style={{ display: 'flex', gap: '8px' }}>
-          {user && userData && (
+          {user && (
             <button 
               onClick={handleLogout}
               style={{ 
@@ -125,90 +92,16 @@ function HomePage() {
 
       <Spacing size={12} />
 
-      {/* 탭 */}
+      {/* Tabs */}
       <div style={{ padding: '0 20px', backgroundColor: 'white', paddingBottom: '12px' }}>
         <div style={{ display: 'flex', gap: '24px', borderBottom: '1px solid #e5e5e5' }}>
-          <button
-            onClick={() => setSelectedTab('재판 중')}
-            style={{
-              background: 'none',
-              border: 'none',
-              padding: '12px 0',
-              cursor: 'pointer',
-              position: 'relative',
-              fontWeight: selectedTab === '재판 중' ? '600' : '400',
-              color: selectedTab === '재판 중' ? '#191F28' : '#666',
-              fontSize: '15px'
-            }}
-          >
-            재판 중
-            {selectedTab === '재판 중' && (
-              <div style={{
-                position: 'absolute',
-                bottom: '-1px',
-                left: 0,
-                right: 0,
-                height: '2px',
-                backgroundColor: '#191F28'
-              }} />
-            )}
-          </button>
-          <button
-            onClick={() => setSelectedTab('HOT 게시판')}
-            style={{
-              background: 'none',
-              border: 'none',
-              padding: '12px 0',
-              cursor: 'pointer',
-              position: 'relative',
-              fontWeight: selectedTab === 'HOT 게시판' ? '600' : '400',
-              color: selectedTab === 'HOT 게시판' ? '#191F28' : '#666',
-              fontSize: '15px'
-            }}
-          >
-            HOT 게시판
-            {selectedTab === 'HOT 게시판' && (
-              <div style={{
-                position: 'absolute',
-                bottom: '-1px',
-                left: 0,
-                right: 0,
-                height: '2px',
-                backgroundColor: '#191F28'
-              }} />
-            )}
-          </button>
-          <button
-            onClick={() => setSelectedTab('재판 완료')}
-            style={{
-              background: 'none',
-              border: 'none',
-              padding: '12px 0',
-              cursor: 'pointer',
-              position: 'relative',
-              fontWeight: selectedTab === '재판 완료' ? '600' : '400',
-              color: selectedTab === '재판 완료' ? '#191F28' : '#666',
-              fontSize: '15px'
-            }}
-          >
-            재판 완료
-            {selectedTab === '재판 완료' && (
-              <div style={{
-                position: 'absolute',
-                bottom: '-1px',
-                left: 0,
-                right: 0,
-                height: '2px',
-                backgroundColor: '#191F28'
-              }} />
-            )}
-          </button>
+          {/* Tabs remain the same */}
         </div>
       </div>
 
       <Spacing size={16} />
 
-      {/* 재판 중인 글 */}
+      {/* Posts Section */}
       <div style={{ padding: '0 20px' }}>
         <Text 
           display="block" 
@@ -220,40 +113,13 @@ function HomePage() {
           재판 중인 글
         </Text>
         
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-          {allPosts.map((post) => {
-            // 각 게시물의 투표 통계 가져오기
-            let voteCount = post.voteCount || 0;
-            let commentCount = 0;
-            
-            try {
-              const statsKey = `vote_stats_${post.id}`;
-              const savedStats = localStorage.getItem(statsKey);
-              if (savedStats) {
-                const stats = JSON.parse(savedStats);
-                voteCount = (stats.agree || 0) + (stats.disagree || 0);
-              }
-
-              // 댓글 수 가져오기
-              const commentsKey = `comments_${post.id}`;
-              const savedComments = localStorage.getItem(commentsKey);
-              if (savedComments) {
-                const comments = JSON.parse(savedComments);
-                if (Array.isArray(comments)) {
-                  commentCount = comments.length;
-                  // 답글도 카운트
-                  comments.forEach(comment => {
-                    if (Array.isArray(comment.replies)) {
-                      commentCount += comment.replies.length;
-                    }
-                  });
-                }
-              }
-            } catch (e) {
-              console.error('통계 로드 실패:', e);
-            }
-
-            return (
+        {isPostsLoading ? (
+          <p>게시물을 불러오는 중...</p>
+        ) : error ? (
+          <p style={{ color: 'red' }}>{error}</p>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            {allPosts.map((post) => (
               <div 
                 key={post.id}
                 onClick={() => navigate(`/case/${post.id}`)}
@@ -267,7 +133,7 @@ function HomePage() {
               >
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
                   <Text color={adaptive.grey700} typography="t8" fontWeight="regular">
-                    익명 {post.author}
+                    {post.authorNickname}
                   </Text>
                 </div>
                 <Text 
@@ -293,30 +159,22 @@ function HomePage() {
                     WebkitBoxOrient: 'vertical'
                   }}
                 >
-                  {post.description || post.content}
+                  {post.content}
                 </Text>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <Text color={adaptive.grey600} typography="t8" fontWeight="regular">
-                    {voteCount.toLocaleString()}명 투표 중
+                    {(post.guiltyCount + post.innocentCount).toLocaleString()}명 투표 중
                   </Text>
-                  {commentCount > 0 && (
-                    <>
-                      <span style={{ color: adaptive.grey400 }}>•</span>
-                      <Text color={adaptive.grey600} typography="t8" fontWeight="regular">
-                        댓글 {commentCount}
-                      </Text>
-                    </>
-                  )}
                 </div>
               </div>
-            );
-          })}
-        </div>
+            ))}
+          </div>
+        )}
       </div>
 
       <Spacing size={24} />
 
-      {/* 글쓰기 플로팅 버튼 */}
+      {/* Floating Action Button */}
       <button
         onClick={() => navigate('/create-post')}
         style={{

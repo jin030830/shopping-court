@@ -5,9 +5,25 @@ import https from 'https';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { createRequire } from 'module';
 import dotenv from 'dotenv';
+import admin from 'firebase-admin';
+
+// Load service account key using createRequire for broader compatibility
+const require = createRequire(import.meta.url);
+const serviceAccount = require('./serviceAccountKey.json');
 
 dotenv.config();
+
+// Initialize Firebase Admin SDK
+try {
+  admin.initializeApp({
+    credential: admin.credential.cert(serviceAccount)
+  });
+  console.log('✅ Firebase Admin SDK 초기화 성공');
+} catch (error) {
+  console.error('❌ Firebase Admin SDK 초기화 실패:', error);
+}
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -96,96 +112,67 @@ app.post('/api/auth/toss-login', async (req, res) => {
       referrer 
     });
 
-    // 테스트 모드 설정
-    // httpsAgent가 없으면 자동으로 테스트 모드 활성화
     const TEST_MODE = !httpsAgent || process.env.TEST_MODE === 'true';
     
+    let userKey;
+
     if (TEST_MODE) {
       console.log('📝 테스트 모드: 실제 토스 앱 로그인 시뮬레이션');
-      console.log('   - authorizationCode 받음:', authorizationCode.substring(0, 20) + '...');
-      
-      // authorizationCode가 있으면 실제 로그인처럼 보이도록 처리
-      const testUser = {
-        userKey: `toss-${authorizationCode.substring(0, 10)}`,
-        nickname: `배심원${Math.floor(Math.random() * 10000)}`,
-      };
-      
-      console.log('✅ 가상 사용자 생성:', testUser);
-      
-      // 토스 API 공통 응답 형식 (https://developers-apps-in-toss.toss.im/api/overview.html)
-      return res.json({
-        resultType: 'SUCCESS',
-        success: testUser,
-      });
-    }
+      userKey = `toss-test-${authorizationCode.substring(0, 10)}`;
+      console.log('✅ 가상 사용자 userKey 생성:', userKey);
+    } else {
+      // 실제 모드: 토스 API 호출
+      const authApiBase = process.env.TOSS_AUTH_API_BASE || 'https://apps-in-toss-api.toss.im';
+      const clientId = process.env.TOSS_CLIENT_ID || 'shopping-court';
 
-    // 실제 모드: 토스 API 호출
-    const authApiBase = process.env.TOSS_AUTH_API_BASE || 'https://apps-in-toss-api.toss.im';
-    const clientId = process.env.TOSS_CLIENT_ID || 'shopping-court';
-
-    // 1. Access Token 받기
-    console.log('1️⃣ Access Token 요청 시작...');
-    console.log('   - API Base:', authApiBase);
-    console.log('   - Client ID:', clientId);
-    console.log('   - Authorization Code:', authorizationCode.substring(0, 20) + '...');
-    
-    const tokenResponse = await axios.post(
-      `${authApiBase}/generate-token`,
-      {
-        authorizationCode, // 'code' 대신 'authorizationCode' 사용
-        referrer,
-      },
-      {
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Client-Id': clientId,
-        },
-        httpsAgent,
-        timeout: 10000,
+      console.log('1️⃣ Access Token 요청 시작...');
+      const tokenResponse = await axios.post(
+        `${authApiBase}/generate-token`,
+        { authorizationCode, referrer },
+        {
+          headers: { 'Content-Type': 'application/json', 'X-Client-Id': clientId },
+          httpsAgent,
+          timeout: 10000,
+        }
+      );
+      
+      const accessToken = tokenResponse.data.success?.accessToken || tokenResponse.data.accessToken;
+      if (!accessToken) {
+        throw new Error('Access Token을 받지 못했습니다.');
       }
-    );
+      console.log('✅ Access Token 받기 성공');
 
-    console.log('   토스 API 응답:', JSON.stringify(tokenResponse.data, null, 2));
+      console.log('2️⃣ 사용자 정보 요청 시작...');
+      const userInfoResponse = await axios.get(
+        `${authApiBase}/login-me`,
+        {
+          headers: { Authorization: `Bearer ${accessToken}` },
+          httpsAgent,
+          timeout: 10000,
+        }
+      );
 
-    const accessToken = tokenResponse.data.success?.accessToken || tokenResponse.data.accessToken;
-    if (!accessToken) {
-      console.error('❌ Access Token이 응답에 없습니다:', tokenResponse.data);
-      throw new Error('Access Token을 받지 못했습니다.');
-    }
-
-    console.log('✅ Access Token 받기 성공');
-
-    // 2. 사용자 정보 받기
-    console.log('2️⃣ 사용자 정보 요청 시작...');
-    const userInfoResponse = await axios.get(
-      `${authApiBase}/login-me`,
-      {
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-        },
-        httpsAgent,
-        timeout: 10000,
+      const userInfo = userInfoResponse.data.success || userInfoResponse.data;
+      if (!userInfo.userKey) {
+        throw new Error('사용자 정보를 받지 못했습니다.');
       }
-    );
-
-    console.log('   사용자 정보 응답:', JSON.stringify(userInfoResponse.data, null, 2));
-
-    const userInfo = userInfoResponse.data.success || userInfoResponse.data;
-    if (!userInfo.userKey) {
-      console.error('❌ userKey가 응답에 없습니다:', userInfoResponse.data);
-      throw new Error('사용자 정보를 받지 못했습니다.');
+      userKey = userInfo.userKey;
+      console.log('✅ 사용자 정보 받기 성공:', userKey);
     }
-    
-    console.log('✅ 사용자 정보 받기 성공:', userInfo.userKey);
 
-    // 3. 응답 (토스 API 공통 응답 형식)
+    // Firebase 커스텀 토큰 생성
+    console.log('3️⃣ Firebase 커스텀 토큰 생성 시작 (uid:', userKey, ')');
+    const customToken = await admin.auth().createCustomToken(userKey);
+    console.log('✅ Firebase 커스텀 토큰 생성 성공');
+
+    // 응답
     res.json({
       resultType: 'SUCCESS',
       success: {
-        userKey: userInfo.userKey,
-        nickname: `배심원${Math.floor(Math.random() * 10000)}`,
+        customToken: customToken,
       },
     });
+
   } catch (error) {
     console.error('❌ 토스 로그인 실패:', error.message);
     if (axios.isAxiosError(error)) {
@@ -207,11 +194,11 @@ app.get('/health', (req, res) => {
   res.json({ status: 'ok', message: '서버가 정상 작동 중입니다.' });
 });
 
-app.listen(PORT, '127.0.0.1', () => {
+app.listen(PORT, '0.0.0.0', () => {
   console.log(`
 🚀 Shopping Court Backend Server
 📍 Port: ${PORT}
-🔗 Health Check: http://127.0.0.1:${PORT}/health
-🔐 Auth Endpoint: http://127.0.0.1:${PORT}/api/auth/toss-login
+🔗 Health Check: http://localhost:${PORT}/health
+🔐 Auth Endpoint: http://localhost:${PORT}/api/auth/toss-login
   `);
 });
