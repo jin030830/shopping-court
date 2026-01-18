@@ -276,8 +276,8 @@ export const addComment = async (caseId: string, commentData: CommentData): Prom
   const commentsCollection = collection(db, 'cases', caseId, 'comments');
   const docRef = await addDoc(commentsCollection, {
     ...commentData,
-    createdAt: serverTimestamp(),
     likes: 0,
+    createdAt: serverTimestamp(),
   });
   return docRef.id;
 };
@@ -291,6 +291,20 @@ export const addCommentLike = async (caseId: string, commentId: string): Promise
   if (!db) throw new Error('Firebase가 초기화되지 않았습니다.');
   const commentRef = doc(db, 'cases', caseId, 'comments', commentId);
   await updateDoc(commentRef, {
+    likes: increment(1),
+  });
+};
+
+/**
+ * 답글에 좋아요를 추가합니다.
+ * @param caseId - 고민 ID
+ * @param commentId - 댓글 ID
+ * @param replyId - 답글 ID
+ */
+export const addReplyLike = async (caseId: string, commentId: string, replyId: string): Promise<void> => {
+  if (!db) throw new Error('Firebase가 초기화되지 않았습니다.');
+  const replyRef = doc(db, 'cases', caseId, 'comments', commentId, 'replies', replyId);
+  await updateDoc(replyRef, {
     likes: increment(1),
   });
 };
@@ -324,8 +338,8 @@ export const addReply = async (caseId: string, commentId: string, replyData: Rep
   const repliesCollection = collection(db, 'cases', caseId, 'comments', commentId, 'replies');
   const docRef = await addDoc(repliesCollection, {
     ...replyData,
-    createdAt: serverTimestamp(),
     likes: 0,
+    createdAt: serverTimestamp(),
   });
   return docRef.id;
 };
