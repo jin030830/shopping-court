@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import './TermsPage.css';
-import { getCustomTokenFromServer, loginWithToss } from '../api/auth';
+import { getCustomTokenFromServer, loginWithToss, signInToFirebase } from '../api/auth';
+import { createOrUpdateUser } from '../api/user';
 
 
 function TermsPage() {
@@ -39,61 +40,52 @@ function TermsPage() {
       return;
     }
     
-    // 에러 상태 초기화
     setError(null);
     setIsLoading(true);
     
     try {
       console.log('📱 1단계: 토스 앱 로그인 시작...');
-      console.log('💡 토스 앱에서 로그인 알림을 확인해주세요!');
-      
-      // 토스 앱 로그인 실행 (토스 앱이 열리고 사용자 승인 대기)
       const tossResult = await loginWithToss();
-      
       console.log('✅ 2단계: 토스 로그인 완료!');
-      console.log('🔐 authorizationCode:', tossResult.authorizationCode ? '받음' : '없음');
       
-      // 백엔드 서버로 authorizationCode 전송
-      console.log('🌐 3단계: 서버 인증 시작...');
-      const serverResponse = await getCustomTokenFromServer(
+      console.log('🌐 3단계: 서버에서 커스텀 토큰 요청...');
+      const authData = await getCustomTokenFromServer(
         tossResult.authorizationCode,
         tossResult.referrer
       );
+      console.log('✅ 4단계: 서버로부터 커스텀 토큰 수신 완료');
+
+      console.log('🔥 5단계: Firebase 로그인 시작...');
+      const firebaseUser = await signInToFirebase(authData.customToken);
+      console.log('✅ 6단계: Firebase 로그인 성공! UID:', firebaseUser.uid);
+
+      console.log('👤 7단계: Firestore에서 사용자 정보 가져오기/생성...');
+      const userDocument = await createOrUpdateUser(firebaseUser);
+      console.log('✅ 8단계: 사용자 정보 확인:', userDocument.nickname);
       
-      console.log('✅ 4단계: 서버 인증 완료!');
-      console.log('👤 사용자 정보:', serverResponse);
-      
-      // localStorage에 로그인 정보 저장
+      // localStorage에 실제 Firebase 사용자 정보 저장
       const userData = {
-        uid: `toss-${serverResponse.userKey}`,
-        userKey: serverResponse.userKey,
-        nickname: serverResponse.nickname,
-        createdAt: new Date().toISOString(),
+        uid: firebaseUser.uid,
+        nickname: userDocument.nickname, // Firestore에서 받은 닉네임 사용
+        createdAt: userDocument.createdAt?.toDate().toISOString() || new Date().toISOString(),
         isLoggedIn: true,
       };
       
       localStorage.setItem('shopping-court-user', JSON.stringify(userData));
       localStorage.setItem('shopping-court-logged-in', 'true');
       
-      console.log('💾 5단계: 로그인 상태 저장 완료!');
+      console.log('💾 9단계: 로그인 상태 저장 완료!');
       console.log('🎉 로그인 성공:', userData.nickname);
-      console.log('📦 저장된 데이터:', localStorage.getItem('shopping-court-user'));
-      console.log('📦 로그인 플래그:', localStorage.getItem('shopping-court-logged-in'));
       
-      // localStorage 변경 이벤트 강제 발생
       window.dispatchEvent(new Event('storage'));
       
-      // 인증 성공 후 원래 페이지로 돌아가기
       const from = location.state?.from?.pathname || '/';
       console.log('🔙 원래 페이지로 이동:', from);
       
-      // 로그인 상태가 반영될 시간 제공
       setTimeout(() => {
-        console.log('🚀 페이지 이동 시작...');
         navigate(from, { replace: true });
         setIsLoading(false);
         
-        // 페이지 새로고침으로 상태 완전히 반영
         setTimeout(() => {
           window.location.href = from;
         }, 100);
@@ -102,7 +94,6 @@ function TermsPage() {
       const errorMessage = err instanceof Error ? err.message : '로그인에 실패했습니다.';
       setError(errorMessage);
       console.error('❌ 로그인 실패:', err);
-      // 에러 발생 시 로딩 상태 해제 (사용자가 다시 시도할 수 있도록)
       setIsLoading(false);
     }
   };

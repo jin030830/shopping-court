@@ -1,17 +1,18 @@
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useState, useEffect } from 'react';
-import { Asset, Text, Spacing } from '@toss/tds-mobile';
+import { Asset, Text } from '@toss/tds-mobile';
 import { adaptive } from '@toss/tds-colors';
 import { useAuth } from '../hooks/useAuth';
+import { createCase, type CaseData } from '../api/cases';
 
 function CreatePostPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const { user, userData, isLoading } = useAuth();
+  
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
 
-  // 로그인 체크
   useEffect(() => {
     if (!isLoading && (!user || !userData)) {
       alert('로그인이 필요합니다.');
@@ -19,46 +20,32 @@ function CreatePostPage() {
     }
   }, [isLoading, user, userData, navigate, location]);
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!user || !userData) {
       alert('로그인이 필요합니다.');
       navigate('/terms', { state: { from: location } });
       return;
     }
 
-    if (!title.trim()) {
-      alert('제목을 입력해주세요.');
+    if (!title.trim() || !content.trim()) {
+      alert('제목과 내용을 모두 입력해주세요.');
       return;
     }
 
-    if (!content.trim()) {
-      alert('내용을 입력해주세요.');
-      return;
-    }
+    const caseData: CaseData = {
+      title: title.trim(),
+      content: content.trim(),
+      authorId: user.uid,
+      authorNickname: userData.nickname,
+    };
 
-    // localStorage에 게시물 저장
     try {
-      const existingPosts = localStorage.getItem('user_posts');
-      const posts = existingPosts ? JSON.parse(existingPosts) : [];
-      
-      const newPost = {
-        id: `post_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-        title: title.trim(),
-        author: userData.nickname,
-        authorId: user.uid,
-        content: content.trim(),
-        timestamp: new Date().toISOString(),
-        voteCount: 0
-      };
-
-      posts.unshift(newPost); // 맨 앞에 추가
-      localStorage.setItem('user_posts', JSON.stringify(posts));
-
-      alert('게시물이 작성되었습니다!');
+      await createCase(caseData);
+      alert('고민이 등록되었습니다!');
       navigate('/');
     } catch (error) {
-      console.error('게시물 저장 실패:', error);
-      alert('게시물 저장에 실패했습니다.');
+      console.error('고민 등록 실패:', error);
+      alert('고민을 등록하는 데 실패했습니다. 다시 시도해주세요.');
     }
   };
 
@@ -71,7 +58,7 @@ function CreatePostPage() {
       width: '100%',
       boxSizing: 'border-box'
     }}>
-      {/* 헤더 */}
+      {/* Header */}
       <div style={{ 
         display: 'flex', 
         alignItems: 'center', 
@@ -117,7 +104,7 @@ function CreatePostPage() {
         <div style={{ width: '32px' }} />
       </div>
 
-      {/* 컨텐츠 영역 - 스크롤 가능 */}
+      {/* Content Area */}
       <div style={{ 
         flex: 1, 
         overflowY: 'auto',
@@ -135,7 +122,7 @@ function CreatePostPage() {
           직접 고민을 적어보세요!
         </Text>
 
-        {/* 제목 입력 */}
+        {/* Title Input */}
         <div style={{ marginBottom: '20px' }}>
           <Text 
             display="block" 
@@ -171,7 +158,7 @@ function CreatePostPage() {
           />
         </div>
 
-        {/* 내용 입력 */}
+        {/* Content Input */}
         <div style={{ marginBottom: '20px' }}>
           <Text 
             display="block" 
@@ -209,7 +196,7 @@ function CreatePostPage() {
         </div>
       </div>
 
-      {/* 하단 고정 버튼 */}
+      {/* Fixed Bottom Button */}
       <div style={{
         position: 'fixed',
         bottom: 0,
