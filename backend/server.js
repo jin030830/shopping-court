@@ -9,24 +9,42 @@ import { createRequire } from 'module';
 import dotenv from 'dotenv';
 import admin from 'firebase-admin';
 
-// Load service account key using createRequire for broader compatibility
-const require = createRequire(import.meta.url);
-const serviceAccount = require('./serviceAccountKey.json');
-
 dotenv.config();
-
-// Initialize Firebase Admin SDK
-try {
-  admin.initializeApp({
-    credential: admin.credential.cert(serviceAccount)
-  });
-  console.log('✅ Firebase Admin SDK 초기화 성공');
-} catch (error) {
-  console.error('❌ Firebase Admin SDK 초기화 실패:', error);
-}
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
+// Load service account key if it exists
+let serviceAccount = null;
+const require = createRequire(import.meta.url);
+const serviceAccountPath = path.join(__dirname, 'serviceAccountKey.json');
+
+try {
+  if (fs.existsSync(serviceAccountPath)) {
+    serviceAccount = require('./serviceAccountKey.json');
+    console.log('✅ serviceAccountKey.json 파일 로드 성공');
+  } else {
+    console.warn('⚠️  serviceAccountKey.json 파일을 찾을 수 없습니다.');
+    console.warn('📝 TEST_MODE에서는 Firebase Admin SDK를 초기화하지 않습니다.');
+  }
+} catch (error) {
+  console.warn('⚠️  serviceAccountKey.json 로드 실패:', error.message);
+}
+
+// Initialize Firebase Admin SDK
+if (serviceAccount) {
+  try {
+    admin.initializeApp({
+      credential: admin.credential.cert(serviceAccount)
+    });
+    console.log('✅ Firebase Admin SDK 초기화 성공');
+  } catch (error) {
+    console.error('❌ Firebase Admin SDK 초기화 실패:', error);
+  }
+} else {
+  console.warn('⚠️  Firebase Admin SDK가 초기화되지 않았습니다.');
+  console.warn('📝 Firebase 기능은 제한될 수 있습니다.');
+}
 
 const app = express();
 const PORT = process.env.PORT || 8080;
@@ -161,9 +179,17 @@ app.post('/api/auth/toss-login', async (req, res) => {
     }
 
     // Firebase 커스텀 토큰 생성
-    console.log('3️⃣ Firebase 커스텀 토큰 생성 시작 (uid:', userKey, ')');
-    const customToken = await admin.auth().createCustomToken(userKey);
-    console.log('✅ Firebase 커스텀 토큰 생성 성공');
+    let customToken;
+    if (serviceAccount && admin.apps.length > 0) {
+      console.log('3️⃣ Firebase 커스텀 토큰 생성 시작 (uid:', userKey, ')');
+      customToken = await admin.auth().createCustomToken(userKey);
+      console.log('✅ Firebase 커스텀 토큰 생성 성공');
+    } else {
+      console.warn('⚠️  Firebase Admin SDK가 초기화되지 않았습니다.');
+      console.warn('📝 TEST_MODE: 가상 토큰 생성');
+      customToken = `test-token-${userKey}-${Date.now()}`;
+      console.warn('⚠️  실제 Firebase 토큰이 아닙니다. 프론트엔드에서 인증이 실패할 수 있습니다.');
+    }
 
     // 응답
     res.json({
