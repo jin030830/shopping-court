@@ -460,6 +460,55 @@ function CaseDetailPage() {
     setShowMenuFor(null);
   };
 
+  const handleEditReply = async (commentId: string, replyId: string) => {
+    if (!id || !editReplyContent.trim()) {
+      alert('답글 내용을 입력해주세요!');
+      return;
+    }
+
+    try {
+      await updateReply(id, commentId, replyId, editReplyContent);
+
+      // 댓글 다시 로딩
+      const commentsData = await getComments(id);
+      const commentsWithReplies: CommentWithReplies[] = await Promise.all(
+        commentsData.map(async (comment) => {
+          const replies = await getReplies(id, comment.id);
+          return { ...comment, replies };
+        })
+      );
+      setComments(commentsWithReplies);
+      setEditingReply(null);
+      setEditReplyContent('');
+    } catch (error) {
+      console.error('답글 수정 실패:', error);
+      alert('답글 수정에 실패했습니다.');
+    }
+  };
+
+  const handleDeleteReply = async (commentId: string, replyId: string) => {
+    if (!id || !window.confirm('답글을 삭제하시겠습니까?')) {
+      return;
+    }
+
+    try {
+      await deleteReply(id, commentId, replyId);
+
+      // 댓글 다시 로딩
+      const commentsData = await getComments(id);
+      const commentsWithReplies: CommentWithReplies[] = await Promise.all(
+        commentsData.map(async (comment) => {
+          const replies = await getReplies(id, comment.id);
+          return { ...comment, replies };
+        })
+      );
+      setComments(commentsWithReplies);
+    } catch (error) {
+      console.error('답글 삭제 실패:', error);
+      alert('답글 삭제에 실패했습니다.');
+    }
+  };
+
   // 댓글 정렬
   const sortedComments = [...comments].sort((a, b) => {
     if (sortBy === 'latest') {
@@ -648,7 +697,7 @@ function CaseDetailPage() {
               aria-hidden={true}
             />
             <span style={{ color: '#666', fontSize: '13px' }}>
-              익명 {post.authorNickname} 님
+              {post.authorNickname} 님
             </span>
           </div>
 
@@ -835,7 +884,7 @@ function CaseDetailPage() {
               fontWeight: '600',
               margin: 0
             }}>
-              전체 댓글 {comments.length}
+              전체 댓글 {comments.length + comments.reduce((sum, comment) => sum + comment.replies.length, 0)}
             </h4>
             <div style={{ display: 'flex', gap: '8px' }}>
               <button
@@ -1238,25 +1287,31 @@ function CaseDetailPage() {
                             marginBottom: '8px',
                             border: '1px solid #e0e0e0',
                             display: 'flex',
-                            gap: '10px'
+                            gap: '10px',
+                            position: 'relative'
                           }}
                         >
                           {/* 왼쪽: 답글 아이콘 */}
                           <div style={{
-                            padding: '4px 8px',
-                            backgroundColor: '#F0F0F0',
-                            color: '#666',
-                            fontSize: '12px',
-                            fontWeight: '600',
-                            borderRadius: '4px',
                             height: 'fit-content',
-                            whiteSpace: 'nowrap'
+                            whiteSpace: 'nowrap',
+                            display: 'flex',
+                            alignItems: 'center'
                           }}>
-                            ↳
+                            <img 
+                              src={replyArrowIcon} 
+                              alt="답글" 
+                              style={{ 
+                                width: '24px', 
+                                height: '24px',
+                                objectFit: 'contain'
+                              }} 
+                            />
                           </div>
 
                           {/* 오른쪽: 내용 영역 */}
                           <div style={{ flex: 1 }}>
+                            {/* 상단: 작성자 + 우측 버튼들 */}
                             <div style={{ 
                               display: 'flex', 
                               justifyContent: 'space-between',
@@ -1270,41 +1325,165 @@ function CaseDetailPage() {
                               }}>
                                 {reply.authorNickname}
                               </span>
+                              
+                              {/* 우측 버튼들 - 가로 배치 */}
+                              <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                                <button
+                                  onClick={() => handleLikeReply(comment.id, reply.id)}
+                                  style={{
+                                    background: 'none',
+                                    border: 'none',
+                                    cursor: 'pointer',
+                                    fontSize: '12px',
+                                    color: likedComments.has(`${comment.id}_${reply.id}`) ? '#3182F6' : '#666',
+                                    padding: '0',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '4px'
+                                  }}
+                                >
+                                  <img 
+                                    src={likeIcon} 
+                                    alt="좋아요" 
+                                    style={{ 
+                                      width: '18px', 
+                                      height: '18px',
+                                      objectFit: 'contain'
+                                    }} 
+                                  />
+                                  <span>{reply.likes || 0}</span>
+                                </button>
+                                {user?.uid === reply.authorId && (
+                                  <button
+                                    onClick={() => setShowMenuForReply(showMenuForReply === `${comment.id}_${reply.id}` ? null : `${comment.id}_${reply.id}`)}
+                                    style={{
+                                      background: 'none',
+                                      border: 'none',
+                                      cursor: 'pointer',
+                                      fontSize: '13px',
+                                      color: '#666',
+                                      padding: '0'
+                                    }}
+                                  >
+                                    ⋯
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+
+                            {/* 답글 내용 또는 수정 폼 */}
+                            {editingReply === `${comment.id}_${reply.id}` ? (
+                              <div>
+                                <textarea
+                                  value={editReplyContent}
+                                  onChange={(e) => setEditReplyContent(e.target.value)}
+                                  style={{
+                                    width: '100%',
+                                    minHeight: '60px',
+                                    padding: '8px',
+                                    border: '1px solid #ddd',
+                                    borderRadius: '4px',
+                                    fontSize: '13px',
+                                    marginBottom: '8px',
+                                    boxSizing: 'border-box'
+                                  }}
+                                />
+                                <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+                                  <button
+                                    onClick={() => {
+                                      setEditingReply(null);
+                                      setEditReplyContent('');
+                                    }}
+                                    style={{
+                                      padding: '6px 12px',
+                                      backgroundColor: '#f0f0f0',
+                                      border: 'none',
+                                      borderRadius: '4px',
+                                      cursor: 'pointer',
+                                      fontSize: '13px'
+                                    }}
+                                  >
+                                    취소
+                                  </button>
+                                  <button
+                                    onClick={() => handleEditReply(comment.id, reply.id)}
+                                    style={{
+                                      padding: '6px 12px',
+                                      backgroundColor: '#3182F6',
+                                      color: 'white',
+                                      border: 'none',
+                                      borderRadius: '4px',
+                                      cursor: 'pointer',
+                                      fontSize: '13px'
+                                    }}
+                                  >
+                                    수정
+                                  </button>
+                                </div>
+                              </div>
+                            ) : (
+                              <p style={{ 
+                                color: '#191F28', 
+                                fontSize: '13px',
+                                margin: '0',
+                                lineHeight: '1.4'
+                              }}>
+                                {reply.content}
+                              </p>
+                            )}
+                          </div>
+
+                          {/* 더보기 메뉴 */}
+                          {showMenuForReply === `${comment.id}_${reply.id}` && user?.uid === reply.authorId && (
+                            <div style={{
+                              position: 'absolute',
+                              top: '40px',
+                              right: '12px',
+                              backgroundColor: 'white',
+                              border: '1px solid #ddd',
+                              borderRadius: '8px',
+                              boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+                              zIndex: 10,
+                              minWidth: '100px'
+                            }}>
                               <button
-                                onClick={() => handleLikeReply(comment.id, reply.id)}
+                                onClick={() => {
+                                  setEditingReply(`${comment.id}_${reply.id}`);
+                                  setEditReplyContent(reply.content);
+                                  setShowMenuForReply(null);
+                                }}
                                 style={{
-                                  background: 'none',
+                                  width: '100%',
+                                  padding: '12px',
                                   border: 'none',
+                                  background: 'none',
+                                  textAlign: 'left',
                                   cursor: 'pointer',
-                                  fontSize: '12px',
-                                  color: likedComments.has(`${comment.id}_${reply.id}`) ? '#3182F6' : '#666',
-                                  padding: '0',
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  gap: '4px'
+                                  fontSize: '14px'
                                 }}
                               >
-                                <img 
-                                  src={likeIcon} 
-                                  alt="좋아요" 
-                                  style={{ 
-                                    width: '18px', 
-                                    height: '18px',
-                                    objectFit: 'contain'
-                                  }} 
-                                />
-                                <span>{reply.likes}</span>
+                                수정
+                              </button>
+                              <button
+                                onClick={() => {
+                                  handleDeleteReply(comment.id, reply.id);
+                                  setShowMenuForReply(null);
+                                }}
+                                style={{
+                                  width: '100%',
+                                  padding: '12px',
+                                  border: 'none',
+                                  background: 'none',
+                                  textAlign: 'left',
+                                  cursor: 'pointer',
+                                  fontSize: '14px',
+                                  color: '#D32F2F'
+                                }}
+                              >
+                                삭제
                               </button>
                             </div>
-                            <p style={{ 
-                              color: '#191F28', 
-                              fontSize: '13px',
-                              margin: '0',
-                              lineHeight: '1.4'
-                            }}>
-                              {reply.content}
-                            </p>
-                          </div>
+                          )}
                         </div>
                       ))}
                     </div>
