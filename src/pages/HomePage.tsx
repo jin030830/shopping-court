@@ -4,9 +4,20 @@ import { Asset, Text, Spacing } from '@toss/tds-mobile';
 import { adaptive } from '@toss/tds-colors';
 import { useState, useEffect } from 'react';
 import { getAllCases, getCommentCount, type CaseDocument } from '../api/cases';
+import { Timestamp } from 'firebase/firestore';
 import scaleIcon from '../assets/저울모양.png';
 import gavelIcon from '../assets/판사봉.png';
 import hotFlameIcon from '../assets/핫게시판불모양.png';
+
+// 날짜 포맷팅 함수 (M/d HH:mm 형식)
+const formatDate = (timestamp: Timestamp): string => {
+  const date = timestamp.toDate();
+  const month = date.getMonth() + 1;
+  const day = date.getDate();
+  const hours = date.getHours();
+  const minutes = date.getMinutes();
+  return `${month}/${day} ${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+};
 
 function HomePage() {
   const { user, userData, isLoading, logout } = useAuth();
@@ -552,10 +563,15 @@ function PostList({ posts, selectedTab, navigate, getCommentCount }: PostListPro
               cursor: 'pointer'
             }}
           >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
               <Text color={adaptive.grey700} typography="t8" fontWeight="regular">
                 {post.authorNickname}
               </Text>
+              {post.createdAt && (
+                <Text color={adaptive.grey500} typography="t7" fontWeight="regular">
+                  {formatDate(post.createdAt)}
+                </Text>
+              )}
             </div>
             <Text 
               display="block" 
