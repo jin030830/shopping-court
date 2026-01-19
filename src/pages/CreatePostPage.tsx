@@ -12,6 +12,21 @@ function CreatePostPage() {
   
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
+  const [showGuideModal, setShowGuideModal] = useState(false);
+  const [hasShownGuide, setHasShownGuide] = useState(false);
+
+  // 가이드 팝업 표시 여부 확인
+  const checkAndShowGuide = () => {
+    if (!hasShownGuide) {
+      setShowGuideModal(true);
+      setHasShownGuide(true);
+    }
+  };
+
+  // 가이드 확인 처리
+  const handleGuideConfirm = () => {
+    setShowGuideModal(false);
+  };
 
   useEffect(() => {
     if (!isLoading && (!user || !userData)) {
@@ -151,6 +166,7 @@ function CreatePostPage() {
             }}
             onFocus={(e) => {
               e.target.style.borderColor = '#3182F6';
+              checkAndShowGuide();
             }}
             onBlur={(e) => {
               e.target.style.borderColor = '#e5e5e5';
@@ -188,6 +204,7 @@ function CreatePostPage() {
             }}
             onFocus={(e) => {
               e.target.style.borderColor = '#3182F6';
+              checkAndShowGuide();
             }}
             onBlur={(e) => {
               e.target.style.borderColor = '#e5e5e5';
@@ -225,6 +242,112 @@ function CreatePostPage() {
           작성 완료
         </button>
       </div>
+
+      {/* 가이드 팝업 */}
+      {showGuideModal && (
+        <div
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.5)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1000,
+            padding: '20px'
+          }}
+          onClick={handleGuideConfirm}
+        >
+          <div
+            style={{
+              backgroundColor: 'white',
+              borderRadius: '16px',
+              padding: '24px',
+              width: '100%',
+              maxWidth: '400px',
+              boxSizing: 'border-box'
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <Text
+              display="block"
+              color="#191F28ff"
+              typography="t4"
+              fontWeight="bold"
+              style={{ marginBottom: '20px' }}
+            >
+              아래 내용은 포함되길 권장드려요!
+            </Text>
+            
+            <div style={{ marginBottom: '24px' }}>
+              <Text
+                display="block"
+                color={adaptive.grey700}
+                typography="t7"
+                fontWeight="regular"
+                style={{ marginBottom: '8px' }}
+              >
+                연령대
+              </Text>
+              <Text
+                display="block"
+                color={adaptive.grey700}
+                typography="t7"
+                fontWeight="regular"
+                style={{ marginBottom: '8px' }}
+              >
+                나이
+              </Text>
+              <Text
+                display="block"
+                color={adaptive.grey700}
+                typography="t7"
+                fontWeight="regular"
+                style={{ marginBottom: '8px' }}
+              >
+                현재 직업
+              </Text>
+              <Text
+                display="block"
+                color={adaptive.grey700}
+                typography="t7"
+                fontWeight="regular"
+                style={{ marginBottom: '8px' }}
+              >
+                현재 가계 상황
+              </Text>
+              <Text
+                display="block"
+                color={adaptive.grey700}
+                typography="t7"
+                fontWeight="regular"
+              >
+                소비하려는 것에 대한 정보
+              </Text>
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+              <button
+                onClick={handleGuideConfirm}
+                style={{
+                  padding: '8px 16px',
+                  backgroundColor: 'transparent',
+                  border: 'none',
+                  color: '#3182F6',
+                  fontSize: '15px',
+                  fontWeight: '600',
+                  cursor: 'pointer'
+                }}
+              >
+                확인했습니다!
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

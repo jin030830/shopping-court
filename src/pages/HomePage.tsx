@@ -362,37 +362,6 @@ function HomePage() {
       </div>
 
       <Spacing size={24} />
-
-      {/* 글쓰기 플로팅 버튼 */}
-      <button
-        onClick={() => navigate('/create-post')}
-        style={{
-          position: 'fixed',
-          bottom: '24px',
-          right: '20px',
-          width: '56px',
-          height: '56px',
-          borderRadius: '50%',
-          backgroundColor: '#3182F6',
-          border: 'none',
-          boxShadow: '0 4px 12px rgba(49, 130, 246, 0.4)',
-          cursor: 'pointer',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 1000
-        }}
-        aria-label="글쓰기"
-      >
-        <span style={{ 
-          fontSize: '28px', 
-          color: 'white',
-          lineHeight: '1',
-          marginBottom: '2px'
-        }}>
-          ✏️
-        </span>
-      </button>
     </div>
   );
 }
