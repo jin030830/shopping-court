@@ -1,6 +1,7 @@
 import { appLogin } from '@apps-in-toss/web-framework';
 import { signInWithCustomToken, type User } from 'firebase/auth';
-import { auth } from './firebase';
+import { auth, functions } from './firebase';
+import { getFunctions, httpsCallable } from 'firebase/functions';
 
 /**
  * 토스 로그인 결과
@@ -53,41 +54,35 @@ export async function loginWithToss(): Promise<TossLoginResult> {
 }
 
 /**
- * 백엔드에서 Firebase 커스텀 토큰 받기
+ * 백엔드에서 Firebase 커스텀 토큰 받기 (Cloud Function 호출)
  */
 export async function getCustomTokenFromServer(
   authorizationCode: string,
   referrer: string
 ): Promise<BackendLoginResponse> {
   try {
-    const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8080';
-    console.log('Express 서버로 토스 로그인 요청:', backendUrl);
+    console.log('🔥 Firebase Cloud Function으로 토스 로그인 요청:', { authorizationCode, referrer });
 
-    const response = await fetch(`${backendUrl}/api/auth/toss-login`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ authorizationCode, referrer }),
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('서버 응답 에러:', errorText);
-      throw new Error('서버 인증에 실패했습니다.');
+    if (!functions) {
+      throw new Error('Firebase Functions 서비스가 초기화되지 않았습니다.');
     }
 
-    const data = await response.json();
-    
-    if (data.resultType !== 'SUCCESS' || !data.success?.customToken) {
-      throw new Error(data.error?.reason || '서버로부터 커스텀 토큰을 받지 못했습니다.');
+    const callTossLogin = httpsCallable(functions, 'tossLogin');
+    const response = await callTossLogin({ authorizationCode, referrer });
+
+    const data = response.data as any;
+
+    if (!data || !data.customToken) {
+      throw new Error(data.error?.reason || 'Cloud Function으로부터 커스텀 토큰을 받지 못했습니다.');
     }
 
-    console.log('✅ 서버에서 커스텀 토큰 받음');
+    console.log('✅ Cloud Function으로부터 커스텀 토큰 받음');
     return {
-      customToken: data.success.customToken,
+      customToken: data.customToken,
     };
   } catch (error: any) {
-    console.error('백엔드 로그인 요청 실패:', error);
-    throw new Error(error.message || '서버 인증에 실패했습니다.');
+    console.error('❌ Cloud Function 호출 실패:', error);
+    throw new Error(error.message || 'Cloud Function 인증에 실패했습니다.');
   }
 }
 

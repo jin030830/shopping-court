@@ -83,7 +83,6 @@ function CaseDetailPage() {
   const [showMenuFor, setShowMenuFor] = useState<string | null>(null);
   const [showPostMenu, setShowPostMenu] = useState(false);
   const [timeRemaining, setTimeRemaining] = useState<{ days: number; hours: number; minutes: number; seconds: number } | null>(null);
-  const [isVotingExpired, setIsVotingExpired] = useState(false);
   const [editingReply, setEditingReply] = useState<string | null>(null);
   const [editReplyContent, setEditReplyContent] = useState('');
   const [showMenuForReply, setShowMenuForReply] = useState<string | null>(null);
@@ -93,9 +92,12 @@ function CaseDetailPage() {
   const [isDeleting, setIsDeleting] = useState(false);
   const [showDeleteComplete, setShowDeleteComplete] = useState(false);
 
-  // 투표 가능 시간 계산 (48시간)
+  // 투표 가능 시간 계산
   useEffect(() => {
-    if (!post?.voteEndAt) return;
+    if (!post || post.status === 'CLOSED') {
+      setTimeRemaining(null);
+      return;
+    }
 
     const calculateTimeRemaining = () => {
       const endTime = post.voteEndAt!.toMillis();
@@ -103,8 +105,8 @@ function CaseDetailPage() {
       const remaining = endTime - now;
 
       if (remaining <= 0) {
-        setIsVotingExpired(true);
-        setTimeRemaining({ days: 0, hours: 0, minutes: 0, seconds: 0 });
+        setTimeRemaining(null);
+        // 실제 status 업데이트는 백엔드 함수가 처리하므로, 여기서는 타이머만 멈춥니다.
         return;
       }
 
@@ -113,7 +115,6 @@ function CaseDetailPage() {
       const minutes = Math.floor((remaining % (1000 * 60 * 60)) / (1000 * 60));
       const seconds = Math.floor((remaining % (1000 * 60)) / 1000);
 
-      setIsVotingExpired(false);
       setTimeRemaining({ days, hours, minutes, seconds });
     };
 
@@ -121,7 +122,7 @@ function CaseDetailPage() {
     const interval = setInterval(calculateTimeRemaining, 1000);
 
     return () => clearInterval(interval);
-  }, [post?.voteEndAt]);
+  }, [post]);
 
   // 외부 클릭 시 메뉴 닫기
   useEffect(() => {
@@ -252,19 +253,19 @@ function CaseDetailPage() {
   }, [isLoading, user, userData]);
 
   const handleVoteSelect = (voteType: 'agree' | 'disagree') => {
-    if (!hasVoted && !isVotingExpired) {
+    if (!hasVoted && post?.status === 'OPEN') {
       setPendingVoteType(voteType);
       setShowVoteConfirm(true);
     }
   };
 
   const handleVoteConfirm = async () => {
-    if (!pendingVoteType || !id) {
+    if (!pendingVoteType || !id || !post) {
       return;
     }
 
     // 투표 시간 만료 확인
-    if (isVotingExpired) {
+    if (post.status === 'CLOSED') {
       alert('투표 가능 시간이 종료되었습니다!');
       setShowVoteConfirm(false);
       setPendingVoteType(null);
@@ -806,7 +807,7 @@ function CaseDetailPage() {
           <div style={{ display: 'flex', gap: '12px', marginBottom: '16px' }}>
             <button 
               onClick={() => handleVoteSelect('agree')}
-              disabled={hasVoted || isVotingExpired}
+              disabled={hasVoted || post.status === 'CLOSED'}
               style={{ 
                 flex: 1, 
                 padding: '12px', 
@@ -816,15 +817,15 @@ function CaseDetailPage() {
                 borderRadius: '8px',
                 fontSize: '15px',
                 fontWeight: '600',
-                cursor: (hasVoted || isVotingExpired) ? 'not-allowed' : 'pointer',
-                opacity: (hasVoted && selectedVote !== 'agree') || isVotingExpired ? 0.5 : 1
+                cursor: (hasVoted || post.status === 'CLOSED') ? 'not-allowed' : 'pointer',
+                opacity: (hasVoted && selectedVote !== 'agree') || post.status === 'CLOSED' ? 0.5 : 1
               }}
             >
               합리적이다
             </button>
             <button 
               onClick={() => handleVoteSelect('disagree')}
-              disabled={hasVoted || isVotingExpired}
+              disabled={hasVoted || post.status === 'CLOSED'}
               style={{ 
                 flex: 1, 
                 padding: '12px', 
@@ -834,15 +835,15 @@ function CaseDetailPage() {
                 borderRadius: '8px',
                 fontSize: '15px',
                 fontWeight: '600',
-                cursor: (hasVoted || isVotingExpired) ? 'not-allowed' : 'pointer',
-                opacity: (hasVoted && selectedVote !== 'disagree') || isVotingExpired ? 0.5 : 1
+                cursor: (hasVoted || post.status === 'CLOSED') ? 'not-allowed' : 'pointer',
+                opacity: (hasVoted && selectedVote !== 'disagree') || post.status === 'CLOSED' ? 0.5 : 1
               }}
             >
               비합리적이다
             </button>
           </div>
 
-          {timeRemaining && !isVotingExpired && (
+          {timeRemaining && post.status === 'OPEN' && (
             <div style={{ 
               marginTop: '12px', 
               textAlign: 'center',
@@ -1019,7 +1020,7 @@ function CaseDetailPage() {
               </button>
               <div style={{ clear: 'both' }} />
             </div>
-          ) : user && userData && !hasVoted && !isVotingExpired ? (
+          ) : user && userData && !hasVoted && post?.status === 'OPEN' ? (
             <div style={{ 
               marginBottom: '20px',
               padding: '16px',

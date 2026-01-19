@@ -393,17 +393,9 @@ function PostList({ posts, selectedTab, navigate, getCommentCount }: PostListPro
     const loadPostDetails = async () => {
       setIsLoading(true);
       try {
-        const now = Date.now();
-        
         const postsWithData = await Promise.all(
           posts.map(async (post) => {
-            // 투표 시간 만료 여부 계산 (48시간)
-            const createdAt = post.createdAt?.toMillis() || now;
-            const voteEndAt = post.voteEndAt?.toMillis() || createdAt + 48 * 60 * 60 * 1000;
-            const isVotingExpired = now > voteEndAt;
-            const completedDate = isVotingExpired ? new Date(voteEndAt) : null;
-
-            // 댓글 개수 가져오기
+            // 댓글 개수는 화면 표시에 필요하므로 유지합니다.
             let commentCount = 0;
             try {
               commentCount = await getCommentCount(post.id);
@@ -411,22 +403,18 @@ function PostList({ posts, selectedTab, navigate, getCommentCount }: PostListPro
               console.error(`댓글 개수 조회 실패 (${post.id}):`, error);
             }
 
-            // HOT 점수 계산: 투표수 + 2*댓글수
+            // voteCount는 화면 표시에 필요하므로 유지합니다.
             const voteCount = post.guiltyCount + post.innocentCount;
-            const hotScore = voteCount + (2 * commentCount);
-
+            
             // 재판 결과 결정 (innocent가 많으면 무죄, guilty가 많으면 유죄)
             const verdict = voteCount > 0 
               ? (post.innocentCount >= post.guiltyCount ? '무죄' : '유죄')
               : null;
 
             return {
-              ...post,
+              ...post, // DB에 저장된 status와 hotScore가 여기에 포함됩니다.
               voteCount,
               commentCount,
-              hotScore,
-              isVotingExpired,
-              completedDate,
               verdict
             };
           })
@@ -457,21 +445,21 @@ function PostList({ posts, selectedTab, navigate, getCommentCount }: PostListPro
   if (selectedTab === 'HOT 게시판') {
     // 재판 중인 게시물만 필터링하고 HOT 점수로 정렬, 상위 5개만 표시
     displayPosts = postsWithDetails
-      .filter(post => !post.isVotingExpired)
+      .filter(post => post.status === 'OPEN')
       .sort((a, b) => b.hotScore - a.hotScore)
       .slice(0, 5);
   } else if (selectedTab === '재판 완료') {
-    // 투표 시간이 만료된 게시물만 필터링하고 완료일 최신순으로 정렬
+    // status가 'CLOSED'인 게시물만 필터링하고 완료일 최신순으로 정렬
     displayPosts = postsWithDetails
-      .filter(post => post.isVotingExpired)
+      .filter(post => post.status === 'CLOSED')
       .sort((a, b) => {
-        const dateA = a.completedDate?.getTime() || 0;
-        const dateB = b.completedDate?.getTime() || 0;
+        const dateA = a.voteEndAt?.toMillis() || 0;
+        const dateB = b.voteEndAt?.toMillis() || 0;
         return dateB - dateA;
       });
   } else {
-    // 재판 중: 투표 시간이 아직 남은 게시물만 표시
-    displayPosts = postsWithDetails.filter(post => !post.isVotingExpired);
+    // 재판 중: status가 'OPEN'인 게시물만 표시
+    displayPosts = postsWithDetails.filter(post => post.status === 'OPEN');
   }
 
   return (
@@ -479,8 +467,9 @@ function PostList({ posts, selectedTab, navigate, getCommentCount }: PostListPro
       {displayPosts.map((post, index) => {
         // 재판 완료 탭일 경우 다른 레이아웃
         if (selectedTab === '재판 완료') {
-          const formatDate = (date: Date | null) => {
-            if (!date) return '';
+          const formatDate = (timestamp: Timestamp | undefined) => {
+            if (!timestamp) return '';
+            const date = timestamp.toDate();
             const year = date.getFullYear();
             const month = String(date.getMonth() + 1).padStart(2, '0');
             const day = String(date.getDate()).padStart(2, '0');
@@ -524,7 +513,7 @@ function PostList({ posts, selectedTab, navigate, getCommentCount }: PostListPro
                   color: adaptive.grey600,
                   marginBottom: '4px'
                 }}>
-                  {formatDate(post.completedDate)}
+                  {formatDate(post.voteEndAt)}
                 </div>
                 {/* 제목 */}
                 <div style={{ 

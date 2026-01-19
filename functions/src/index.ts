@@ -57,7 +57,7 @@ function getTossApiConfig() {
 /**
  * 토스 API로 토큰 생성 (mTLS 사용)
  */
-async function generateTossToken(authorizationCode: string): Promise<string> {
+async function generateTossToken(authorizationCode: string, referrer: string | undefined): Promise<string> {
   const config = getTossApiConfig();
 
   // 인증서 경로 설정
@@ -81,9 +81,10 @@ async function generateTossToken(authorizationCode: string): Promise<string> {
 
   try {
     const response = await axios.post<TossTokenResponse>(
-      `${config.authApiBase}/generate-token`,
+      `${config.authApiBase}/api-partner/v1/apps-in-toss/user/oauth2/generate-token`,
       {
-        code: authorizationCode,
+        authorizationCode,
+        referrer,
       },
       {
         headers: {
@@ -178,7 +179,7 @@ export const tossLogin = functions
       }
 
       // 실제 모드: 토스 API 호출
-      const accessToken = await generateTossToken(data.authorizationCode);
+      const accessToken = await generateTossToken(data.authorizationCode, data.referrer);
       const userInfo = await getTossUserInfo(accessToken);
       const customToken = await admin.auth().createCustomToken(userInfo.userKey);
 
@@ -194,3 +195,9 @@ export const tossLogin = functions
       throw new functions.https.HttpsError("internal", "로그인 처리 중 오류가 발생했습니다.");
     }
   });
+
+// Firestore 트리거 함수들을 export 합니다.
+export { onVoteCreate, onCommentCreate, onVoteDelete, onCommentDelete } from './triggers';
+
+// 스케줄링 함수를 export 합니다.
+export { closeExpiredCases } from './scheduled';

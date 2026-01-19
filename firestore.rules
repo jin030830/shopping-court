@@ -1,0 +1,18 @@
+rules_version = '2';
+service cloud.firestore 
+{
+        match /databases/{database}/documents{
+
+        // users 컬렉션: 자신의 정보만 수정 가능
+        match /users/{userId} {
+            allow read, write: if request.auth != null && request.auth.uid == userId;
+        }
+
+        // cases 컬렉션 및 모든 하위 컬렉션(댓글, 투표 등)
+        // 로그인한 사용자는 읽고 쓰기 가능
+        match /cases/{caseId=**} {
+            allow read, write: if request.auth != null;
+        }
+    }
+}
+
