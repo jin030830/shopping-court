@@ -45,7 +45,7 @@ function CaseDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const location = useLocation();
-  const { user, isLoading, userData, logout } = useAuth();
+  const { user, isLoading, userData } = useAuth();
   const [selectedVote, setSelectedVote] = useState<'agree' | 'disagree' | null>(null);
   const [hasVoted, setHasVoted] = useState(false);
   const [comments, setComments] = useState<CommentWithReplies[]>([]);
