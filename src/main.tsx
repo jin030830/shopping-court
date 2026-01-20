@@ -6,12 +6,37 @@ import App from './App.tsx';
 import './index.css';
 import './api/firebase'; // 에뮬레이터 연결 로직을 포함하므로 import 유지
 
-ReactDOM.createRoot(document.getElementById('root')!).render(
+const isTossApp = typeof window !== 'undefined' && (window as any).ReactNativeWebView !== undefined;
+const rootElement = document.getElementById('root')!;
+const root = ReactDOM.createRoot(rootElement);
+
+root.render(
   <React.StrictMode>
-    <BrowserRouter>
-      <AuthProvider>
-        <App />
-      </AuthProvider>
-    </BrowserRouter>
+    {isTossApp || import.meta.env.DEV ? (
+      <BrowserRouter>
+        <AuthProvider>
+          <App />
+        </AuthProvider>
+      </BrowserRouter>
+    ) : (
+      <div style={{
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        height: '100vh',
+        backgroundColor: '#f0f2f5',
+        fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
+        color: '#333',
+        textAlign: 'center',
+        padding: '20px'
+      }}>
+        <h1 style={{ fontSize: '24px', marginBottom: '16px', fontWeight: '600' }}>소비 재판소</h1>
+        <p style={{ fontSize: '16px', lineHeight: '1.5' }}>
+          이 서비스는 토스 앱 내에서만 이용할 수 있습니다.<br />
+          토스 앱을 통해 접속해주세요.
+        </p>
+      </div>
+    )}
   </React.StrictMode>
 );
