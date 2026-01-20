@@ -3,6 +3,7 @@ import { onAuthStateChanged, signOut, type User } from 'firebase/auth';
 import { auth } from '../api/firebase';
 import { getUserData } from '../api/user';
 import type { UserDocument } from '../api/user';
+import { Timestamp } from 'firebase/firestore'; // Timestamp 임포트
 
 interface AuthContextType {
   user: User | null;
@@ -19,6 +20,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
+    if (!auth) {
+      setIsLoading(false);
+      return;
+    }
     // Firebase의 인증 상태 변경을 감지하는 리스너 설정
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       setUser(firebaseUser);
@@ -32,7 +37,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             setUserData({
               tossUserKey: parsedData.uid,
               nickname: parsedData.nickname,
-              createdAt: parsedData.createdAt ? new Date(parsedData.createdAt) : null,
+              createdAt: parsedData.createdAt ? Timestamp.fromDate(new Date(parsedData.createdAt)) : null,
               updatedAt: null,
             });
           } catch {
@@ -61,9 +66,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const logout = async () => {
     try {
-      await signOut(auth);
-      // onAuthStateChanged가 user와 userData를 null로 설정하고 localStorage를 정리함
-      console.log('✅ 로그아웃 요청 성공');
+      if (auth) {
+        await signOut(auth);
+        // onAuthStateChanged가 user와 userData를 null로 설정하고 localStorage를 정리함
+        console.log('✅ 로그아웃 요청 성공');
+      }
     } catch (error) {
       console.error('❌ 로그아웃 실패:', error);
       throw error;

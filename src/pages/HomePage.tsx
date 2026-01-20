@@ -20,7 +20,7 @@ const formatDate = (timestamp: Timestamp): string => {
 };
 
 function HomePage() {
-  const { user, userData, isLoading, logout } = useAuth();
+  const { user, userData, logout } = useAuth();
   const location = useLocation();
   const [selectedTab, setSelectedTab] = useState((location.state as any)?.selectedTab || '재판 중');
   const [allPosts, setAllPosts] = useState<CaseDocument[]>([]);
@@ -553,7 +553,7 @@ function PostList({ posts, selectedTab, navigate, getCommentCount }: PostListPro
             }}
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
-              <Text color={adaptive.grey700} typography="t8" fontWeight="regular">
+              <Text color={adaptive.grey700} typography="t7" fontWeight="regular">
                 {post.authorNickname}
               </Text>
               {post.createdAt && (
@@ -588,13 +588,13 @@ function PostList({ posts, selectedTab, navigate, getCommentCount }: PostListPro
               {post.content}
             </Text>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <Text color={adaptive.grey600} typography="t8" fontWeight="regular">
+              <Text color={adaptive.grey600} typography="t7" fontWeight="regular">
                 {post.voteCount.toLocaleString()}명 투표 중
               </Text>
               {post.commentCount > 0 && (
                 <>
                   <span style={{ color: adaptive.grey400 }}>•</span>
-                  <Text color={adaptive.grey600} typography="t8" fontWeight="regular">
+                  <Text color={adaptive.grey600} typography="t7" fontWeight="regular">
                     댓글 {post.commentCount}
                   </Text>
                 </>
@@ -602,7 +602,7 @@ function PostList({ posts, selectedTab, navigate, getCommentCount }: PostListPro
               {selectedTab === 'HOT 게시판' && (
                 <>
                   <span style={{ color: adaptive.grey400 }}>•</span>
-                  <Text color="#FF6B6B" typography="t8" fontWeight="semibold">
+                  <Text color="#FF6B6B" typography="t7" fontWeight="semibold">
                     🔥 TOP {index + 1}
                   </Text>
                 </>
