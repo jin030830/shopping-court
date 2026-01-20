@@ -1,7 +1,7 @@
 import { appLogin } from '@apps-in-toss/web-framework';
 import { signInWithCustomToken, type User } from 'firebase/auth';
 import { auth, functions } from './firebase';
-import { getFunctions, httpsCallable } from 'firebase/functions';
+import { httpsCallable } from 'firebase/functions';
 
 /**
  * 토스 로그인 결과
@@ -90,6 +90,9 @@ export async function getCustomTokenFromServer(
  * 커스텀 토큰으로 Firebase에 로그인
  */
 export async function signInToFirebase(customToken: string): Promise<User> {
+  if (!auth) {
+    throw new Error('Firebase Auth 서비스가 초기화되지 않았습니다.');
+  }
   try {
     console.log('🔥 Firebase에 커스텀 토큰으로 로그인 시도...');
     const userCredential = await signInWithCustomToken(auth, customToken);

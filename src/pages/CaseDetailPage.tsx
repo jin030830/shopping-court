@@ -53,13 +53,11 @@ function CaseDetailPage() {
   const [sortBy, setSortBy] = useState<'latest' | 'likes'>('latest');
   const [likedComments, setLikedComments] = useState<Set<string>>(new Set());
   const [post, setPost] = useState<CaseDocument | null>(null);
-  const [isLoadingPost, setIsLoadingPost] = useState(true);
 
   // 게시물 로딩
   useEffect(() => {
     const loadPost = async () => {
       if (!id) return;
-      setIsLoadingPost(true);
       try {
         const caseData = await getCase(id);
         if (caseData) {
@@ -70,8 +68,6 @@ function CaseDetailPage() {
       } catch (error) {
         console.error('게시물 로딩 실패:', error);
         setPost(null);
-      } finally {
-        setIsLoadingPost(false);
       }
     };
     loadPost();
@@ -153,19 +149,6 @@ function CaseDetailPage() {
       document.removeEventListener('mousedown', handleClickOutside);
     };
   }, [showPostMenu, showMenuFor, showMenuForReply]);
-
-
-
-  const handleLogout = async () => {
-    try {
-      await logout();
-      alert('로그아웃되었습니다.');
-      navigate('/');
-    } catch (error) {
-      console.error('로그아웃 오류:', error);
-      alert('로그아웃에 실패했습니다.');
-    }
-  };
 
   const handleDeletePost = () => {
     setShowDeleteConfirm(true);

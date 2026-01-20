@@ -9,7 +9,7 @@ function EditPostPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const location = useLocation();
-  const { user, userData, isLoading: isAuthLoading } = useAuth();
+  const { user, isLoading: isAuthLoading } = useAuth();
   
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
