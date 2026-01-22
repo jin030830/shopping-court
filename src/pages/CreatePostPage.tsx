@@ -1,5 +1,5 @@
-import { useNavigate, useLocation } from 'react-router-dom';
-import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useState } from 'react';
 import { Asset, Text } from '@toss/tds-mobile';
 import { adaptive } from '@toss/tds-colors';
 import { useAuth } from '../hooks/useAuth';
@@ -7,8 +7,7 @@ import { createCase, type CaseData } from '../api/cases';
 
 function CreatePostPage() {
   const navigate = useNavigate();
-  const location = useLocation();
-  const { user, userData, isLoading } = useAuth();
+  const { user, userData } = useAuth();
   
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
@@ -28,17 +27,12 @@ function CreatePostPage() {
     setShowGuideModal(false);
   };
 
-  useEffect(() => {
-    if (!isLoading && (!user || !userData)) {
-      alert('로그인이 필요합니다.');
-      navigate('/terms', { state: { from: location } });
-    }
-  }, [isLoading, user, userData, navigate, location]);
-
   const handleSubmit = async () => {
+    // ProtectedRoute가 user와 userData를 보장합니다.
     if (!user || !userData) {
-      alert('로그인이 필요합니다.');
-      navigate('/terms', { state: { from: location } });
+      console.error("ProtectedRoute가 작동하지 않았습니다.");
+      // 만약을 위한 방어 코드이지만, 사용자에게 에러를 표시하고 함수를 중단합니다.
+      alert("사용자 정보를 확인할 수 없습니다. 다시 시도해 주세요.");
       return;
     }
 
