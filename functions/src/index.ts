@@ -18,6 +18,7 @@ admin.initializeApp();
 interface TossLoginRequest {
   authorizationCode: string;
   referrer?: string;
+  developerId?: string;
 }
 
 // 토스 API의 실제 응답 구조를 반영한 인터페이스
@@ -201,6 +202,17 @@ export const tossLogin = functions
   })
   .https.onCall(async (data: TossLoginRequest) => {
     try {
+      // 개발 환경에서 developerId가 제공되면, 해당 ID로 고유한 테스트 사용자를 생성합니다.
+      if (process.env.NODE_ENV !== 'production' && data.developerId) {
+        console.log(`👨‍💻 개발자 모드: '${data.developerId}'님으로 로그인합니다.`);
+        const devUserKey = `dev-user-${data.developerId}`;
+        const customToken = await admin.auth().createCustomToken(devUserKey);
+        return {
+          customToken,
+          tossUserKey: devUserKey,
+        };
+      }
+
       if (!data.authorizationCode) {
         throw new functions.https.HttpsError(
           "invalid-argument",
