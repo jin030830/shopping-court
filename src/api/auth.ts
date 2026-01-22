@@ -26,11 +26,19 @@ export async function loginWithToss(): Promise<TossLoginResult> {
     const isReactNativeWebView = typeof window !== 'undefined' && (window as any).ReactNativeWebView !== undefined;
     
     if (!isReactNativeWebView) {
-      console.log('⚠️ 웹 브라우저 환경 - 테스트 모드로 로그인');
-      const mockCode = 'web-test-' + Math.random().toString(36).substr(2, 9);
+      // WEB BROWSER ENVIRONMENT
+      console.log('🌐 웹 브라우저 환경 - 실제 토스 앱내앱 로그인 시도');
+      // Call SDK's appLogin() to get real authorizationCode
+      const { authorizationCode, referrer } = await appLogin(); // Changed 'code' to 'authorizationCode'
+
+      if (!authorizationCode) {
+        throw new Error("인가 코드를 받아오지 못했습니다.");
+      }
+
+      console.log("받아온 진짜 Auth Code (웹):", authorizationCode); // Changed 'code' to 'authorizationCode'
       return {
-        authorizationCode: mockCode,
-        referrer: 'WEB_BROWSER',
+        authorizationCode: authorizationCode,
+        referrer: referrer || 'WEB_BROWSER_SDK', // Use actual referrer if provided, else a default
       };
     }
     
