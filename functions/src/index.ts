@@ -161,7 +161,7 @@ async function getTossUserInfo(
 
   try {
     const response = await axios.get<TossUserInfoResponse>(
-      `${config.authApiBase}/api-partner/v1/apps-in-toss/user/info`,
+      `${config.authApiBase}/api-partner/v1/apps-in-toss/user/oauth2/login-me`,
       {
         headers: {
           Authorization: `Bearer ${accessToken}`,
