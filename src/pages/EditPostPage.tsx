@@ -1,4 +1,4 @@
-import { useNavigate, useLocation, useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import { Asset, Text } from '@toss/tds-mobile';
 import { adaptive } from '@toss/tds-colors';
@@ -8,8 +8,7 @@ import { getCase, updateCase } from '../api/cases';
 function EditPostPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const location = useLocation();
-  const { user, isLoading: isAuthLoading } = useAuth();
+  const { user } = useAuth();
   
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
@@ -18,20 +17,9 @@ function EditPostPage() {
 
   // Fetch post data from Firestore
   useEffect(() => {
-    if (!id) {
+    if (!id || !user) { // user는 ProtectedRoute에 의해 보장되지만, id는 여전히 확인해야 합니다.
       setError('잘못된 접근입니다.');
       setIsPostLoading(false);
-      return;
-    }
-    
-    // Wait for authentication to complete before fetching
-    if (isAuthLoading) {
-      return;
-    }
-
-    if (!user) {
-      alert('로그인이 필요합니다.');
-      navigate('/terms', { state: { from: location } });
       return;
     }
 
@@ -59,11 +47,12 @@ function EditPostPage() {
     };
 
     fetchCase();
-  }, [id, user, isAuthLoading, navigate, location]);
+  }, [id, user, navigate]);
 
   const handleSubmit = async () => {
     if (!id || !user) {
-      alert('로그인이 필요합니다.');
+      console.error("ProtectedRoute가 작동하지 않았습니다.");
+      alert('사용자 정보를 확인할 수 없습니다. 다시 시도해 주세요.');
       return;
     }
 
@@ -82,7 +71,7 @@ function EditPostPage() {
     }
   };
   
-  if (isPostLoading || isAuthLoading) {
+  if (isPostLoading) {
     return <div style={{ padding: '20px', textAlign: 'center' }}>로딩 중...</div>;
   }
 
