@@ -3,7 +3,7 @@ import { useAuth } from '../hooks/useAuth';
 import { Asset, Text, Spacing } from '@toss/tds-mobile';
 import { adaptive } from '@toss/tds-colors';
 import { useState, useEffect } from 'react';
-import { getAllCases, getCommentCount, type CaseDocument } from '../api/cases';
+import { getAllCases, type CaseDocument } from '../api/cases';
 import { Timestamp } from 'firebase/firestore';
 import scaleIcon from '../assets/저울모양.png';
 import gavelIcon from '../assets/판사봉.png';
@@ -67,7 +67,7 @@ function HomePage() {
   return (
     <div style={{ 
       backgroundColor: adaptive.background, 
-      minHeight: '100vh',
+      minHeight: '100vh', 
       width: '100%',
       boxSizing: 'border-box'
     }}>
@@ -367,7 +367,6 @@ function HomePage() {
             posts={allPosts} 
             selectedTab={selectedTab} 
             navigate={navigate}
-            getCommentCount={getCommentCount}
           />
         )}
       </div>
@@ -382,10 +381,9 @@ interface PostListProps {
   posts: CaseDocument[];
   selectedTab: string;
   navigate: (path: string, state?: any) => void;
-  getCommentCount: (caseId: string) => Promise<number>;
 }
 
-function PostList({ posts, selectedTab, navigate, getCommentCount }: PostListProps) {
+function PostList({ posts, selectedTab, navigate }: PostListProps) {
   const [postsWithDetails, setPostsWithDetails] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -393,48 +391,38 @@ function PostList({ posts, selectedTab, navigate, getCommentCount }: PostListPro
     const loadPostDetails = async () => {
       setIsLoading(true);
       try {
-        const postsWithData = await Promise.all(
-          posts.map(async (post) => {
-            // 댓글 개수는 화면 표시에 필요하므로 유지합니다.
-            let commentCount = 0;
-            try {
-              commentCount = await getCommentCount(post.id);
-            } catch (error) {
-              console.error(`댓글 개수 조회 실패 (${post.id}):`, error);
-            }
+        // 더 이상 개별적으로 getCommentCount를 호출하지 않습니다.
+        // 모든 정보(guiltyCount, innocentCount, commentCount)가 이미 posts에 포함되어 있습니다.
+        const postsWithData = posts.map((post) => {
+          const voteCount = post.guiltyCount + post.innocentCount;
+          
+          // 재판 결과 결정
+          const verdict = voteCount > 0 
+            ? (post.innocentCount >= post.guiltyCount ? '무죄' : '유죄')
+            : null;
 
-            // voteCount는 화면 표시에 필요하므로 유지합니다.
-            const voteCount = post.guiltyCount + post.innocentCount;
-            
-            // 재판 결과 결정 (innocent가 많으면 무죄, guilty가 많으면 유죄)
-            const verdict = voteCount > 0 
-              ? (post.innocentCount >= post.guiltyCount ? '무죄' : '유죄')
-              : null;
-
-            return {
-              ...post, // DB에 저장된 status와 hotScore가 여기에 포함됩니다.
-              voteCount,
-              commentCount,
-              verdict
-            };
-          })
-        );
+          return {
+            ...post,
+            voteCount,
+            verdict
+          };
+        });
 
         setPostsWithDetails(postsWithData);
       } catch (error) {
-        console.error('게시물 상세 정보 로드 실패:', error);
+        console.error('게시물 상세 정보 처리 실패:', error);
       } finally {
         setIsLoading(false);
       }
     };
 
     loadPostDetails();
-  }, [posts, getCommentCount]);
+  }, [posts]);
 
   if (isLoading) {
     return (
       <div style={{ padding: '40px', textAlign: 'center' }}>
-        <Text color={adaptive.grey600}>게시물 정보를 불러오는 중...</Text>
+        <Text color={adaptive.grey600}>게시물 정보를 구성 중...</Text>
       </div>
     );
   }
