@@ -510,7 +510,7 @@ function PostList({ posts, selectedTab, navigate, getCommentCount }: PostListPro
 
         setPostsWithDetails(postsWithData);
       } catch (error) {
-        console.error('게시물 상세 정보 로드 실패:', error);
+        console.error('게시물 상세 정보 처리 실패:', error);
       } finally {
         setIsLoading(false);
       }
