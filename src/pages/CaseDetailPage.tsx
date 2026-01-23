@@ -45,7 +45,7 @@ function CaseDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const location = useLocation();
-  const { user, isLoading, userData } = useAuth();
+  const { user, isLoading, userData, login } = useAuth();
   const [selectedVote, setSelectedVote] = useState<'agree' | 'disagree' | null>(null);
   const [hasVoted, setHasVoted] = useState(false);
   const [comments, setComments] = useState<CommentWithReplies[]>([]);
@@ -260,7 +260,7 @@ function CaseDetailPage() {
       console.log('로그인 필요, 약관 페이지로 이동');
       setShowVoteConfirm(false);
       setPendingVoteType(null);
-      navigate('/terms', { state: { from: location } });
+      login();
       return;
     }
 
@@ -305,7 +305,7 @@ function CaseDetailPage() {
   const handleCommentSubmit = async () => {
     if (!id || !user || !userData) {
       alert('로그인이 필요합니다.');
-      navigate('/terms', { state: { from: location } });
+      login();
       return;
     }
 

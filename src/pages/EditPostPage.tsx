@@ -9,7 +9,7 @@ function EditPostPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const location = useLocation();
-  const { user, isLoading: isAuthLoading } = useAuth();
+  const { user, isLoading: isAuthLoading, login } = useAuth();
   
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
@@ -31,7 +31,7 @@ function EditPostPage() {
 
     if (!user) {
       alert('로그인이 필요합니다.');
-      navigate('/terms', { state: { from: location } });
+      login();
       return;
     }
 
@@ -64,6 +64,7 @@ function EditPostPage() {
   const handleSubmit = async () => {
     if (!id || !user) {
       alert('로그인이 필요합니다.');
+      login();
       return;
     }
 

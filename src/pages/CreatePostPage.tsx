@@ -8,7 +8,7 @@ import { createCase, type CaseData } from '../api/cases';
 function CreatePostPage() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { user, userData, isLoading } = useAuth();
+  const { user, userData, isLoading, login } = useAuth();
   
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
@@ -31,14 +31,14 @@ function CreatePostPage() {
   useEffect(() => {
     if (!isLoading && (!user || !userData)) {
       alert('로그인이 필요합니다.');
-      navigate('/terms', { state: { from: location } });
+      login();
     }
-  }, [isLoading, user, userData, navigate, location]);
+  }, [isLoading, user, userData, login]);
 
   const handleSubmit = async () => {
     if (!user || !userData) {
       alert('로그인이 필요합니다.');
-      navigate('/terms', { state: { from: location } });
+      navigate('/login', { state: { from: location } });
       return;
     }
 
