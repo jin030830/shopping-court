@@ -69,33 +69,14 @@ export async function getCustomTokenFromServer(
   referrer: string
 ): Promise<BackendLoginResponse> {
   try {
-    const developerId = import.meta.env.VITE_DEVELOPER_ID || null;
-    
-    console.log('🔥 Firebase Cloud Function으로 토스 로그인 요청:', { 
-      authorizationCode, 
-      referrer,
-      developerId 
-    });
+    console.log('🔥 Firebase Cloud Function으로 토스 로그인 요청:', { authorizationCode, referrer });
 
     if (!functions) {
       throw new Error('Firebase Functions 서비스가 초기화되지 않았습니다.');
     }
 
-    const payload: { 
-      authorizationCode: string; 
-      referrer: string; 
-      developerId?: string;
-    } = { 
-      authorizationCode, 
-      referrer 
-    };
-
-    if (developerId) {
-      payload.developerId = developerId;
-    }
-
     const callTossLogin = httpsCallable(functions, 'tossLogin');
-    const response = await callTossLogin(payload);
+    const response = await callTossLogin({ authorizationCode, referrer });
 
     const data = response.data as any;
 
