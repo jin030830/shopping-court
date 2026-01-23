@@ -1,7 +1,6 @@
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import { Asset, Text } from '@toss/tds-mobile';
-import { adaptive } from '@toss/tds-colors';
 import { useAuth } from '../hooks/useAuth';
 import { createCase, type CaseData } from '../api/cases';
 
@@ -84,21 +83,26 @@ function CreatePostPage() {
         boxSizing: 'border-box'
       }}>
         <button
-          onClick={() => navigate('/')}
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            navigate('/');
+          }}
           style={{
             background: 'none',
             border: 'none',
             cursor: 'pointer',
             padding: '4px',
             display: 'flex',
-            alignItems: 'center'
+            alignItems: 'center',
+            zIndex: 10
           }}
         >
           <Asset.Icon
             frameShape={Asset.frameShape.CleanW24}
             backgroundColor="transparent"
             name="icon-arrow-back-ios-mono"
-            color={adaptive.grey900}
+            color="#191F28"
             aria-label="뒤로가기"
           />
         </button>
@@ -111,7 +115,7 @@ function CreatePostPage() {
             aria-hidden={true}
             style={{ width: '24px', height: '24px' }}
           />
-          <Text color={adaptive.grey900} typography="t6" fontWeight="semibold">
+          <Text color="#191F28" typography="t6" fontWeight="semibold">
             소비 재판소
           </Text>
         </div>
@@ -125,7 +129,8 @@ function CreatePostPage() {
         overflowY: 'auto',
         padding: '20px 20px 100px 20px',
         width: '100%',
-        boxSizing: 'border-box'
+        boxSizing: 'border-box',
+        backgroundColor: 'white'
       }}>
         <Text 
           display="block" 
@@ -157,19 +162,21 @@ function CreatePostPage() {
             style={{
               width: '100%',
               padding: '12px 16px',
-              border: '1px solid #e5e5e5',
+              border: '1px solid #E5E5E5',
               borderRadius: '8px',
               fontSize: '15px',
               boxSizing: 'border-box',
               outline: 'none',
-              fontFamily: 'inherit'
+              fontFamily: 'inherit',
+              backgroundColor: 'white',
+              color: '#191F28'
             }}
             onFocus={(e) => {
               e.target.style.borderColor = '#3182F6';
               checkAndShowGuide();
             }}
             onBlur={(e) => {
-              e.target.style.borderColor = '#e5e5e5';
+              e.target.style.borderColor = '#E5E5E5';
             }}
           />
         </div>
@@ -193,21 +200,23 @@ function CreatePostPage() {
               width: '100%',
               height: '250px',
               padding: '12px 16px',
-              border: '1px solid #e5e5e5',
+              border: '1px solid #E5E5E5',
               borderRadius: '8px',
               fontSize: '15px',
               boxSizing: 'border-box',
               outline: 'none',
               resize: 'none',
               fontFamily: 'inherit',
-              lineHeight: '1.5'
+              lineHeight: '1.5',
+              backgroundColor: 'white',
+              color: '#191F28'
             }}
             onFocus={(e) => {
               e.target.style.borderColor = '#3182F6';
               checkAndShowGuide();
             }}
             onBlur={(e) => {
-              e.target.style.borderColor = '#e5e5e5';
+              e.target.style.borderColor = '#E5E5E5';
             }}
           />
         </div>
@@ -285,7 +294,7 @@ function CreatePostPage() {
             <div style={{ marginBottom: '24px' }}>
               <Text
                 display="block"
-                color={adaptive.grey700}
+                color="#6B7684"
                 typography="t7"
                 fontWeight="regular"
                 style={{ marginBottom: '8px' }}
@@ -294,7 +303,7 @@ function CreatePostPage() {
               </Text>
               <Text
                 display="block"
-                color={adaptive.grey700}
+                color="#6B7684"
                 typography="t7"
                 fontWeight="regular"
                 style={{ marginBottom: '8px' }}
@@ -303,7 +312,7 @@ function CreatePostPage() {
               </Text>
               <Text
                 display="block"
-                color={adaptive.grey700}
+                color="#6B7684"
                 typography="t7"
                 fontWeight="regular"
                 style={{ marginBottom: '8px' }}
@@ -312,7 +321,7 @@ function CreatePostPage() {
               </Text>
               <Text
                 display="block"
-                color={adaptive.grey700}
+                color="#6B7684"
                 typography="t7"
                 fontWeight="regular"
                 style={{ marginBottom: '8px' }}
@@ -321,7 +330,7 @@ function CreatePostPage() {
               </Text>
               <Text
                 display="block"
-                color={adaptive.grey700}
+                color="#6B7684"
                 typography="t7"
                 fontWeight="regular"
               >
