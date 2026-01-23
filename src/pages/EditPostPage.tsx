@@ -1,6 +1,6 @@
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import { useState, useEffect } from 'react';
-import { Asset, Text } from '@toss/tds-mobile';
+import { Asset, Text, Spacing, Button } from '@toss/tds-mobile';
 import { adaptive } from '@toss/tds-colors';
 import { useAuth } from '../hooks/useAuth';
 import { getCase, updateCase } from '../api/cases';
@@ -84,16 +84,20 @@ function EditPostPage() {
   };
   
   if (isPostLoading) {
-    return <div style={{ padding: '20px', textAlign: 'center' }}>로딩 중...</div>;
+    return (
+      <div style={{ padding: '20px', textAlign: 'center' }}>
+        <Text color="#191F28">로딩 중...</Text>
+      </div>
+    );
   }
 
   if (error) {
      return (
       <div style={{ padding: '20px', textAlign: 'center' }}>
-        <p>{error}</p>
-        <button onClick={() => navigate('/')} style={{ marginTop: '20px', padding: '10px 20px' }}>
+        <Text color="#D32F2F" style={{ marginBottom: '20px' }}>{error}</Text>
+        <Button onClick={() => navigate('/')} size="medium">
           홈으로 돌아가기
-        </button>
+        </Button>
       </div>
     );
   }
@@ -118,21 +122,30 @@ function EditPostPage() {
         boxSizing: 'border-box'
       }}>
         <button
-          onClick={() => navigate(`/case/${id}`)}
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            if (id) {
+              navigate(`/case/${id}`);
+            } else {
+              navigate('/');
+            }
+          }}
           style={{
             background: 'none',
             border: 'none',
             cursor: 'pointer',
             padding: '4px',
             display: 'flex',
-            alignItems: 'center'
+            alignItems: 'center',
+            zIndex: 10
           }}
         >
           <Asset.Icon
             frameShape={Asset.frameShape.CleanW24}
             backgroundColor="transparent"
             name="icon-arrow-back-ios-mono"
-            color={adaptive.grey900}
+            color="#191F28"
             aria-label="뒤로가기"
           />
         </button>
@@ -159,7 +172,8 @@ function EditPostPage() {
         overflowY: 'auto',
         padding: '20px 20px 100px 20px',
         width: '100%',
-        boxSizing: 'border-box'
+        boxSizing: 'border-box',
+        backgroundColor: 'white'
       }}>
         <Text 
           display="block" 
@@ -191,21 +205,25 @@ function EditPostPage() {
             style={{
               width: '100%',
               padding: '12px 16px',
-              border: '1px solid #e5e5e5',
+              border: '1px solid #E5E5E5',
               borderRadius: '8px',
               fontSize: '15px',
               boxSizing: 'border-box',
               outline: 'none',
-              fontFamily: 'inherit'
+              fontFamily: 'inherit',
+              backgroundColor: 'white',
+              color: '#191F28'
             }}
             onFocus={(e) => {
               e.target.style.borderColor = '#3182F6';
             }}
             onBlur={(e) => {
-              e.target.style.borderColor = '#e5e5e5';
+              e.target.style.borderColor = '#E5E5E5';
             }}
           />
         </div>
+
+        <Spacing size={20} />
 
         {/* Content Input */}
         <div style={{ marginBottom: '20px' }}>
@@ -224,22 +242,24 @@ function EditPostPage() {
             placeholder="고민을 얘기해보세요"
             style={{
               width: '100%',
-              height: '250px',
+              minHeight: '250px',
               padding: '12px 16px',
-              border: '1px solid #e5e5e5',
+              border: '1px solid #E5E5E5',
               borderRadius: '8px',
               fontSize: '15px',
               boxSizing: 'border-box',
               outline: 'none',
               resize: 'none',
               fontFamily: 'inherit',
-              lineHeight: '1.5'
+              lineHeight: '1.5',
+              backgroundColor: 'white',
+              color: '#191F28'
             }}
             onFocus={(e) => {
               e.target.style.borderColor = '#3182F6';
             }}
             onBlur={(e) => {
-              e.target.style.borderColor = '#e5e5e5';
+              e.target.style.borderColor = '#E5E5E5';
             }}
           />
         </div>
@@ -257,22 +277,15 @@ function EditPostPage() {
         width: '100%',
         boxSizing: 'border-box'
       }}>
-        <button
-          onClick={handleSubmit}
-          style={{
-            width: '100%',
-            padding: '16px',
-            backgroundColor: '#3182F6',
-            color: 'white',
-            border: 'none',
-            borderRadius: '12px',
-            fontSize: '16px',
-            fontWeight: '600',
-            cursor: 'pointer'
-          }}
-        >
-          수정 완료
-        </button>
+        <div style={{ width: '100%' }}>
+          <Button
+            onClick={handleSubmit}
+            size="large"
+            style={{ width: '100%' }}
+          >
+            수정 완료
+          </Button>
+        </div>
       </div>
     </div>
   );

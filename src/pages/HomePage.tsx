@@ -1,7 +1,6 @@
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { Asset, Text, Spacing } from '@toss/tds-mobile';
-import { adaptive } from '@toss/tds-colors';
 import { useState, useEffect } from 'react';
 import { getAllCases, getCommentCount, type CaseDocument } from '../api/cases';
 import { Timestamp } from 'firebase/firestore';
@@ -26,6 +25,7 @@ function HomePage() {
   const [allPosts, setAllPosts] = useState<CaseDocument[]>([]);
   const [isPostsLoading, setIsPostsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [completedFilter, setCompletedFilter] = useState<'전체' | '무죄' | '유죄'>('전체');
   const navigate = useNavigate();
 
   // location.state에서 탭 정보를 받아오면 탭 변경
@@ -66,17 +66,19 @@ function HomePage() {
 
   return (
     <div style={{ 
-      backgroundColor: adaptive.background, 
+      backgroundColor: '#F8F9FA', 
       minHeight: '100vh',
       width: '100%',
       boxSizing: 'border-box'
     }}>
+      <Spacing size={14} />
+      
       {/* 헤더 */}
       <div style={{ 
         display: 'flex', 
         alignItems: 'center', 
         justifyContent: 'space-between',
-        padding: '14px 20px',
+        padding: '0 20px',
         backgroundColor: 'white',
         width: '100%',
         boxSizing: 'border-box'
@@ -86,13 +88,19 @@ function HomePage() {
             frameShape={Asset.frameShape.CleanW16}
             src="https://static.toss.im/appsintoss/15155/4dfa3fe7-556e-424d-820a-61a865a49168.png"
             aria-hidden={true}
-            style={{ width: '32px', height: '32px' }}
           />
           <Text color="#191F28ff" typography="t6" fontWeight="semibold">
             소비 재판소
           </Text>
         </div>
-        <div style={{ display: 'flex', gap: '8px' }}>
+        <div style={{ 
+          display: 'flex', 
+          alignItems: 'center',
+          gap: '8px',
+          backgroundColor: 'rgba(0, 23, 51, 0.02)',
+          borderRadius: '99px',
+          padding: '0 4px'
+        }}>
           {user && userData && (
             <button 
               onClick={handleLogout}
@@ -100,23 +108,52 @@ function HomePage() {
                 background: 'none', 
                 border: 'none', 
                 cursor: 'pointer',
-                padding: '4px'
+                padding: '10px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
               }}
+              aria-label="더보기"
             >
               <Asset.Icon
                 frameShape={Asset.frameShape.CleanW20}
                 name="icon-dots-mono"
                 color="rgba(0, 19, 43, 0.58)"
-                aria-label="로그아웃"
+                aria-hidden={true}
               />
             </button>
           )}
+          <div style={{
+            width: '1px',
+            height: '16px',
+            backgroundColor: 'rgba(0, 27, 55, 0.1)'
+          }} />
+          <button 
+            onClick={() => window.close()}
+            style={{ 
+              background: 'none', 
+              border: 'none', 
+              cursor: 'pointer',
+              padding: '10px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center'
+            }}
+            aria-label="닫기"
+          >
+            <Asset.Icon
+              frameShape={Asset.frameShape.CleanW20}
+              name="icon-x-mono"
+              color="rgba(0, 19, 43, 0.58)"
+              aria-hidden={true}
+            />
+          </button>
         </div>
       </div>
 
       <Spacing size={12} />
 
-      {/* 탭 - 삼등분 */}
+      {/* 탭 */}
       <div style={{ padding: '0 20px', backgroundColor: 'white', paddingBottom: '12px' }}>
         <div style={{ display: 'flex', borderBottom: '1px solid #e5e5e5', justifyContent: 'space-between' }}>
           <button
@@ -226,7 +263,7 @@ function HomePage() {
               </Text>
               <Text 
                 display="block" 
-                color={adaptive.grey700} 
+                color="#191F28" 
                 typography="t7" 
                 fontWeight="regular"
                 style={{ marginBottom: '12px' }}
@@ -285,7 +322,7 @@ function HomePage() {
               </Text>
               <Text 
                 display="block" 
-                color={adaptive.grey700} 
+                color="#191F28" 
                 typography="t7" 
                 fontWeight="regular"
                 style={{ marginBottom: '12px' }}
@@ -329,7 +366,7 @@ function HomePage() {
               </Text>
               <Text 
                 display="block" 
-                color={adaptive.grey700} 
+                color="#191F28" 
                 typography="t7" 
                 fontWeight="regular"
                 style={{ marginBottom: '12px' }}
@@ -349,28 +386,75 @@ function HomePage() {
               />
             </div>
           </div>
+          
+          {/* 필터 버튼 */}
+          <div style={{ 
+            display: 'flex', 
+            gap: '8px', 
+            marginBottom: '16px'
+          }}>
+            {(['전체', '무죄', '유죄'] as const).map((filter) => (
+              <button
+                key={filter}
+                onClick={() => setCompletedFilter(filter)}
+                style={{
+                  padding: '6px 16px',
+                  backgroundColor: completedFilter === filter ? '#191F28' : 'transparent',
+                  color: completedFilter === filter ? 'white' : '#666',
+                  border: 'none',
+                  borderRadius: '20px',
+                  fontSize: '14px',
+                  fontWeight: completedFilter === filter ? '600' : '400',
+                  cursor: 'pointer'
+                }}
+              >
+                {filter}
+              </button>
+            ))}
+          </div>
         </div>
       )}
 
       {/* 게시글 목록 */}
-      <div style={{ padding: '0 20px' }}>
-        {isPostsLoading ? (
-          <div style={{ padding: '40px', textAlign: 'center' }}>
-            <Text color={adaptive.grey600}>게시물을 불러오는 중...</Text>
-          </div>
-        ) : error ? (
-          <div style={{ padding: '40px', textAlign: 'center' }}>
-            <Text color="#D32F2F">{error}</Text>
-          </div>
-        ) : (
-          <PostList 
-            posts={allPosts} 
-            selectedTab={selectedTab} 
-            navigate={navigate}
-            getCommentCount={getCommentCount}
-          />
-        )}
-      </div>
+      {selectedTab === '재판 완료' ? (
+        <div style={{ padding: '0' }}>
+          {isPostsLoading ? (
+            <div style={{ padding: '40px', textAlign: 'center' }}>
+              <Text color="#6B7684">게시물을 불러오는 중...</Text>
+            </div>
+          ) : error ? (
+            <div style={{ padding: '40px', textAlign: 'center' }}>
+              <Text color="#D32F2F">{error}</Text>
+            </div>
+          ) : (
+            <CompletedPostList 
+              posts={allPosts} 
+              navigate={navigate}
+              getCommentCount={getCommentCount}
+              filter={completedFilter}
+            />
+          )}
+        </div>
+      ) : (
+        <div style={{ padding: '0 20px' }}>
+          {isPostsLoading ? (
+            <div style={{ padding: '40px', textAlign: 'center' }}>
+              <Text color="#6B7684">게시물을 불러오는 중...</Text>
+            </div>
+          ) : error ? (
+            <div style={{ padding: '40px', textAlign: 'center' }}>
+              <Text color="#D32F2F">{error}</Text>
+            </div>
+          ) : (
+            <PostList 
+              posts={allPosts} 
+              selectedTab={selectedTab} 
+              navigate={navigate}
+              getCommentCount={getCommentCount}
+            />
+          )}
+        </div>
+      )}
 
       <Spacing size={24} />
     </div>
@@ -406,15 +490,19 @@ function PostList({ posts, selectedTab, navigate, getCommentCount }: PostListPro
             // voteCount는 화면 표시에 필요하므로 유지합니다.
             const voteCount = post.guiltyCount + post.innocentCount;
             
+            // HOT 점수 계산: 투표수 + 2*댓글수
+            const hotScore = voteCount + (2 * commentCount);
+            
             // 재판 결과 결정 (innocent가 많으면 무죄, guilty가 많으면 유죄)
             const verdict = voteCount > 0 
               ? (post.innocentCount >= post.guiltyCount ? '무죄' : '유죄')
               : null;
 
             return {
-              ...post, // DB에 저장된 status와 hotScore가 여기에 포함됩니다.
+              ...post, // DB에 저장된 status가 여기에 포함됩니다.
               voteCount,
               commentCount,
+              hotScore, // 실시간으로 계산된 HOT 점수
               verdict
             };
           })
@@ -434,7 +522,7 @@ function PostList({ posts, selectedTab, navigate, getCommentCount }: PostListPro
   if (isLoading) {
     return (
       <div style={{ padding: '40px', textAlign: 'center' }}>
-        <Text color={adaptive.grey600}>게시물 정보를 불러오는 중...</Text>
+        <Text color="#6B7684">게시물 정보를 불러오는 중...</Text>
       </div>
     );
   }
@@ -444,8 +532,9 @@ function PostList({ posts, selectedTab, navigate, getCommentCount }: PostListPro
   
   if (selectedTab === 'HOT 게시판') {
     // 재판 중인 게시물만 필터링하고 HOT 점수로 정렬, 상위 5개만 표시
+    // HOT 점수가 0보다 큰 게시물만 표시 (투표나 댓글이 있는 게시물만)
     displayPosts = postsWithDetails
-      .filter(post => post.status === 'OPEN')
+      .filter(post => post.status === 'OPEN' && post.hotScore > 0)
       .sort((a, b) => b.hotScore - a.hotScore)
       .slice(0, 5);
   } else if (selectedTab === '재판 완료') {
@@ -510,7 +599,7 @@ function PostList({ posts, selectedTab, navigate, getCommentCount }: PostListPro
                 {/* 판결 완료 날짜 */}
                 <div style={{ 
                   fontSize: '12px', 
-                  color: adaptive.grey600,
+                  color: '#6B7684',
                   marginBottom: '4px'
                 }}>
                   {formatDate(post.voteEndAt)}
@@ -553,11 +642,11 @@ function PostList({ posts, selectedTab, navigate, getCommentCount }: PostListPro
             }}
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
-              <Text color={adaptive.grey700} typography="t7" fontWeight="regular">
+              <Text color="#191F28" typography="t7" fontWeight="regular">
                 {post.authorNickname}
               </Text>
               {post.createdAt && (
-                <Text color={adaptive.grey500} typography="t7" fontWeight="regular">
+                <Text color="#9E9E9E" typography="t7" fontWeight="regular">
                   {formatDate(post.createdAt)}
                 </Text>
               )}
@@ -588,20 +677,20 @@ function PostList({ posts, selectedTab, navigate, getCommentCount }: PostListPro
               {post.content}
             </Text>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <Text color={adaptive.grey600} typography="t7" fontWeight="regular">
+              <Text color="#6B7684" typography="t7" fontWeight="regular">
                 {post.voteCount.toLocaleString()}명 투표 중
               </Text>
               {post.commentCount > 0 && (
                 <>
-                  <span style={{ color: adaptive.grey400 }}>•</span>
-                  <Text color={adaptive.grey600} typography="t7" fontWeight="regular">
+                  <span style={{ color: '#C4C4C4' }}>•</span>
+                  <Text color="#6B7684" typography="t7" fontWeight="regular">
                     댓글 {post.commentCount}
                   </Text>
                 </>
               )}
               {selectedTab === 'HOT 게시판' && (
                 <>
-                  <span style={{ color: adaptive.grey400 }}>•</span>
+                  <span style={{ color: '#C4C4C4' }}>•</span>
                   <Text color="#FF6B6B" typography="t7" fontWeight="semibold">
                     🔥 TOP {index + 1}
                   </Text>
@@ -611,6 +700,273 @@ function PostList({ posts, selectedTab, navigate, getCommentCount }: PostListPro
           </div>
         );
       })}
+    </div>
+  );
+}
+
+// 재판 완료 전용 컴포넌트
+interface CompletedPostListProps {
+  posts: CaseDocument[];
+  navigate: (path: string, state?: any) => void;
+  getCommentCount: (caseId: string) => Promise<number>;
+  filter: '전체' | '무죄' | '유죄';
+}
+
+function CompletedPostList({ posts, navigate, getCommentCount, filter }: CompletedPostListProps) {
+  const [postsWithDetails, setPostsWithDetails] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const loadPostDetails = async () => {
+      setIsLoading(true);
+      try {
+        const postsWithData = await Promise.all(
+          posts.map(async (post) => {
+            let commentCount = 0;
+            try {
+              commentCount = await getCommentCount(post.id);
+            } catch (error) {
+              console.error(`댓글 개수 조회 실패 (${post.id}):`, error);
+            }
+
+            const voteCount = post.guiltyCount + post.innocentCount;
+            const hotScore = voteCount + (2 * commentCount);
+            const verdict = voteCount > 0 
+              ? (post.innocentCount >= post.guiltyCount ? '무죄' : '유죄')
+              : null;
+
+            return {
+              ...post,
+              voteCount,
+              commentCount,
+              hotScore,
+              verdict
+            };
+          })
+        );
+
+        setPostsWithDetails(postsWithData);
+      } catch (error) {
+        console.error('게시물 상세 정보 로드 실패:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadPostDetails();
+  }, [posts, getCommentCount]);
+
+  if (isLoading) {
+    return (
+      <div style={{ padding: '40px', textAlign: 'center' }}>
+        <Text color="#6B7684">게시물 정보를 불러오는 중...</Text>
+      </div>
+    );
+  }
+
+  const formatDate = (timestamp: Timestamp | undefined) => {
+    if (!timestamp) return '';
+    const date = timestamp.toDate();
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
+  // 재판 완료된 전체 게시물 (필터 적용)
+  const allCompletedPosts = postsWithDetails
+    .filter(post => post.status === 'CLOSED')
+    .filter(post => {
+      if (filter === '전체') return true;
+      if (filter === '무죄') return post.verdict === '무죄';
+      if (filter === '유죄') return post.verdict === '유죄';
+      return true;
+    })
+    .sort((a, b) => {
+      const dateA = a.voteEndAt?.toMillis() || 0;
+      const dateB = b.voteEndAt?.toMillis() || 0;
+      return dateB - dateA;
+    });
+
+  // HOT 게시판에 있던 상태로 재판이 완료된 글들 (HOT 점수 기준)
+  const hotCompletedPosts = postsWithDetails
+    .filter(post => post.status === 'CLOSED' && post.hotScore > 0)
+    .sort((a, b) => b.hotScore - a.hotScore);
+
+  const renderPostCard = (post: any) => (
+    <div
+      key={post.id}
+      onClick={() => navigate(`/case/${post.id}`, { state: { fromTab: '재판 완료' } })}
+      style={{
+        backgroundColor: '#f2f4f6',
+        borderRadius: '10px',
+        padding: '16px',
+        minWidth: '172px',
+        width: '172px',
+        height: '211px',
+        marginRight: '12px',
+        cursor: 'pointer',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '12px',
+        boxSizing: 'border-box'
+      }}
+    >
+      {/* 배지 */}
+      <div style={{
+        padding: '4px 8px',
+        backgroundColor: post.verdict === '무죄' ? '#3182F628' : '#F0445228',
+        color: post.verdict === '무죄' ? '#1976D2' : '#D32F2F',
+        fontSize: '12px',
+        fontWeight: '600',
+        borderRadius: '4px',
+        width: 'fit-content'
+      }}>
+        {post.verdict || '미결정'}
+      </div>
+
+      {/* 제목 */}
+      <div style={{
+        flex: 1,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        minHeight: 0
+      }}>
+        <Text
+          display="block"
+          color="#191F28"
+          typography="t3"
+          fontWeight="bold"
+          style={{
+            textAlign: 'center',
+            wordBreak: 'break-word',
+            overflow: 'hidden',
+            display: '-webkit-box',
+            WebkitLineClamp: 3,
+            WebkitBoxOrient: 'vertical',
+            lineHeight: '1.4'
+          }}
+        >
+          {post.title}
+        </Text>
+      </div>
+
+      {/* 날짜 */}
+      <div style={{
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginTop: 'auto'
+      }}>
+        <Text
+          display="block"
+          color="#6B7684"
+          typography="t7"
+          fontWeight="regular"
+        >
+          {formatDate(post.voteEndAt)}
+        </Text>
+        <Asset.Icon
+          frameShape={Asset.frameShape.CleanW24}
+          backgroundColor="transparent"
+          name="icon-system-arrow-right-outlined"
+          color="rgba(0, 19, 43, 0.38)"
+          aria-hidden={true}
+        />
+      </div>
+    </div>
+  );
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+      {/* 위쪽: 재판 완료된 전체 게시물 */}
+      <div>
+        <div style={{
+          overflowX: 'auto',
+          overflowY: 'hidden',
+          padding: '0 20px',
+          WebkitOverflowScrolling: 'touch',
+          scrollbarWidth: 'none',
+          msOverflowStyle: 'none',
+          cursor: 'grab'
+        }}
+        onWheel={(e) => {
+          const container = e.currentTarget;
+          container.scrollLeft += e.deltaY;
+          e.preventDefault();
+        }}
+        >
+          <div style={{
+            display: 'flex',
+            flexDirection: 'row',
+            gap: '0',
+            paddingRight: '20px'
+          }}>
+            {allCompletedPosts.map(renderPostCard)}
+          </div>
+        </div>
+        <style>{`
+          div::-webkit-scrollbar {
+            display: none;
+          }
+        `}</style>
+      </div>
+
+      {/* 아래쪽: 화제의 재판 기록 */}
+      {hotCompletedPosts.length > 0 && (
+        <div>
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            padding: '0 20px',
+            marginBottom: '16px'
+          }}>
+            <img
+              src={hotFlameIcon}
+              alt="화제"
+              style={{
+                width: '24px',
+                height: '24px',
+                objectFit: 'contain'
+              }}
+            />
+            <Text
+              display="block"
+              color="#191F28"
+              typography="t4"
+              fontWeight="bold"
+            >
+              화제의 재판 기록
+            </Text>
+          </div>
+          <div style={{
+            overflowX: 'auto',
+            overflowY: 'hidden',
+            padding: '0 20px',
+            WebkitOverflowScrolling: 'touch',
+            scrollbarWidth: 'none',
+            msOverflowStyle: 'none',
+            cursor: 'grab'
+          }}
+          onWheel={(e) => {
+            const container = e.currentTarget;
+            container.scrollLeft += e.deltaY;
+            e.preventDefault();
+          }}
+          >
+            <div style={{
+              display: 'flex',
+              flexDirection: 'row',
+              gap: '0',
+              paddingRight: '20px'
+            }}>
+              {hotCompletedPosts.map(renderPostCard)}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

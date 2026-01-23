@@ -2,9 +2,9 @@ import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import { Asset, Text } from '@toss/tds-mobile';
-import { adaptive } from '@toss/tds-colors';
 import { Timestamp } from 'firebase/firestore';
 import replyArrowIcon from '../assets/답글화살표.png';
+import smileIcon from '../assets/smile.png';
 import { 
   getCase, 
   getUserVote, 
@@ -205,6 +205,22 @@ function CaseDetailPage() {
     loadComments();
   }, [id]);
 
+  // localStorage에서 좋아요 정보 불러오기
+  useEffect(() => {
+    if (!id || !user) return;
+    
+    try {
+      const storageKey = `liked_comments_${id}_${user.uid}`;
+      const savedLikes = localStorage.getItem(storageKey);
+      if (savedLikes) {
+        const likedArray = JSON.parse(savedLikes);
+        setLikedComments(new Set(likedArray));
+      }
+    } catch (error) {
+      console.error('좋아요 정보 불러오기 실패:', error);
+    }
+  }, [id, user]);
+
   // 투표 여부 확인
   useEffect(() => {
     const loadUserVote = async () => {
@@ -351,6 +367,15 @@ function CaseDetailPage() {
       return;
     }
 
+    if (!hasVoted) {
+      alert('투표 후 공감을 누를 수 있습니다!');
+      return;
+    }
+
+    if (post?.status === 'CLOSED') {
+      return; // 재판 완료된 글에서는 좋아요 불가
+    }
+
     if (likedComments.has(commentId)) {
       alert('이미 공감한 댓글입니다!');
       return;
@@ -373,6 +398,14 @@ function CaseDetailPage() {
       const newLikedComments = new Set(likedComments);
       newLikedComments.add(commentId);
       setLikedComments(newLikedComments);
+      
+      // localStorage에 저장
+      try {
+        const storageKey = `liked_comments_${id}_${user.uid}`;
+        localStorage.setItem(storageKey, JSON.stringify(Array.from(newLikedComments)));
+      } catch (error) {
+        console.error('좋아요 정보 저장 실패:', error);
+      }
     } catch (error) {
       console.error('댓글 좋아요 실패:', error);
       alert('댓글 좋아요에 실패했습니다.');
@@ -382,6 +415,11 @@ function CaseDetailPage() {
   const handleReplySubmit = async (commentId: string) => {
     if (!id || !user || !userData) {
       alert('로그인이 필요합니다.');
+      return;
+    }
+
+    if (!hasVoted) {
+      alert('투표 후 댓글을 작성할 수 있습니다!');
       return;
     }
 
@@ -429,6 +467,15 @@ function CaseDetailPage() {
       return;
     }
 
+    if (!hasVoted) {
+      alert('투표 후 공감을 누를 수 있습니다!');
+      return;
+    }
+
+    if (post?.status === 'CLOSED') {
+      return; // 재판 완료된 글에서는 좋아요 불가
+    }
+
     const likeKey = `${commentId}_${replyId}`;
     if (likedComments.has(likeKey)) {
       alert('이미 공감한 답글입니다!');
@@ -452,6 +499,14 @@ function CaseDetailPage() {
       const newLikedComments = new Set(likedComments);
       newLikedComments.add(likeKey);
       setLikedComments(newLikedComments);
+      
+      // localStorage에 저장
+      try {
+        const storageKey = `liked_comments_${id}_${user.uid}`;
+        localStorage.setItem(storageKey, JSON.stringify(Array.from(newLikedComments)));
+      } catch (error) {
+        console.error('좋아요 정보 저장 실패:', error);
+      }
     } catch (error) {
       console.error('답글 좋아요 실패:', error);
       alert('답글 좋아요에 실패했습니다.');
@@ -748,11 +803,14 @@ function CaseDetailPage() {
         }}>
           {/* 프로필 */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
-            <Asset.Icon
-              frameShape={Asset.frameShape.CleanW40}
-              backgroundColor="transparent"
-              name="icon-one-league10-blue"
-              aria-hidden={true}
+            <img 
+              src={smileIcon} 
+              alt="smile" 
+              style={{ 
+                width: '40px', 
+                height: '40px',
+                objectFit: 'contain'
+              }} 
             />
             <span style={{ color: '#666', fontSize: '13px' }}>
               {post.authorNickname} 님
@@ -977,11 +1035,13 @@ function CaseDetailPage() {
                   width: '100%',
                   minHeight: '80px',
                   padding: '12px',
-                  border: '1px solid #ddd',
+                  border: '1px solid #E5E5E5',
                   borderRadius: '8px',
                   fontSize: '14px',
                   resize: 'vertical',
-                  boxSizing: 'border-box'
+                  boxSizing: 'border-box',
+                  backgroundColor: 'white',
+                  color: '#191F28'
                 }}
               />
               <button
@@ -1060,7 +1120,7 @@ function CaseDetailPage() {
                         </div>
                         {/* 작성자 */}
                         <Text
-                          color={adaptive.grey600}
+                          color="#6B7684"
                           typography="t7"
                           fontWeight="medium"
                         >
@@ -1079,14 +1139,16 @@ function CaseDetailPage() {
                       }}>
                         <button
                           onClick={() => handleLikeComment(comment.id)}
+                          disabled={post?.status === 'CLOSED'}
                           style={{
                             background: 'none',
                             border: 'none',
-                            cursor: 'pointer',
+                            cursor: post?.status === 'CLOSED' ? 'not-allowed' : 'pointer',
                             padding: '4px 8px',
                             display: 'flex',
                             alignItems: 'center',
-                            gap: '4px'
+                            gap: '4px',
+                            opacity: post?.status === 'CLOSED' ? 0.5 : 1
                           }}
                         >
                           <Asset.Icon
@@ -1104,7 +1166,13 @@ function CaseDetailPage() {
                           opacity: 0.3
                         }} />
                         <button
-                          onClick={() => setReplyingTo(comment.id)}
+                          onClick={() => {
+                            if (!hasVoted) {
+                              alert('투표 후 댓글을 작성할 수 있습니다!');
+                              return;
+                            }
+                            setReplyingTo(comment.id);
+                          }}
                           style={{
                             background: 'none',
                             border: 'none',
@@ -1161,11 +1229,13 @@ function CaseDetailPage() {
                             width: '100%',
                             minHeight: '60px',
                             padding: '8px',
-                            border: '1px solid #ddd',
+                            border: '1px solid #E5E5E5',
                             borderRadius: '4px',
                             fontSize: '14px',
                             marginBottom: '8px',
-                            boxSizing: 'border-box'
+                            boxSizing: 'border-box',
+                            backgroundColor: 'white',
+                            color: '#191F28'
                           }}
                         />
                         <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
@@ -1205,7 +1275,7 @@ function CaseDetailPage() {
                       <>
                         <Text
                           display="block"
-                          color={adaptive.grey700}
+                          color="#191F28"
                           typography="t6"
                           fontWeight="regular"
                           style={{ marginBottom: '8px' }}
@@ -1216,7 +1286,7 @@ function CaseDetailPage() {
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                           <Text
                             display="block"
-                            color={adaptive.grey500}
+                            color="#9E9E9E"
                             typography="t7"
                             fontWeight="regular"
                           >
@@ -1254,11 +1324,13 @@ function CaseDetailPage() {
                             width: '100%',
                             minHeight: '60px',
                             padding: '8px',
-                            border: '1px solid #ddd',
+                            border: '1px solid #E5E5E5',
                             borderRadius: '4px',
                             fontSize: '13px',
                             marginBottom: '8px',
-                            boxSizing: 'border-box'
+                            boxSizing: 'border-box',
+                            backgroundColor: 'white',
+                            color: '#191F28'
                           }}
                         />
                         <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
@@ -1436,7 +1508,7 @@ function CaseDetailPage() {
                                 </div>
                                 {/* 작성자 */}
                                 <Text
-                                  color={adaptive.grey600}
+                                  color="#6B7684"
                                   typography="t7"
                                   fontWeight="medium"
                                 >
@@ -1455,14 +1527,16 @@ function CaseDetailPage() {
                               }}>
                                 <button
                                   onClick={() => handleLikeReply(comment.id, reply.id)}
+                                  disabled={post?.status === 'CLOSED'}
                                   style={{
                                     background: 'none',
                                     border: 'none',
-                                    cursor: 'pointer',
+                                    cursor: post?.status === 'CLOSED' ? 'not-allowed' : 'pointer',
                                     padding: '4px 8px',
                                     display: 'flex',
                                     alignItems: 'center',
-                                    gap: '4px'
+                                    gap: '4px',
+                                    opacity: post?.status === 'CLOSED' ? 0.5 : 1
                                   }}
                                 >
                                   <Asset.Icon
@@ -1512,11 +1586,13 @@ function CaseDetailPage() {
                                     width: '100%',
                                     minHeight: '60px',
                                     padding: '8px',
-                                    border: '1px solid #ddd',
+                                    border: '1px solid #E5E5E5',
                                     borderRadius: '4px',
                                     fontSize: '13px',
                                     marginBottom: '8px',
-                                    boxSizing: 'border-box'
+                                    boxSizing: 'border-box',
+                                    backgroundColor: 'white',
+                                    color: '#191F28'
                                   }}
                                 />
                                 <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
@@ -1556,7 +1632,7 @@ function CaseDetailPage() {
                               <>
                                 <Text
                                   display="block"
-                                  color={adaptive.grey700}
+                                  color="#191F28"
                                   typography="t6"
                                   fontWeight="regular"
                                   style={{ marginBottom: '8px' }}
@@ -1567,7 +1643,7 @@ function CaseDetailPage() {
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                                   <Text
                                     display="block"
-                                    color={adaptive.grey500}
+                                    color="#9E9E9E"
                                     typography="t7"
                                     fontWeight="regular"
                                   >
@@ -1724,7 +1800,7 @@ function CaseDetailPage() {
             </Text>
             <Text
               display="block"
-              color={adaptive.grey700}
+              color="#191F28"
               typography="t7"
               fontWeight="regular"
               textAlign="center"
@@ -1812,7 +1888,7 @@ function CaseDetailPage() {
             </Text>
             <Text
               display="block"
-              color={adaptive.grey700}
+              color="#191F28"
               typography="t7"
               fontWeight="regular"
               textAlign="center"
