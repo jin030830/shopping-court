@@ -1,4 +1,4 @@
-import { useNavigate, useLocation, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import { Asset, Text } from '@toss/tds-mobile';
 import { adaptive } from '@toss/tds-colors';
@@ -83,7 +83,7 @@ function EditPostPage() {
     }
   };
   
-  if (isPostLoading || isAuthLoading) {
+  if (isPostLoading) {
     return <div style={{ padding: '20px', textAlign: 'center' }}>로딩 중...</div>;
   }
 

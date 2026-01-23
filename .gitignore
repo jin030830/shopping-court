@@ -50,3 +50,4 @@ lerna-debug.log*
 backend/certs/
 
 backend/serviceAccountKey.json # Firebase 서비스 계정 키 파일 제외
+.vercel
