@@ -2,7 +2,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { Asset, Text, Spacing } from '@toss/tds-mobile';
 import { useState, useEffect } from 'react';
-import { getAllCases, getCommentCount, type CaseDocument } from '../api/cases';
+import { getAllCases, type CaseDocument } from '../api/cases';
 import { Timestamp } from 'firebase/firestore';
 import scaleIcon from '../assets/저울모양.png';
 import gavelIcon from '../assets/판사봉.png';
@@ -430,7 +430,6 @@ function HomePage() {
             <CompletedPostList 
               posts={allPosts} 
               navigate={navigate}
-              getCommentCount={getCommentCount}
               filter={completedFilter}
             />
           )}
@@ -450,7 +449,6 @@ function HomePage() {
               posts={allPosts} 
               selectedTab={selectedTab} 
               navigate={navigate}
-              getCommentCount={getCommentCount}
             />
           )}
         </div>
@@ -466,47 +464,36 @@ interface PostListProps {
   posts: CaseDocument[];
   selectedTab: string;
   navigate: (path: string, state?: any) => void;
-  getCommentCount: (caseId: string) => Promise<number>;
 }
 
-function PostList({ posts, selectedTab, navigate, getCommentCount }: PostListProps) {
+function PostList({ posts, selectedTab, navigate }: PostListProps) {
   const [postsWithDetails, setPostsWithDetails] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const loadPostDetails = async () => {
+    const loadPostDetails = () => {
       setIsLoading(true);
       try {
-        const postsWithData = await Promise.all(
-          posts.map(async (post) => {
-            // 댓글 개수는 화면 표시에 필요하므로 유지합니다.
-            let commentCount = 0;
-            try {
-              commentCount = await getCommentCount(post.id);
-            } catch (error) {
-              console.error(`댓글 개수 조회 실패 (${post.id}):`, error);
-            }
+        // getAllCases로 가져온 post.commentCount를 직접 사용 (N+1 문제 해결)
+        const postsWithData = posts.map((post) => {
+          // voteCount는 화면 표시에 필요하므로 유지합니다.
+          const voteCount = post.guiltyCount + post.innocentCount;
+          
+          // HOT 점수 계산: 투표수 + 2*댓글수 (post.commentCount 직접 사용)
+          const hotScore = voteCount + (2 * (post.commentCount || 0));
+          
+          // 재판 결과 결정 (innocent가 많으면 무죄, guilty가 많으면 유죄)
+          const verdict = voteCount > 0 
+            ? (post.innocentCount >= post.guiltyCount ? '무죄' : '유죄')
+            : null;
 
-            // voteCount는 화면 표시에 필요하므로 유지합니다.
-            const voteCount = post.guiltyCount + post.innocentCount;
-            
-            // HOT 점수 계산: 투표수 + 2*댓글수
-            const hotScore = voteCount + (2 * commentCount);
-            
-            // 재판 결과 결정 (innocent가 많으면 무죄, guilty가 많으면 유죄)
-            const verdict = voteCount > 0 
-              ? (post.innocentCount >= post.guiltyCount ? '무죄' : '유죄')
-              : null;
-
-            return {
-              ...post, // DB에 저장된 status가 여기에 포함됩니다.
-              voteCount,
-              commentCount,
-              hotScore, // 실시간으로 계산된 HOT 점수
-              verdict
-            };
-          })
-        );
+          return {
+            ...post, // DB에 저장된 status, commentCount가 여기에 포함됩니다.
+            voteCount,
+            hotScore, // 실시간으로 계산된 HOT 점수
+            verdict
+          };
+        });
 
         setPostsWithDetails(postsWithData);
       } catch (error) {
@@ -517,7 +504,7 @@ function PostList({ posts, selectedTab, navigate, getCommentCount }: PostListPro
     };
 
     loadPostDetails();
-  }, [posts, getCommentCount]);
+  }, [posts]);
 
   if (isLoading) {
     return (
@@ -708,42 +695,33 @@ function PostList({ posts, selectedTab, navigate, getCommentCount }: PostListPro
 interface CompletedPostListProps {
   posts: CaseDocument[];
   navigate: (path: string, state?: any) => void;
-  getCommentCount: (caseId: string) => Promise<number>;
   filter: '전체' | '무죄' | '유죄';
 }
 
-function CompletedPostList({ posts, navigate, getCommentCount, filter }: CompletedPostListProps) {
+function CompletedPostList({ posts, navigate, filter }: CompletedPostListProps) {
   const [postsWithDetails, setPostsWithDetails] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const loadPostDetails = async () => {
+    const loadPostDetails = () => {
       setIsLoading(true);
       try {
-        const postsWithData = await Promise.all(
-          posts.map(async (post) => {
-            let commentCount = 0;
-            try {
-              commentCount = await getCommentCount(post.id);
-            } catch (error) {
-              console.error(`댓글 개수 조회 실패 (${post.id}):`, error);
-            }
+        // getAllCases로 가져온 post.commentCount를 직접 사용 (N+1 문제 해결)
+        const postsWithData = posts.map((post) => {
+          const voteCount = post.guiltyCount + post.innocentCount;
+          // HOT 점수 계산: 투표수 + 2*댓글수 (post.commentCount 직접 사용)
+          const hotScore = voteCount + (2 * (post.commentCount || 0));
+          const verdict = voteCount > 0 
+            ? (post.innocentCount >= post.guiltyCount ? '무죄' : '유죄')
+            : null;
 
-            const voteCount = post.guiltyCount + post.innocentCount;
-            const hotScore = voteCount + (2 * commentCount);
-            const verdict = voteCount > 0 
-              ? (post.innocentCount >= post.guiltyCount ? '무죄' : '유죄')
-              : null;
-
-            return {
-              ...post,
-              voteCount,
-              commentCount,
-              hotScore,
-              verdict
-            };
-          })
-        );
+          return {
+            ...post, // DB에 저장된 status, commentCount가 여기에 포함됩니다.
+            voteCount,
+            hotScore,
+            verdict
+          };
+        });
 
         setPostsWithDetails(postsWithData);
       } catch (error) {
@@ -754,7 +732,7 @@ function CompletedPostList({ posts, navigate, getCommentCount, filter }: Complet
     };
 
     loadPostDetails();
-  }, [posts, getCommentCount]);
+  }, [posts]);
 
   if (isLoading) {
     return (
