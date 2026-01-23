@@ -9,8 +9,8 @@ interface AuthContextType {
   user: User | null;
   userData: UserDocument | null;
   isLoading: boolean;
-  isLoggingIn: boolean; // 로그인 진행 상태 추가
-  login: () => Promise<void>; // 로그인 함수 추가
+  isLoggingIn: boolean;
+  login: () => Promise<void>;
   logout: () => Promise<void>;
 }
 
@@ -27,24 +27,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     
     setIsLoggingIn(true);
     try {
-      console.log('📱 1단계: 토스 앱 로그인 시작...');
       const tossResult = await loginWithToss();
-      console.log('✅ 2단계: 토스 로그인 완료!');
-      
-      console.log('🌐 3단계: 서버에서 커스텀 토큰 요청...');
       const authData = await getCustomTokenFromServer(
         tossResult.authorizationCode,
         tossResult.referrer
       );
-      console.log('✅ 4단계: 서버로부터 커스텀 토큰 수신 완료');
 
-      console.log('🔥 5단계: Firebase 로그인 시작...');
       const firebaseUser = await signInToFirebase(authData.customToken);
-      console.log('✅ 6단계: Firebase 로그인 성공! UID:', firebaseUser.uid);
-
-      console.log('👤 7단계: Firestore에서 사용자 정보 가져오기/생성...');
       const userDocument = await createOrUpdateUser(firebaseUser);
-      console.log('✅ 8단계: 사용자 정보 확인:', userDocument.nickname);
       
       const storageData = {
         uid: firebaseUser.uid,
@@ -55,14 +45,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
       localStorage.setItem('shopping-court-user', JSON.stringify(storageData));
       localStorage.setItem('shopping-court-logged-in', 'true');
-      
-      console.log('💾 9단계: 로그인 상태 저장 완료!');
       window.dispatchEvent(new Event('storage'));
       
+      setIsLoggingIn(false);
+      window.location.reload(); // SPA 상태 동기화를 위해 페이지 새로고침
+      
     } catch (error) {
-      console.error('❌ 로그인 실패:', error);
+      console.error('Login error:', error);
       alert(error instanceof Error ? error.message : '로그인에 실패했습니다.');
-    } finally {
       setIsLoggingIn(false);
     }
   };
@@ -75,7 +65,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       setUser(firebaseUser);
       if (firebaseUser) {
-        console.log('🔥 Firebase 인증 상태 변경: 로그인 됨 (uid:', firebaseUser.uid, ')');
         const localData = localStorage.getItem('shopping-court-user');
         if (localData) {
           try {
@@ -95,7 +84,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           setUserData(data);
         }
       } else {
-        console.log('🔥 Firebase 인증 상태 변경: 로그아웃 됨');
         setUserData(null);
         localStorage.removeItem('shopping-court-user');
         localStorage.removeItem('shopping-court-logged-in');
@@ -110,10 +98,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       if (auth) {
         await signOut(auth);
-        console.log('✅ 로그아웃 요청 성공');
       }
     } catch (error) {
-      console.error('❌ 로그아웃 실패:', error);
+      console.error('Logout error:', error);
       throw error;
     }
   };
