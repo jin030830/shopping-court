@@ -3,7 +3,6 @@ import HomePage from '../pages/HomePage';
 import CaseDetailPage from '../pages/CaseDetailPage';
 import CreatePostPage from '../pages/CreatePostPage';
 import EditPostPage from '../pages/EditPostPage';
-import TermsPage from '../pages/TermsPage';
 import StaticTermsPage from '../pages/StaticTermsPage';
 import StaticMarketingPage from '../pages/StaticMarketingPage';
 import ProtectedRoute from './ProtectedRoute';
@@ -44,9 +43,6 @@ function AppRoutes() {
         } 
       />
       
-      {/* 약관 동의 플로우를 위한 페이지 */}
-      <Route path="/terms" element={<TermsPage />} />
-
       {/* 약관 내용만 보여주는 정적 페이지 */}
       <Route 
         path="/terms-static" 

@@ -1,14 +1,16 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { onAuthStateChanged, signOut, type User } from 'firebase/auth';
 import { auth } from '../api/firebase';
-import { getUserData } from '../api/user';
-import type { UserDocument } from '../api/user';
-import { Timestamp } from 'firebase/firestore'; // Timestamp 임포트
+import { getUserData, createOrUpdateUser, type UserDocument } from '../api/user';
+import { getCustomTokenFromServer, loginWithToss, signInToFirebase } from '../api/auth';
+import { Timestamp } from 'firebase/firestore';
 
 interface AuthContextType {
   user: User | null;
   userData: UserDocument | null;
   isLoading: boolean;
+  isLoggingIn: boolean; // 로그인 진행 상태 추가
+  login: () => Promise<void>; // 로그인 함수 추가
   logout: () => Promise<void>;
 }
 
@@ -18,6 +20,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [user, setUser] = useState<User | null>(null);
   const [userData, setUserData] = useState<UserDocument | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
 
   useEffect(() => {
     if (!auth) {
@@ -64,11 +67,55 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return () => unsubscribe();
   }, []);
 
+  const login = async () => {
+    if (isLoggingIn || (user && userData)) return;
+    
+    setIsLoggingIn(true);
+    try {
+      console.log('📱 1단계: 토스 앱 로그인 시작...');
+      const tossResult = await loginWithToss();
+      console.log('✅ 2단계: 토스 로그인 완료!');
+      
+      console.log('🌐 3단계: 서버에서 커스텀 토큰 요청...');
+      const authData = await getCustomTokenFromServer(
+        tossResult.authorizationCode,
+        tossResult.referrer
+      );
+      console.log('✅ 4단계: 서버로부터 커스텀 토큰 수신 완료');
+
+      console.log('🔥 5단계: Firebase 로그인 시작...');
+      const firebaseUser = await signInToFirebase(authData.customToken);
+      console.log('✅ 6단계: Firebase 로그인 성공! UID:', firebaseUser.uid);
+
+      console.log('👤 7단계: Firestore에서 사용자 정보 가져오기/생성...');
+      const userDocument = await createOrUpdateUser(firebaseUser);
+      console.log('✅ 8단계: 사용자 정보 확인:', userDocument.nickname);
+      
+      const storageData = {
+        uid: firebaseUser.uid,
+        nickname: userDocument.nickname,
+        createdAt: userDocument.createdAt?.toDate().toISOString() || new Date().toISOString(),
+        isLoggedIn: true,
+      };
+      
+      localStorage.setItem('shopping-court-user', JSON.stringify(storageData));
+      localStorage.setItem('shopping-court-logged-in', 'true');
+      
+      console.log('💾 9단계: 로그인 상태 저장 완료!');
+      window.dispatchEvent(new Event('storage'));
+      
+    } catch (error) {
+      console.error('❌ 로그인 실패:', error);
+      alert(error instanceof Error ? error.message : '로그인에 실패했습니다.');
+    } finally {
+      setIsLoggingIn(false);
+    }
+  };
+
   const logout = async () => {
     try {
       if (auth) {
         await signOut(auth);
-        // onAuthStateChanged가 user와 userData를 null로 설정하고 localStorage를 정리함
         console.log('✅ 로그아웃 요청 성공');
       }
     } catch (error) {
@@ -78,7 +125,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   return (
-    <AuthContext.Provider value={{ user, userData, isLoading, logout }}>
+    <AuthContext.Provider value={{ user, userData, isLoading, isLoggingIn, login, logout }}>
       {children}
     </AuthContext.Provider>
   );

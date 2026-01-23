@@ -5,7 +5,7 @@ function StaticMarketingPage() {
   return (
     <div className="static-page-container">
       <div className="static-page-header">
-        <Link to="/terms" className="back-link">← 뒤로가기</Link>
+        <Link to="/" className="back-link">← 뒤로가기</Link>
       </div>
       
       <div className="static-page-content">
