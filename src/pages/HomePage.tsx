@@ -1,5 +1,4 @@
 import { useNavigate, useLocation } from 'react-router-dom';
-import { useAuth } from '../hooks/useAuth';
 import { Asset, Text, Spacing } from '@toss/tds-mobile';
 import { useState, useEffect } from 'react';
 import { getAllCases, type CaseDocument } from '../api/cases';
@@ -19,7 +18,6 @@ const formatDate = (timestamp: Timestamp): string => {
 };
 
 function HomePage() {
-  const { user, userData, logout } = useAuth();
   const location = useLocation();
   const [selectedTab, setSelectedTab] = useState((location.state as any)?.selectedTab || '재판 중');
   const [allPosts, setAllPosts] = useState<CaseDocument[]>([]);
@@ -54,16 +52,6 @@ function HomePage() {
     fetchCases();
   }, []);
 
-  const handleLogout = async () => {
-    try {
-      await logout();
-      alert('로그아웃되었습니다.');
-    } catch (error) {
-      console.error('로그아웃 오류:', error);
-      alert('로그아웃에 실패했습니다.');
-    }
-  };
-
   return (
     <div style={{ 
       backgroundColor: '#F8F9FA', 
@@ -72,86 +60,6 @@ function HomePage() {
       boxSizing: 'border-box'
     }}>
       <Spacing size={14} />
-      
-      {/* 헤더 */}
-      <div style={{ 
-        display: 'flex', 
-        alignItems: 'center', 
-        justifyContent: 'space-between',
-        padding: '0 20px',
-        backgroundColor: 'white',
-        width: '100%',
-        boxSizing: 'border-box'
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <Asset.Image
-            frameShape={Asset.frameShape.CleanW16}
-            src="https://static.toss.im/appsintoss/15155/4dfa3fe7-556e-424d-820a-61a865a49168.png"
-            aria-hidden={true}
-          />
-          <Text color="#191F28ff" typography="t6" fontWeight="semibold">
-            소비 재판소
-          </Text>
-        </div>
-        <div style={{ 
-          display: 'flex', 
-          alignItems: 'center',
-          gap: '8px',
-          backgroundColor: 'rgba(0, 23, 51, 0.02)',
-          borderRadius: '99px',
-          padding: '0 4px'
-        }}>
-          {user && userData && (
-            <button 
-              onClick={handleLogout}
-              style={{ 
-                background: 'none', 
-                border: 'none', 
-                cursor: 'pointer',
-                padding: '10px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center'
-              }}
-              aria-label="더보기"
-            >
-              <Asset.Icon
-                frameShape={Asset.frameShape.CleanW20}
-                name="icon-dots-mono"
-                color="rgba(0, 19, 43, 0.58)"
-                aria-hidden={true}
-              />
-            </button>
-          )}
-          <div style={{
-            width: '1px',
-            height: '16px',
-            backgroundColor: 'rgba(0, 27, 55, 0.1)'
-          }} />
-          <button 
-            onClick={() => window.close()}
-            style={{ 
-              background: 'none', 
-              border: 'none', 
-              cursor: 'pointer',
-              padding: '10px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center'
-            }}
-            aria-label="닫기"
-          >
-            <Asset.Icon
-              frameShape={Asset.frameShape.CleanW20}
-              name="icon-x-mono"
-              color="rgba(0, 19, 43, 0.58)"
-              aria-hidden={true}
-            />
-          </button>
-        </div>
-      </div>
-
-      <Spacing size={12} />
 
       {/* 탭 */}
       <div style={{ padding: '0 20px', backgroundColor: 'white', paddingBottom: '12px' }}>

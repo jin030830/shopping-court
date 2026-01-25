@@ -667,7 +667,9 @@ function CaseDetailPage() {
         boxSizing: 'border-box'
       }}>
         <button 
-          onClick={() => {
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
             const fromTab = (location.state as any)?.fromTab || '재판 중';
             navigate('/', { state: { selectedTab: fromTab } });
           }}
@@ -677,7 +679,8 @@ function CaseDetailPage() {
             cursor: 'pointer',
             padding: '4px',
             display: 'flex',
-            alignItems: 'center'
+            alignItems: 'center',
+            zIndex: 10
           }}
         >
           <Asset.Icon
