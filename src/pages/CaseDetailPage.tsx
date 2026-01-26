@@ -338,8 +338,7 @@ function CaseDetailPage() {
         setPost(updatedPost);
       }
 
-      const voteText = pendingVoteType === 'agree' ? '무죄' : '유죄';
-      alert(`"${voteText}"로 투표가 완료되었습니다!`);
+      // 투표 완료 팝업 제거 (확인 팝업만 유지)
     } catch (error) {
       console.error('투표 실패:', error);
       alert('투표에 실패했습니다.');
@@ -690,6 +689,8 @@ function CaseDetailPage() {
       width: '100%',
       boxSizing: 'border-box'
     }}>
+      {/* 헤더와 본문 사이 간격 */}
+      <div style={{ height: '12px', backgroundColor: '#F8F9FA' }} />
 
       {/* 게시글 내용 */}
       <div style={{ padding: '0 20px', width: '100%', boxSizing: 'border-box' }}>
@@ -828,7 +829,8 @@ function CaseDetailPage() {
             marginBottom: '12px',
             margin: '0 0 12px 0',
             wordBreak: 'break-word',
-            overflowWrap: 'break-word'
+            overflowWrap: 'break-word',
+            textAlign: 'center'
           }}>
             {post.title}
           </h2>
@@ -842,7 +844,8 @@ function CaseDetailPage() {
             lineHeight: '1.6',
             margin: '0 0 20px 0',
             wordBreak: 'break-word',
-            overflowWrap: 'break-word'
+            overflowWrap: 'break-word',
+            textAlign: 'center'
           }}>
             {post.content}
           </p>

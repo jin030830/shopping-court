@@ -28,6 +28,7 @@ function HomePage() {
   const [isPostsLoading, setIsPostsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [completedFilter, setCompletedFilter] = useState<'전체' | '무죄' | '유죄' | '보류'>('전체');
+  const [searchKeyword, setSearchKeyword] = useState('');
   const navigate = useNavigate();
 
   // location.state에서 탭 정보를 받아오면 탭 변경
@@ -448,6 +449,45 @@ function HomePage() {
             </div>
           </div>
           
+          {/* 검색창 */}
+          <div style={{ 
+            marginBottom: '16px',
+            position: 'relative'
+          }}>
+            <div style={{
+              position: 'absolute',
+              left: '16px',
+              top: '50%',
+              transform: 'translateY(-50%)',
+              pointerEvents: 'none',
+              zIndex: 1
+            }}>
+              <Asset.Icon
+                frameShape={{ width: 20, height: 20 }}
+                backgroundColor="transparent"
+                name="icon-search-mono"
+                color="#9E9E9E"
+                aria-hidden={true}
+              />
+            </div>
+            <input
+              type="text"
+              value={searchKeyword}
+              onChange={(e) => setSearchKeyword(e.target.value)}
+              placeholder="관심 키워드 검색"
+              style={{
+                width: '100%',
+                padding: '12px 16px 12px 44px',
+                border: '1px solid #E5E5E5',
+                borderRadius: '8px',
+                fontSize: '15px',
+                backgroundColor: 'white',
+                color: '#191F28',
+                boxSizing: 'border-box'
+              }}
+            />
+          </div>
+          
           {/* 필터 버튼 */}
           <div style={{ 
             display: 'flex', 
@@ -492,6 +532,7 @@ function HomePage() {
               posts={allPosts} 
               navigate={navigate}
               filter={completedFilter}
+              searchKeyword={searchKeyword}
             />
           )}
         </div>
@@ -798,9 +839,10 @@ interface CompletedPostListProps {
   posts: CaseDocument[];
   navigate: (path: string, state?: any) => void;
   filter: '전체' | '무죄' | '유죄' | '보류';
+  searchKeyword: string;
 }
 
-function CompletedPostList({ posts, navigate, filter }: CompletedPostListProps) {
+function CompletedPostList({ posts, navigate, filter, searchKeyword }: CompletedPostListProps) {
   const [postsWithDetails, setPostsWithDetails] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -862,10 +904,21 @@ function CompletedPostList({ posts, navigate, filter }: CompletedPostListProps) 
     return `${year}-${month}-${day}`;
   };
 
-  // 재판 완료된 전체 게시물 (필터 적용)
+  // 재판 완료된 전체 게시물 (필터 및 검색 적용)
   const allCompletedPosts = postsWithDetails
     .filter(post => post.status === 'CLOSED')
     .filter(post => {
+      // 검색어 필터 (제목 또는 본문에 포함)
+      if (searchKeyword.trim()) {
+        const keyword = searchKeyword.trim().toLowerCase();
+        const titleMatch = post.title.toLowerCase().includes(keyword);
+        const contentMatch = post.content.toLowerCase().includes(keyword);
+        if (!titleMatch && !contentMatch) {
+          return false;
+        }
+      }
+      
+      // verdict 필터
       if (filter === '전체') return true;
       // verdict가 정확히 일치하는 경우만 필터링
       // 엄격한 비교 - post.verdict를 직접 비교
