@@ -5,6 +5,7 @@ import CreatePostPage from '../pages/CreatePostPage';
 import EditPostPage from '../pages/EditPostPage';
 import StaticTermsPage from '../pages/StaticTermsPage';
 import StaticMarketingPage from '../pages/StaticMarketingPage';
+import PointMissionPage from '../pages/PointMissionPage';
 import ProtectedRoute from './ProtectedRoute';
 
 // 경로를 소문자로 강제 변환하고, 필요한 경우 리다이렉트하는 컴포넌트
@@ -60,6 +61,7 @@ function AppRoutes() {
           </LowercaseRedirectWrapper>
         } 
       />
+      <Route path="/point-mission" element={<PointMissionPage />} />
     </Routes>
   );
 }

@@ -1,12 +1,15 @@
 import { useNavigate, useLocation } from 'react-router-dom';
-import { useAuth } from '../hooks/useAuth';
 import { Asset, Text, Spacing } from '@toss/tds-mobile';
 import { useState, useEffect } from 'react';
-import { getAllCases, type CaseDocument } from '../api/cases';
+import { getAllCases, getComments, getReplies, type CaseDocument } from '../api/cases';
 import { Timestamp } from 'firebase/firestore';
-import scaleIcon from '../assets/저울모양.png';
+import { adaptive } from '@toss/tds-colors';
+import scaleIcon from '../assets/저울모양-다음에서-변환-png.svg';
 import gavelIcon from '../assets/판사봉.png';
 import hotFlameIcon from '../assets/핫게시판불모양.png';
+import commentIcon from '../assets/댓글수-다음에서-변환-png.svg';
+import voteIcon from '../assets/투표수-다음에서-변환-png.svg';
+import pointMissionImage from '../assets/포인트미션창.png';
 
 // 날짜 포맷팅 함수 (M/d HH:mm 형식)
 const formatDate = (timestamp: Timestamp): string => {
@@ -19,19 +22,31 @@ const formatDate = (timestamp: Timestamp): string => {
 };
 
 function HomePage() {
-  const { user, userData, logout } = useAuth();
   const location = useLocation();
   const [selectedTab, setSelectedTab] = useState((location.state as any)?.selectedTab || '재판 중');
   const [allPosts, setAllPosts] = useState<CaseDocument[]>([]);
   const [isPostsLoading, setIsPostsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [completedFilter, setCompletedFilter] = useState<'전체' | '무죄' | '유죄'>('전체');
+  const [completedFilter, setCompletedFilter] = useState<'전체' | '무죄' | '유죄' | '보류'>('전체');
   const navigate = useNavigate();
 
   // location.state에서 탭 정보를 받아오면 탭 변경
+  // 또는 sessionStorage에서 가져오기 (토스 앱의 뒤로가기 버튼 대응)
   useEffect(() => {
+    let newTab: string | null = null;
+    
+    // location.state에서 먼저 확인
     if ((location.state as any)?.selectedTab) {
-      setSelectedTab((location.state as any).selectedTab);
+      newTab = (location.state as any).selectedTab;
+    } 
+    // sessionStorage에서 확인 (토스 앱의 뒤로가기 버튼 대응)
+    else if (sessionStorage.getItem('caseDetailFromTab')) {
+      newTab = sessionStorage.getItem('caseDetailFromTab');
+      sessionStorage.removeItem('caseDetailFromTab'); // 사용 후 삭제
+    }
+    
+    if (newTab) {
+      setSelectedTab(newTab);
       // state를 초기화하여 다시 뒤로가기 해도 계속 같은 탭이 선택되지 않도록
       window.history.replaceState({}, document.title);
     }
@@ -54,100 +69,130 @@ function HomePage() {
     fetchCases();
   }, []);
 
-  const handleLogout = async () => {
-    try {
-      await logout();
-      alert('로그아웃되었습니다.');
-    } catch (error) {
-      console.error('로그아웃 오류:', error);
-      alert('로그아웃에 실패했습니다.');
-    }
-  };
-
   return (
     <div style={{ 
-      backgroundColor: '#F8F9FA', 
+      backgroundColor: 'white', 
       minHeight: '100vh',
       width: '100%',
       boxSizing: 'border-box'
     }}>
       <Spacing size={14} />
-      
-      {/* 헤더 */}
-      <div style={{ 
-        display: 'flex', 
-        alignItems: 'center', 
-        justifyContent: 'space-between',
-        padding: '0 20px',
-        backgroundColor: 'white',
+
+      {/* 포인트 미션 배너 */}
+      <div style={{
+        backgroundColor: '#f2f4f6',
+        padding: '12px 20px',
         width: '100%',
         boxSizing: 'border-box'
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <Asset.Image
-            frameShape={Asset.frameShape.CleanW16}
-            src="https://static.toss.im/appsintoss/15155/4dfa3fe7-556e-424d-820a-61a865a49168.png"
-            aria-hidden={true}
-          />
-          <Text color="#191F28ff" typography="t6" fontWeight="semibold">
-            소비 재판소
-          </Text>
-        </div>
-        <div style={{ 
-          display: 'flex', 
-          alignItems: 'center',
-          gap: '8px',
-          backgroundColor: 'rgba(0, 23, 51, 0.02)',
-          borderRadius: '99px',
-          padding: '0 4px'
+        <div style={{
+          width: '100%',
+          height: '144px',
+          backgroundColor: '#e8f3ff',
+          borderRadius: '10px',
+          padding: '12px',
+          boxSizing: 'border-box',
+          position: 'relative',
+          overflow: 'hidden'
         }}>
-          {user && userData && (
-            <button 
-              onClick={handleLogout}
+          <div style={{
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '8px',
+            position: 'relative',
+            zIndex: 1,
+            height: '100%'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
+              <Asset.Icon
+                frameShape={{ width: 49, height: 49 }}
+                backgroundColor="transparent"
+                name="icon-money-bag-point-blue-gradient"
+                aria-hidden={true}
+                ratio="1/1"
+              />
+              <div style={{ flex: 1 }}>
+                <Text
+                  display="block"
+                  color={adaptive.grey800}
+                  typography="t5"
+                  fontWeight="bold"
+                  style={{ lineHeight: '1.4' }}
+                >
+                  재판에 참여하고{'\n'}포인트를 모아보세요
+                </Text>
+              </div>
+              <Asset.Icon
+                frameShape={Asset.frameShape.CleanW16}
+                backgroundColor="transparent"
+                name="icon-info-circle"
+                aria-hidden={true}
+                ratio="1/1"
+              />
+            </div>
+            
+            <div 
               style={{ 
-                background: 'none', 
-                border: 'none', 
+                marginTop: 'auto',
                 cursor: 'pointer',
-                padding: '10px',
+                width: 'fit-content'
+              }}
+              onClick={() => navigate('/point-mission')}
+            >
+              <div style={{
                 display: 'flex',
                 alignItems: 'center',
-                justifyContent: 'center'
-              }}
-              aria-label="더보기"
-            >
-              <Asset.Icon
-                frameShape={Asset.frameShape.CleanW20}
-                name="icon-dots-mono"
-                color="rgba(0, 19, 43, 0.58)"
-                aria-hidden={true}
-              />
-            </button>
-          )}
+                gap: '4px',
+                padding: '6px 12px',
+                backgroundColor: '#3182f6',
+                borderRadius: '10px',
+                boxShadow: '0px 0px 4px 0px rgba(0, 0, 0, 0.25)',
+                width: 'fit-content'
+              }}>
+                <Asset.Icon
+                  frameShape={Asset.frameShape.CleanW20}
+                  backgroundColor="transparent"
+                  name="icon-emoji-sparkles"
+                  aria-hidden={true}
+                  ratio="1/1"
+                />
+                <Text
+                  display="block"
+                  color="white"
+                  typography="t6"
+                  fontWeight="bold"
+                >
+                  포인트 미션
+                </Text>
+                <Asset.Icon
+                  frameShape={Asset.frameShape.CleanW16}
+                  backgroundColor="transparent"
+                  name="icon-arrow-right-mono"
+                  color="white"
+                  aria-hidden={true}
+                  ratio="1/1"
+                />
+              </div>
+            </div>
+          </div>
+          
+          {/* 판사봉 이미지 (배경) */}
           <div style={{
-            width: '1px',
-            height: '16px',
-            backgroundColor: 'rgba(0, 27, 55, 0.1)'
-          }} />
-          <button 
-            onClick={() => window.close()}
-            style={{ 
-              background: 'none', 
-              border: 'none', 
-              cursor: 'pointer',
-              padding: '10px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center'
-            }}
-            aria-label="닫기"
-          >
-            <Asset.Icon
-              frameShape={Asset.frameShape.CleanW20}
-              name="icon-x-mono"
-              color="rgba(0, 19, 43, 0.58)"
-              aria-hidden={true}
+            position: 'absolute',
+            bottom: '-10px',
+            right: '20px',
+            zIndex: 0
+          }}>
+            <img 
+              src={pointMissionImage} 
+              alt="포인트 미션" 
+              style={{ 
+                width: '120px', 
+                height: '120px',
+                objectFit: 'contain'
+              }} 
             />
-          </button>
+          </div>
         </div>
       </div>
 
@@ -240,11 +285,15 @@ function HomePage() {
         </div>
       </div>
 
-      <Spacing size={16} />
-
       {/* 재판 중 탭일 때만 표시되는 섹션 */}
       {selectedTab === '재판 중' && (
-        <div style={{ padding: '0 20px', marginBottom: '20px' }}>
+        <div style={{ 
+          padding: '0 20px', 
+          marginBottom: '20px',
+          background: 'linear-gradient(180deg, #e8f3ff 0%, #ffffff 100%)',
+          paddingTop: '16px',
+          marginTop: '-12px'
+        }}>
           <div style={{ 
             display: 'flex', 
             alignItems: 'flex-start', 
@@ -303,7 +352,13 @@ function HomePage() {
 
       {/* HOT 게시판 탭일 때만 표시되는 섹션 */}
       {selectedTab === 'HOT 게시판' && (
-        <div style={{ padding: '0 20px', marginBottom: '20px' }}>
+        <div style={{ 
+          padding: '0 20px', 
+          marginBottom: '20px',
+          background: 'linear-gradient(180deg, #ffeeee 0%, #ffffff 100%)',
+          paddingTop: '16px',
+          marginTop: '-12px'
+        }}>
           <div style={{ 
             display: 'flex', 
             alignItems: 'flex-start', 
@@ -347,7 +402,13 @@ function HomePage() {
 
       {/* 재판 완료 탭일 때만 표시되는 섹션 */}
       {selectedTab === '재판 완료' && (
-        <div style={{ padding: '0 20px', marginBottom: '20px' }}>
+        <div style={{ 
+          padding: '0 20px', 
+          marginBottom: '20px',
+          background: 'linear-gradient(180deg, #fff3e0 0%, #ffffff 100%)',
+          paddingTop: '16px',
+          marginTop: '-12px'
+        }}>
           <div style={{ 
             display: 'flex', 
             alignItems: 'flex-start', 
@@ -393,7 +454,7 @@ function HomePage() {
             gap: '8px', 
             marginBottom: '16px'
           }}>
-            {(['전체', '무죄', '유죄'] as const).map((filter) => (
+            {(['전체', '무죄', '유죄', '보류'] as const).map((filter) => (
               <button
                 key={filter}
                 onClick={() => setCompletedFilter(filter)}
@@ -435,7 +496,7 @@ function HomePage() {
           )}
         </div>
       ) : (
-        <div style={{ padding: '0 20px' }}>
+        <div style={{ padding: '0 20px', backgroundColor: 'white' }}>
           {isPostsLoading ? (
             <div style={{ padding: '40px', textAlign: 'center' }}>
               <Text color="#6B7684">게시물을 불러오는 중...</Text>
@@ -471,29 +532,51 @@ function PostList({ posts, selectedTab, navigate }: PostListProps) {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const loadPostDetails = () => {
+    const loadPostDetails = async () => {
       setIsLoading(true);
       try {
-        // getAllCases로 가져온 post.commentCount를 직접 사용 (N+1 문제 해결)
-        const postsWithData = posts.map((post) => {
-          // voteCount는 화면 표시에 필요하므로 유지합니다.
-          const voteCount = post.guiltyCount + post.innocentCount;
-          
-          // HOT 점수 계산: 투표수 + 2*댓글수 (post.commentCount 직접 사용)
-          const hotScore = voteCount + (2 * (post.commentCount || 0));
-          
-          // 재판 결과 결정 (innocent가 많으면 무죄, guilty가 많으면 유죄)
-          const verdict = voteCount > 0 
-            ? (post.innocentCount >= post.guiltyCount ? '무죄' : '유죄')
-            : null;
+        // 각 게시글의 실제 댓글 수를 조회
+        const postsWithData = await Promise.all(
+          posts.map(async (post) => {
+            // 실제 댓글 수 조회 (CaseDetailPage와 동일한 방식)
+            let actualCommentCount = 0;
+            try {
+              const comments = await getComments(post.id);
+              const repliesPromises = comments.map(comment => getReplies(post.id, comment.id));
+              const repliesArrays = await Promise.all(repliesPromises);
+              actualCommentCount = comments.length + repliesArrays.reduce((sum, replies) => sum + replies.length, 0);
+            } catch (error) {
+              console.error(`게시글 ${post.id}의 댓글 수 조회 실패:`, error);
+            }
 
-          return {
-            ...post, // DB에 저장된 status, commentCount가 여기에 포함됩니다.
-            voteCount,
-            hotScore, // 실시간으로 계산된 HOT 점수
-            verdict
-          };
-        });
+            // voteCount는 화면 표시에 필요하므로 유지합니다.
+            const voteCount = post.guiltyCount + post.innocentCount;
+            
+            // HOT 점수 계산: 투표수 + 2*댓글수 (실제 조회한 댓글 수 사용)
+            const hotScore = voteCount + (2 * actualCommentCount);
+            
+            // 재판 결과 결정 (innocent가 많으면 무죄, guilty가 많으면 유죄, 동률이면 보류)
+            let verdict: '무죄' | '유죄' | '보류' = '보류'; // 기본값을 보류로 설정
+            if (voteCount > 0) {
+              if (post.innocentCount > post.guiltyCount) {
+                verdict = '무죄';
+              } else if (post.guiltyCount > post.innocentCount) {
+                verdict = '유죄';
+              } else {
+                verdict = '보류'; // 동률인 경우
+              }
+            }
+            // voteCount === 0인 경우도 보류로 처리
+
+            return {
+              ...post,
+              commentCount: actualCommentCount, // 실제 조회한 댓글 수로 덮어쓰기
+              voteCount,
+              hotScore,
+              verdict
+            };
+          })
+        );
 
         setPostsWithDetails(postsWithData);
       } catch (error) {
@@ -539,7 +622,7 @@ function PostList({ posts, selectedTab, navigate }: PostListProps) {
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', backgroundColor: 'white' }}>
       {displayPosts.map((post, index) => {
         // 재판 완료 탭일 경우 다른 레이아웃
         if (selectedTab === '재판 완료') {
@@ -567,18 +650,18 @@ function PostList({ posts, selectedTab, navigate }: PostListProps) {
                 gap: '12px'
               }}
             >
-              {/* 왼쪽: 무죄/유죄 배지 */}
+              {/* 왼쪽: 무죄/유죄/보류 배지 */}
               <div style={{
                 padding: '8px 16px',
-                backgroundColor: post.verdict === '무죄' ? '#E3F2FD' : '#FFEBEE',
-                color: post.verdict === '무죄' ? '#1976D2' : '#D32F2F',
+                backgroundColor: (post.verdict || '보류') === '무죄' ? '#E3F2FD' : (post.verdict || '보류') === '유죄' ? '#FFEBEE' : '#F2F4F6',
+                color: (post.verdict || '보류') === '무죄' ? '#1976D2' : (post.verdict || '보류') === '유죄' ? '#D32F2F' : '#6B7684',
                 fontSize: '14px',
                 fontWeight: '600',
                 borderRadius: '6px',
                 whiteSpace: 'nowrap',
                 minWidth: 'fit-content'
               }}>
-                {post.verdict || '미결정'}
+                {post.verdict || '보류'}
               </div>
 
               {/* 가운데: 날짜와 제목 */}
@@ -623,26 +706,26 @@ function PostList({ posts, selectedTab, navigate }: PostListProps) {
             style={{ 
               backgroundColor: 'white', 
               padding: '16px', 
-              borderRadius: '12px',
-              boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+              borderTop: index === 0 ? '1px solid #F0F0F0' : 'none',
+              borderBottom: '1px solid #F0F0F0',
               cursor: 'pointer'
             }}
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
-              <Text color="#191F28" typography="t7" fontWeight="regular">
+              <Text color="#9E9E9E" typography="t7" fontWeight="regular">
                 {post.authorNickname}
               </Text>
               {post.createdAt && (
-                <Text color="#9E9E9E" typography="t7" fontWeight="regular">
+                <Text color="#9E9E9E" typography="st13" fontWeight="regular">
                   {formatDate(post.createdAt)}
                 </Text>
               )}
             </div>
             <Text 
               display="block" 
-              color="#191F28ff" 
-              typography="t2" 
-              fontWeight="semibold"
+              color="#191F28" 
+              typography="t5" 
+              fontWeight="bold"
               style={{ marginBottom: '4px' }}
             >
               {post.title}
@@ -664,24 +747,43 @@ function PostList({ posts, selectedTab, navigate }: PostListProps) {
               {post.content}
             </Text>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <Text color="#6B7684" typography="t7" fontWeight="regular">
-                {post.voteCount.toLocaleString()}명 투표 중
-              </Text>
-              {post.commentCount > 0 && (
-                <>
-                  <span style={{ color: '#C4C4C4' }}>•</span>
-                  <Text color="#6B7684" typography="t7" fontWeight="regular">
-                    댓글 {post.commentCount}
-                  </Text>
-                </>
-              )}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                <img 
+                  src={commentIcon} 
+                  alt="댓글" 
+                  style={{ 
+                    width: '18px', 
+                    height: '18px',
+                    objectFit: 'contain',
+                    verticalAlign: 'middle',
+                    display: 'inline-block',
+                    marginTop: '2px'
+                  }} 
+                />
+                <Text color="#3182F6" typography="st13" fontWeight="medium">
+                  {post.commentCount ?? 0}
+                </Text>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                <img 
+                  src={voteIcon} 
+                  alt="투표" 
+                  style={{ 
+                    width: '24px', 
+                    height: '24px',
+                    objectFit: 'contain',
+                    verticalAlign: 'middle',
+                    display: 'inline-block'
+                  }} 
+                />
+                <Text color="#3182F6" typography="st13" fontWeight="medium">
+                  {(post.guiltyCount || 0) + (post.innocentCount || 0)}
+                </Text>
+              </div>
               {selectedTab === 'HOT 게시판' && (
-                <>
-                  <span style={{ color: '#C4C4C4' }}>•</span>
-                  <Text color="#FF6B6B" typography="t7" fontWeight="semibold">
-                    🔥 TOP {index + 1}
-                  </Text>
-                </>
+                <Text color="#FF6B6B" typography="t7" fontWeight="semibold">
+                  🔥 TOP {index + 1}
+                </Text>
               )}
             </div>
           </div>
@@ -695,7 +797,7 @@ function PostList({ posts, selectedTab, navigate }: PostListProps) {
 interface CompletedPostListProps {
   posts: CaseDocument[];
   navigate: (path: string, state?: any) => void;
-  filter: '전체' | '무죄' | '유죄';
+  filter: '전체' | '무죄' | '유죄' | '보류';
 }
 
 function CompletedPostList({ posts, navigate, filter }: CompletedPostListProps) {
@@ -711,9 +813,18 @@ function CompletedPostList({ posts, navigate, filter }: CompletedPostListProps) 
           const voteCount = post.guiltyCount + post.innocentCount;
           // HOT 점수 계산: 투표수 + 2*댓글수 (post.commentCount 직접 사용)
           const hotScore = voteCount + (2 * (post.commentCount || 0));
-          const verdict = voteCount > 0 
-            ? (post.innocentCount >= post.guiltyCount ? '무죄' : '유죄')
-            : null;
+          // 재판 결과 결정 (innocent가 많으면 무죄, guilty가 많으면 유죄, 동률이면 보류)
+          let verdict: '무죄' | '유죄' | '보류' = '보류'; // 기본값을 보류로 설정
+          if (voteCount > 0) {
+            if (post.innocentCount > post.guiltyCount) {
+              verdict = '무죄';
+            } else if (post.guiltyCount > post.innocentCount) {
+              verdict = '유죄';
+            } else {
+              verdict = '보류'; // 동률인 경우
+            }
+          }
+          // voteCount === 0인 경우도 보류로 처리
 
           return {
             ...post, // DB에 저장된 status, commentCount가 여기에 포함됩니다.
@@ -756,8 +867,18 @@ function CompletedPostList({ posts, navigate, filter }: CompletedPostListProps) 
     .filter(post => post.status === 'CLOSED')
     .filter(post => {
       if (filter === '전체') return true;
-      if (filter === '무죄') return post.verdict === '무죄';
-      if (filter === '유죄') return post.verdict === '유죄';
+      // verdict가 정확히 일치하는 경우만 필터링
+      // 엄격한 비교 - post.verdict를 직접 비교
+      if (filter === '무죄') {
+        return post.verdict === '무죄';
+      }
+      if (filter === '유죄') {
+        return post.verdict === '유죄';
+      }
+      if (filter === '보류') {
+        // 보류는 verdict가 '보류'이거나 null/undefined인 경우
+        return post.verdict === '보류' || !post.verdict;
+      }
       return true;
     })
     .sort((a, b) => {
@@ -793,14 +914,14 @@ function CompletedPostList({ posts, navigate, filter }: CompletedPostListProps) 
       {/* 배지 */}
       <div style={{
         padding: '4px 8px',
-        backgroundColor: post.verdict === '무죄' ? '#3182F628' : '#F0445228',
-        color: post.verdict === '무죄' ? '#1976D2' : '#D32F2F',
+        backgroundColor: (post.verdict || '보류') === '무죄' ? '#3182F628' : (post.verdict || '보류') === '유죄' ? '#F0445228' : '#4E596828',
+        color: (post.verdict || '보류') === '무죄' ? '#1976D2' : (post.verdict || '보류') === '유죄' ? '#D32F2F' : '#6B7684',
         fontSize: '12px',
         fontWeight: '600',
         borderRadius: '4px',
         width: 'fit-content'
       }}>
-        {post.verdict || '미결정'}
+        {post.verdict || '보류'}
       </div>
 
       {/* 제목 */}
@@ -857,7 +978,7 @@ function CompletedPostList({ posts, navigate, filter }: CompletedPostListProps) 
   );
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', backgroundColor: 'white' }}>
       {/* 위쪽: 재판 완료된 전체 게시물 */}
       <div>
         <div style={{

@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import { Asset, Text } from '@toss/tds-mobile';
 import { Timestamp } from 'firebase/firestore';
-import replyArrowIcon from '../assets/답글화살표.png';
+import replyArrowIcon from '../assets/답글화살표-다음에서-변환-png.svg';
 import smileIcon from '../assets/smile.png';
 import { 
   getCase, 
@@ -46,6 +46,40 @@ function CaseDetailPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const { user, isLoading, userData, login } = useAuth();
+  
+  // location.state에서 fromTab을 저장 (컴포넌트 마운트 시 한 번만)
+  // 초기값을 location.state에서 가져오되, 없으면 '재판 중'으로 설정
+  const initialFromTab = (location.state as any)?.fromTab || '재판 중';
+  const [fromTab] = useState<string>(initialFromTab);
+  
+  // fromTab을 sessionStorage에 저장 (토스 앱의 뒤로가기 버튼 대응)
+  useEffect(() => {
+    if (fromTab) {
+      sessionStorage.setItem('caseDetailFromTab', fromTab);
+    }
+  }, [fromTab]);
+  
+  // 뒤로가기 처리 함수
+  const handleBack = () => {
+    navigate('/', { state: { selectedTab: fromTab } });
+  };
+
+  // 브라우저/토스 앱의 뒤로가기 버튼 처리
+  // popstate 이벤트와 함께 sessionStorage도 활용
+  useEffect(() => {
+    const handlePopState = () => {
+      // popstate 이벤트가 발생하면 sessionStorage에서 fromTab을 읽어옴
+      const savedFromTab = sessionStorage.getItem('caseDetailFromTab') || fromTab;
+      navigate('/', { state: { selectedTab: savedFromTab }, replace: true });
+    };
+
+    // 뒤로가기 이벤트 리스너 추가
+    window.addEventListener('popstate', handlePopState);
+    
+    return () => {
+      window.removeEventListener('popstate', handlePopState);
+    };
+  }, [fromTab, navigate]);
   const [selectedVote, setSelectedVote] = useState<'agree' | 'disagree' | null>(null);
   const [hasVoted, setHasVoted] = useState(false);
   const [comments, setComments] = useState<CommentWithReplies[]>([]);
@@ -172,7 +206,7 @@ function CaseDetailPage() {
   };
 
   const handleGoHome = () => {
-    navigate('/');
+    navigate('/', { state: { selectedTab: fromTab } });
   };
 
   const handleDeleteCancel = () => {
@@ -304,7 +338,7 @@ function CaseDetailPage() {
         setPost(updatedPost);
       }
 
-      const voteText = pendingVoteType === 'agree' ? '합리적이다' : '비합리적이다';
+      const voteText = pendingVoteType === 'agree' ? '무죄' : '유죄';
       alert(`"${voteText}"로 투표가 완료되었습니다!`);
     } catch (error) {
       console.error('투표 실패:', error);
@@ -641,7 +675,7 @@ function CaseDetailPage() {
     return (
       <div style={{ padding: '20px', textAlign: 'center' }}>
         <p>게시물을 찾을 수 없습니다.</p>
-        <button onClick={() => navigate('/')} style={{ marginTop: '20px', padding: '10px 20px' }}>
+        <button onClick={handleBack} style={{ marginTop: '20px', padding: '10px 20px' }}>
           홈으로 돌아가기
         </button>
       </div>
@@ -656,139 +690,6 @@ function CaseDetailPage() {
       width: '100%',
       boxSizing: 'border-box'
     }}>
-      {/* 헤더 */}
-      <div style={{ 
-        padding: '16px 20px', 
-        backgroundColor: 'white',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        width: '100%',
-        boxSizing: 'border-box'
-      }}>
-        <button 
-          onClick={() => {
-            const fromTab = (location.state as any)?.fromTab || '재판 중';
-            navigate('/', { state: { selectedTab: fromTab } });
-          }}
-          style={{ 
-            background: 'none', 
-            border: 'none', 
-            cursor: 'pointer',
-            padding: '4px',
-            display: 'flex',
-            alignItems: 'center'
-          }}
-        >
-          <Asset.Icon
-            frameShape={Asset.frameShape.CleanW20}
-            name="icon-arrow-left-mono"
-            color="rgba(0, 19, 43, 0.58)"
-            aria-label="뒤로가기"
-          />
-        </button>
-        <div style={{ position: 'relative' }}>
-          {user && userData && (
-            <>
-              <button 
-                data-post-menu-button
-                onClick={() => setShowPostMenu(!showPostMenu)}
-                style={{ 
-                  background: 'none', 
-                  border: 'none', 
-                  cursor: 'pointer',
-                  padding: '4px'
-                }}
-              >
-                <Asset.Icon
-                  frameShape={Asset.frameShape.CleanW20}
-                  name="icon-dots-mono"
-                  color="rgba(0, 19, 43, 0.58)"
-                  aria-label="메뉴"
-                />
-              </button>
-              
-              {/* 메뉴 드롭다운 */}
-              {showPostMenu && (
-                <div 
-                  data-post-menu
-                  style={{
-                    position: 'absolute',
-                    top: '100%',
-                    right: 0,
-                    marginTop: '8px',
-                    backgroundColor: 'white',
-                    border: '1px solid #ddd',
-                    borderRadius: '8px',
-                    boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-                    zIndex: 1000,
-                    minWidth: '120px'
-                  }}
-                >
-                  {user?.uid === post?.authorId ? (
-                    <>
-                      <button
-                        onClick={() => {
-                          handleEditPost();
-                          setShowPostMenu(false);
-                        }}
-                        style={{
-                          width: '100%',
-                          padding: '12px 16px',
-                          border: 'none',
-                          background: 'none',
-                          textAlign: 'left',
-                          cursor: 'pointer',
-                          fontSize: '14px',
-                          color: '#191F28'
-                        }}
-                      >
-                        수정
-                      </button>
-                      <button
-                        onClick={() => {
-                          handleDeletePost();
-                          setShowPostMenu(false);
-                        }}
-                        style={{
-                          width: '100%',
-                          padding: '12px 16px',
-                          border: 'none',
-                          background: 'none',
-                          textAlign: 'left',
-                          cursor: 'pointer',
-                          fontSize: '14px',
-                          color: '#D32F2F'
-                        }}
-                      >
-                        삭제
-                      </button>
-                    </>
-                  ) : (
-                    <button
-                      onClick={handleReportPost}
-                      style={{
-                        width: '100%',
-                        padding: '12px 16px',
-                        border: 'none',
-                        background: 'none',
-                        textAlign: 'left',
-                        cursor: 'pointer',
-                        fontSize: '14px',
-                        color: '#D32F2F'
-                      }}
-                    >
-                      신고하기
-                    </button>
-                  )}
-                </div>
-              )}
-            </>
-          )}
-        </div>
-      </div>
-
-      <div style={{ height: '16px' }} />
 
       {/* 게시글 내용 */}
       <div style={{ padding: '0 20px', width: '100%', boxSizing: 'border-box' }}>
@@ -802,19 +703,121 @@ function CaseDetailPage() {
           overflow: 'hidden'
         }}>
           {/* 프로필 */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
-            <img 
-              src={smileIcon} 
-              alt="smile" 
-              style={{ 
-                width: '40px', 
-                height: '40px',
-                objectFit: 'contain'
-              }} 
-            />
-            <span style={{ color: '#666', fontSize: '13px' }}>
-              {post.authorNickname} 님
-            </span>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <img 
+                src={smileIcon} 
+                alt="smile" 
+                style={{ 
+                  width: '40px', 
+                  height: '40px',
+                  objectFit: 'contain'
+                }} 
+              />
+              <span style={{ color: '#666', fontSize: '13px' }}>
+                {post.authorNickname} 님
+              </span>
+            </div>
+            {user && userData && (
+              <div style={{ position: 'relative' }}>
+                <button 
+                  data-post-menu-button
+                  onClick={() => setShowPostMenu(!showPostMenu)}
+                  style={{ 
+                    background: 'none', 
+                    border: 'none', 
+                    cursor: 'pointer',
+                    padding: '4px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center'
+                  }}
+                >
+                  <Asset.Icon
+                    frameShape={Asset.frameShape.CleanW20}
+                    name="icon-dots-mono"
+                    color="rgba(0, 19, 43, 0.58)"
+                    aria-label="메뉴"
+                  />
+                </button>
+                
+                {/* 메뉴 드롭다운 */}
+                {showPostMenu && (
+                  <div 
+                    data-post-menu
+                    style={{
+                      position: 'absolute',
+                      top: '100%',
+                      right: 0,
+                      marginTop: '8px',
+                      backgroundColor: 'white',
+                      border: '1px solid #ddd',
+                      borderRadius: '8px',
+                      boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+                      zIndex: 1000,
+                      minWidth: '120px'
+                    }}
+                  >
+                    {user?.uid === post?.authorId ? (
+                      <>
+                        <button
+                          onClick={() => {
+                            handleEditPost();
+                            setShowPostMenu(false);
+                          }}
+                          style={{
+                            width: '100%',
+                            padding: '12px 16px',
+                            border: 'none',
+                            background: 'none',
+                            textAlign: 'left',
+                            cursor: 'pointer',
+                            fontSize: '14px',
+                            color: '#191F28'
+                          }}
+                        >
+                          수정
+                        </button>
+                        <button
+                          onClick={() => {
+                            handleDeletePost();
+                            setShowPostMenu(false);
+                          }}
+                          style={{
+                            width: '100%',
+                            padding: '12px 16px',
+                            border: 'none',
+                            background: 'none',
+                            textAlign: 'left',
+                            cursor: 'pointer',
+                            fontSize: '14px',
+                            color: '#D32F2F'
+                          }}
+                        >
+                          삭제
+                        </button>
+                      </>
+                    ) : (
+                      <button
+                        onClick={handleReportPost}
+                        style={{
+                          width: '100%',
+                          padding: '12px 16px',
+                          border: 'none',
+                          background: 'none',
+                          textAlign: 'left',
+                          cursor: 'pointer',
+                          fontSize: '14px',
+                          color: '#D32F2F'
+                        }}
+                      >
+                        신고하기
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           {/* 제목 */}
@@ -844,71 +847,96 @@ function CaseDetailPage() {
             {post.content}
           </p>
 
-          {/* 투표 버튼들 */}
-          <div style={{ display: 'flex', gap: '12px', marginBottom: '16px' }}>
-            <button 
-              onClick={() => handleVoteSelect('agree')}
-              disabled={hasVoted || post.status === 'CLOSED'}
-              style={{ 
-                flex: 1, 
-                padding: '12px', 
-                backgroundColor: '#E3F2FD',
-                color: '#1976D2',
-                border: selectedVote === 'agree' ? '3px solid #1976D2' : 'none',
-                borderRadius: '8px',
-                fontSize: '15px',
-                fontWeight: '600',
-                cursor: (hasVoted || post.status === 'CLOSED') ? 'not-allowed' : 'pointer',
-                opacity: (hasVoted && selectedVote !== 'agree') || post.status === 'CLOSED' ? 0.5 : 1
-              }}
-            >
-              합리적이다
-            </button>
-            <button 
-              onClick={() => handleVoteSelect('disagree')}
-              disabled={hasVoted || post.status === 'CLOSED'}
-              style={{ 
-                flex: 1, 
-                padding: '12px', 
-                backgroundColor: '#FFEBEE',
-                color: '#D32F2F',
-                border: selectedVote === 'disagree' ? '3px solid #D32F2F' : 'none',
-                borderRadius: '8px',
-                fontSize: '15px',
-                fontWeight: '600',
-                cursor: (hasVoted || post.status === 'CLOSED') ? 'not-allowed' : 'pointer',
-                opacity: (hasVoted && selectedVote !== 'disagree') || post.status === 'CLOSED' ? 0.5 : 1
-              }}
-            >
-              비합리적이다
-            </button>
-          </div>
+          {/* 투표 버튼들 - 재판 완료된 글에서는 표시하지 않음 */}
+          {post.status === 'OPEN' && (
+            <>
+              <div style={{ display: 'flex', gap: '12px', marginBottom: '16px' }}>
+                <button 
+                  onClick={() => handleVoteSelect('agree')}
+                  disabled={hasVoted}
+                  style={{ 
+                    flex: 1, 
+                    padding: '12px', 
+                    backgroundColor: '#E3F2FD',
+                    color: '#1976D2',
+                    border: selectedVote === 'agree' ? '3px solid #1976D2' : 'none',
+                    borderRadius: '8px',
+                    fontSize: '15px',
+                    fontWeight: '600',
+                    cursor: hasVoted ? 'not-allowed' : 'pointer',
+                    opacity: hasVoted && selectedVote !== 'agree' ? 0.5 : 1
+                  }}
+                >
+                  무죄
+                </button>
+                <button 
+                  onClick={() => handleVoteSelect('disagree')}
+                  disabled={hasVoted}
+                  style={{ 
+                    flex: 1, 
+                    padding: '12px', 
+                    backgroundColor: '#FFEBEE',
+                    color: '#D32F2F',
+                    border: selectedVote === 'disagree' ? '3px solid #D32F2F' : 'none',
+                    borderRadius: '8px',
+                    fontSize: '15px',
+                    fontWeight: '600',
+                    cursor: hasVoted ? 'not-allowed' : 'pointer',
+                    opacity: hasVoted && selectedVote !== 'disagree' ? 0.5 : 1
+                  }}
+                >
+                  유죄
+                </button>
+              </div>
 
-          {timeRemaining && post.status === 'OPEN' && (
-            <div style={{ 
-              marginTop: '12px', 
-              textAlign: 'center',
-              fontSize: '15px',
-              color: '#191F28',
-              fontWeight: '500'
-            }}>
-              {(() => {
-                const parts: string[] = [];
-                if (timeRemaining.days > 0) {
-                  parts.push(`${timeRemaining.days}일`);
-                }
-                parts.push(`${String(timeRemaining.hours).padStart(2, '0')}시간`);
-                parts.push(`${String(timeRemaining.minutes).padStart(2, '0')}분`);
-                parts.push(`${String(timeRemaining.seconds).padStart(2, '0')}초`);
-                return `${parts.join(' ')} 후 재판 종료`;
-              })()}
-            </div>
+              {timeRemaining && (
+                <div style={{ 
+                  marginTop: '12px', 
+                  textAlign: 'center',
+                  fontSize: '15px',
+                  color: '#191F28',
+                  fontWeight: '500'
+                }}>
+                  {(() => {
+                    const parts: string[] = [];
+                    if (timeRemaining.days > 0) {
+                      parts.push(`${timeRemaining.days}일`);
+                    }
+                    parts.push(`${String(timeRemaining.hours).padStart(2, '0')}시간`);
+                    parts.push(`${String(timeRemaining.minutes).padStart(2, '0')}분`);
+                    parts.push(`${String(timeRemaining.seconds).padStart(2, '0')}초`);
+                    return `${parts.join(' ')} 후 재판 종료`;
+                  })()}
+                </div>
+              )}
+            </>
+          )}
+
+          {/* 재판 완료 버튼 - 재판 완료된 글에서만 표시 */}
+          {post.status === 'CLOSED' && (
+            <button
+              disabled
+              style={{
+                width: '100%',
+                padding: '16px',
+                backgroundColor: '#F2F4F6',
+                color: '#6B7684',
+                border: 'none',
+                borderRadius: '8px',
+                fontSize: '16px',
+                fontWeight: '600',
+                cursor: 'not-allowed',
+                marginTop: '12px'
+              }}
+            >
+              재판 완료
+            </button>
           )}
         </div>
       </div>
 
-      {/* 투표 결과 */}
-      {hasVoted && totalVotes > 0 && (
+      {/* 투표 결과 - 재판 완료된 글은 항상 표시, 재판 중인 글은 투표한 경우만 표시 */}
+      {((post.status === 'CLOSED' && totalVotes > 0) || (hasVoted && totalVotes > 0)) && (
         <>
           <div style={{ height: '16px' }} />
           <div style={{ padding: '0 20px', width: '100%', boxSizing: 'border-box' }}>
@@ -930,7 +958,7 @@ function CaseDetailPage() {
                   {agreePercent}%
                 </span>
                 <span style={{ color: '#666', fontSize: '14px' }}>
-                  {totalVotes}명 투표 중
+                  {post.status === 'CLOSED' ? `${totalVotes}명 재판 완료` : `${totalVotes}명 투표 중`}
                 </span>
                 <span style={{ color: '#D32F2F', fontSize: '18px', fontWeight: '700' }}>
                   {disagreePercent}%
@@ -957,8 +985,8 @@ function CaseDetailPage() {
                 justifyContent: 'space-between',
                 marginTop: '8px'
               }}>
-                <span style={{ color: '#666', fontSize: '13px' }}>합리적이다</span>
-                <span style={{ color: '#666', fontSize: '13px' }}>비합리적이다</span>
+                <span style={{ color: '#666', fontSize: '13px' }}>무죄</span>
+                <span style={{ color: '#666', fontSize: '13px' }}>유죄</span>
               </div>
             </div>
           </div>
@@ -1167,19 +1195,24 @@ function CaseDetailPage() {
                         }} />
                         <button
                           onClick={() => {
+                            if (post?.status === 'CLOSED') {
+                              return; // 재판 완료된 글에서는 답글 불가
+                            }
                             if (!hasVoted) {
                               alert('투표 후 댓글을 작성할 수 있습니다!');
                               return;
                             }
                             setReplyingTo(comment.id);
                           }}
+                          disabled={post?.status === 'CLOSED'}
                           style={{
                             background: 'none',
                             border: 'none',
-                            cursor: 'pointer',
+                            cursor: post?.status === 'CLOSED' ? 'not-allowed' : 'pointer',
                             padding: '4px 8px',
                             display: 'flex',
-                            alignItems: 'center'
+                            alignItems: 'center',
+                            opacity: post?.status === 'CLOSED' ? 0.5 : 1
                           }}
                         >
                           <Asset.Icon
@@ -1313,8 +1346,8 @@ function CaseDetailPage() {
                       </>
                     )}
 
-                    {/* 답글 작성 폼 */}
-                    {replyingTo === comment.id && (
+                    {/* 답글 작성 폼 - 재판 완료된 글에서는 표시하지 않음 */}
+                    {replyingTo === comment.id && post?.status !== 'CLOSED' && (
                       <div style={{ marginTop: '12px' }}>
                         <textarea
                           value={replyContent}
@@ -1796,7 +1829,7 @@ function CaseDetailPage() {
               textAlign="center"
               style={{ marginBottom: '12px' }}
             >
-              '{pendingVoteType === 'agree' ? '합리적이다' : '비합리적이다'}'로 하시겠어요?
+              '{pendingVoteType === 'agree' ? '무죄' : '유죄'}'로 하시겠어요?
             </Text>
             <Text
               display="block"
