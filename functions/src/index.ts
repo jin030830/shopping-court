@@ -250,5 +250,58 @@ export const tossLogout = functions
     }
   });
 
+/**
+ * 토스 로그인 연결 해제 콜백 처리 (토스 서버로부터 호출됨)
+ */
+export const tossUnlinkCallback = functions
+  .region("asia-northeast3")
+  .https.onRequest(async (req, res) => {
+    try {
+      // 1. Basic Auth 검증 (환경 변수 사용)
+      const tossConfig = functions.config().toss;
+      const callbackAuthId = tossConfig?.callback_id;
+      const callbackAuthPw = tossConfig?.callback_pw;
+      
+      if (!callbackAuthId || !callbackAuthPw) {
+        console.error("[tossUnlinkCallback] Callback Auth configuration is missing");
+        res.status(500).send("Server configuration error");
+        return;
+      }
+
+      const authHeader = req.headers.authorization;
+      const expectedAuth = "Basic " + Buffer.from(`${callbackAuthId}:${callbackAuthPw}`).toString("base64");
+
+      if (!authHeader || authHeader !== expectedAuth) {
+        console.warn("[tossUnlinkCallback] Unauthorized access attempt");
+        res.status(401).send("Unauthorized");
+        return;
+      }
+
+      // 2. 파라미터 추출
+      const userKey = req.body.userKey || req.query.userKey;
+      const referrer = req.body.referrer || req.query.referrer;
+
+      if (!userKey) {
+        res.status(400).send("Missing userKey");
+        return;
+      }
+
+      console.log(`[tossUnlinkCallback] Validated unlink callback for referrer: ${referrer}`);
+
+      // 3. Firebase Auth 세션 무효화
+      try {
+        await admin.auth().revokeRefreshTokens(String(userKey));
+        console.log(`[tossUnlinkCallback] Successfully revoked tokens for user key`);
+      } catch (authError) {
+        console.error(`[tossUnlinkCallback] Failed to revoke tokens`, authError);
+      }
+
+      res.status(200).send("OK");
+    } catch (error) {
+      console.error("[tossUnlinkCallback] Internal error:", error);
+      res.status(500).send("Internal Server Error");
+    }
+  });
+
 export { onVoteCreate, onCommentCreate, onVoteDelete, onCommentDelete } from './triggers';
 export { closeExpiredCases } from './scheduled';
