@@ -762,6 +762,26 @@ function PostList({ posts, selectedTab, navigate }: PostListProps) {
                 </Text>
               )}
             </div>
+            {/* HOT 게시판일 때만 TOP N 표시 */}
+            {selectedTab === 'HOT 게시판' && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginBottom: '8px' }}>
+                <Asset.Icon
+                  frameShape={Asset.frameShape.CleanW20}
+                  backgroundColor="transparent"
+                  name="icon-emoji-fire"
+                  aria-hidden={true}
+                  ratio="1/1"
+                />
+                <Text
+                  display="block"
+                  color="#FF6B6B"
+                  typography="t6"
+                  fontWeight="bold"
+                >
+                  TOP {index + 1}
+                </Text>
+              </div>
+            )}
             <Text 
               display="block" 
               color="#191F28" 
@@ -821,11 +841,6 @@ function PostList({ posts, selectedTab, navigate }: PostListProps) {
                   {(post.guiltyCount || 0) + (post.innocentCount || 0)}
                 </Text>
               </div>
-              {selectedTab === 'HOT 게시판' && (
-                <Text color="#FF6B6B" typography="t7" fontWeight="semibold">
-                  🔥 TOP {index + 1}
-                </Text>
-              )}
             </div>
           </div>
         );
