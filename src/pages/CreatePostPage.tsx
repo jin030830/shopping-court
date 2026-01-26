@@ -1,6 +1,6 @@
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useState, useEffect } from 'react';
-import { Asset, Text } from '@toss/tds-mobile';
+import { Text } from '@toss/tds-mobile';
 import { useAuth } from '../hooks/useAuth';
 import { createCase, type CaseData } from '../api/cases';
 
@@ -13,19 +13,20 @@ function CreatePostPage() {
   const [content, setContent] = useState('');
   const [showGuideModal, setShowGuideModal] = useState(false);
   const [hasShownGuide, setHasShownGuide] = useState(false);
-
-  // 가이드 팝업 표시 여부 확인
-  const checkAndShowGuide = () => {
-    if (!hasShownGuide) {
-      setShowGuideModal(true);
-      setHasShownGuide(true);
-    }
-  };
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
 
   // 가이드 확인 처리
   const handleGuideConfirm = () => {
     setShowGuideModal(false);
   };
+
+  // 페이지 로드 시 자동으로 팝업 표시
+  useEffect(() => {
+    if (!hasShownGuide) {
+      setShowGuideModal(true);
+      setHasShownGuide(true);
+    }
+  }, [hasShownGuide]);
 
   useEffect(() => {
     if (!isLoading && (!user || !userData)) {
@@ -55,8 +56,7 @@ function CreatePostPage() {
 
     try {
       await createCase(caseData);
-      alert('고민이 등록되었습니다!');
-      navigate('/');
+      setShowSuccessModal(true);
     } catch (error) {
       console.error('고민 등록 실패:', error);
       alert('고민을 등록하는 데 실패했습니다. 다시 시도해주세요.');
@@ -72,57 +72,6 @@ function CreatePostPage() {
       width: '100%',
       boxSizing: 'border-box'
     }}>
-      {/* Header */}
-      <div style={{ 
-        display: 'flex', 
-        alignItems: 'center', 
-        justifyContent: 'space-between',
-        padding: '14px 20px',
-        borderBottom: '1px solid #e5e5e5',
-        width: '100%',
-        boxSizing: 'border-box'
-      }}>
-        <button
-          onClick={(e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            navigate('/');
-          }}
-          style={{
-            background: 'none',
-            border: 'none',
-            cursor: 'pointer',
-            padding: '4px',
-            display: 'flex',
-            alignItems: 'center',
-            zIndex: 10
-          }}
-        >
-          <Asset.Icon
-            frameShape={Asset.frameShape.CleanW24}
-            backgroundColor="transparent"
-            name="icon-arrow-back-ios-mono"
-            color="#191F28"
-            aria-label="뒤로가기"
-          />
-        </button>
-        
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <Asset.Image
-            frameShape={Asset.frameShape.CleanW16}
-            backgroundColor="transparent"
-            src="https://static.toss.im/appsintoss/15155/4dfa3fe7-556e-424d-820a-61a865a49168.png"
-            aria-hidden={true}
-            style={{ width: '24px', height: '24px' }}
-          />
-          <Text color="#191F28" typography="t6" fontWeight="semibold">
-            소비 재판소
-          </Text>
-        </div>
-
-        <div style={{ width: '32px' }} />
-      </div>
-
       {/* Content Area */}
       <div style={{ 
         flex: 1, 
@@ -173,7 +122,6 @@ function CreatePostPage() {
             }}
             onFocus={(e) => {
               e.target.style.borderColor = '#3182F6';
-              checkAndShowGuide();
             }}
             onBlur={(e) => {
               e.target.style.borderColor = '#E5E5E5';
@@ -213,7 +161,6 @@ function CreatePostPage() {
             }}
             onFocus={(e) => {
               e.target.style.borderColor = '#3182F6';
-              checkAndShowGuide();
             }}
             onBlur={(e) => {
               e.target.style.borderColor = '#E5E5E5';
@@ -352,6 +299,73 @@ function CreatePostPage() {
                 }}
               >
                 확인했습니다!
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 성공 팝업 */}
+      {showSuccessModal && (
+        <div
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.5)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1000,
+            padding: '20px'
+          }}
+          onClick={() => {
+            setShowSuccessModal(false);
+            navigate('/');
+          }}
+        >
+          <div
+            style={{
+              backgroundColor: 'white',
+              borderRadius: '16px',
+              padding: '24px',
+              width: '100%',
+              maxWidth: '400px',
+              boxSizing: 'border-box'
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <Text
+              display="block"
+              color="#191F28ff"
+              typography="t4"
+              fontWeight="bold"
+              textAlign="center"
+              style={{ marginBottom: '24px' }}
+            >
+              고민이 등록되었습니다!
+            </Text>
+            
+            <div style={{ display: 'flex', justifyContent: 'center' }}>
+              <button
+                onClick={() => {
+                  setShowSuccessModal(false);
+                  navigate('/');
+                }}
+                style={{
+                  padding: '12px 24px',
+                  backgroundColor: '#3182F6',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '8px',
+                  fontSize: '15px',
+                  fontWeight: '600',
+                  cursor: 'pointer'
+                }}
+              >
+                Ok
               </button>
             </div>
           </div>
