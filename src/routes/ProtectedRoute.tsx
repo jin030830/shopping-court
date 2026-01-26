@@ -31,37 +31,40 @@ const FullPageSpinner = ({ message = '로딩 중...' }) => (
 );
 
 function ProtectedRoute({ children }: { children: React.ReactElement }) {
-  const { user, userData, isLoading, isLoggingIn, login } = useAuth();
+  const { user, userData, isLoading, isLoggingIn, isVerified, login } = useAuth();
   const attemptRef = useRef(false);
 
   useEffect(() => {
-    // 초기 로딩 완료, 비로그인 상태, 아직 로그인 시도 안 함 -> 로그인 실행
-    if (!isLoading && !user && !userData && !isLoggingIn && !attemptRef.current) {
-      attemptRef.current = true;
-      login().catch(() => {
-        // 로그인 실패 시 재시도 가능하도록 리셋
-        attemptRef.current = false;
-      });
+    // 초기 인증 상태 확인 로딩이 끝났을 때
+    if (!isLoading && !isLoggingIn && !attemptRef.current) {
+      // 1. 아예 로그인이 안 되어 있거나
+      // 2. 로그인은 되어 있지만 토스 연결 검증(isVerified)이 안 된 경우 (앱 재진입 시)
+      if (!user || !userData || !isVerified) {
+        attemptRef.current = true;
+        login().catch(() => {
+          // 로그인 실패 시 재시도 가능하도록 리셋
+          attemptRef.current = false;
+        });
+      }
     }
-  }, [isLoading, user, userData, isLoggingIn, login]);
+  }, [isLoading, user, userData, isLoggingIn, isVerified, login]);
 
-  // 1. 초기 상태 확인 중
+  // 1. 초기 인증 상태 확인 중
   if (isLoading) {
     return <FullPageSpinner />;
   }
 
-  // 2. 로그인 성공 -> 컨텐츠 표시
-  if (user && userData) {
+  // 2. 로그인 성공 및 토스 검증 완료 -> 실제 컨텐츠 표시
+  if (user && userData && isVerified) {
     return children;
   }
 
   // 3. 로그인 진행 중 또는 시도 중
   if (isLoggingIn || attemptRef.current) {
-    return <FullPageSpinner message="로그인 중입니다..." />;
+    return <FullPageSpinner message="로그인 확인 중..." />;
   }
 
-  // 4. 로그인 실패 상태 (useAuth 내부에서 alert 띄움)
-  // 여기서는 재시도 버튼을 보여주거나 빈 화면을 유지할 수 있음
+  // 4. 로그인 실패 또는 미로그인 상태 (UI에서 login 버튼 제공 가능)
   return (
     <div style={{ 
       display: 'flex', 

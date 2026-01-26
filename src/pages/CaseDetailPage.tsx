@@ -1,5 +1,5 @@
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import { Asset, Text } from '@toss/tds-mobile';
 import { Timestamp } from 'firebase/firestore';
@@ -45,7 +45,20 @@ function CaseDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const location = useLocation();
-  const { user, isLoading, userData, login } = useAuth();
+  const { user, isLoading, userData, login, isVerified } = useAuth();
+  
+  // 로그인 검증 로직 추가 (연결 끊김 후 재진입 시 처리)
+  const attemptRef = useRef(false);
+  useEffect(() => {
+    // 로딩 끝났고, 로그인은 되어있는데(user 존재), 검증이 안 된 경우(isVerified false)
+    if (!isLoading && user && !isVerified && !attemptRef.current) {
+      console.log('CaseDetailPage: User exists but not verified. Triggering login check.');
+      attemptRef.current = true;
+      login().catch(() => {
+        attemptRef.current = false;
+      });
+    }
+  }, [isLoading, user, isVerified, login]);
   
   // location.state에서 fromTab을 저장 (컴포넌트 마운트 시 한 번만)
   // 초기값을 location.state에서 가져오되, 없으면 '재판 중'으로 설정

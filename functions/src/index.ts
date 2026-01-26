@@ -251,6 +251,7 @@ export const tossLogout = functions
   });
 
 /**
+<<<<<<< HEAD
  * 토스 앱에서 서비스 연결 해제 콜백 처리
  * GET/POST 방식 모두 지원
  */
