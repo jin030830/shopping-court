@@ -62,26 +62,128 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setIsLoading(false);
       return;
     }
+    
+    // 앱 시작 시 연결 상태 확인 및 정리
+    const checkAndCleanupAuth = async () => {
+      if (!auth) return;
+      
+      try {
+        const currentUser = auth.currentUser;
+        if (currentUser) {
+          // Firebase Auth 토큰 재검증 (사용자가 삭제되었는지 확인)
+          try {
+            await currentUser.getIdToken(true); // forceRefresh: true로 강제 갱신
+          } catch (tokenError: any) {
+            // 토큰이 유효하지 않으면 (사용자가 삭제되었을 가능성)
+            console.log('[Auth] Token validation failed, user may have been deleted:', tokenError);
+            if (auth) {
+              await signOut(auth);
+            }
+            localStorage.removeItem('shopping-court-user');
+            localStorage.removeItem('shopping-court-logged-in');
+            setUser(null);
+            setUserData(null);
+            setIsLoading(false);
+            return;
+          }
+          
+          // Firestore에서 사용자 데이터 확인 (사용자가 삭제되었는지 검증)
+          const userDataFromFirestore = await getUserData(currentUser);
+          
+          // 사용자 데이터가 없으면 (콜백으로 삭제되었을 가능성) 강제 로그아웃
+          if (!userDataFromFirestore) {
+            console.log('[Auth] User data not found in Firestore (unlinked), forcing logout');
+            try {
+              if (auth) {
+                await signOut(auth);
+              }
+              localStorage.removeItem('shopping-court-user');
+              localStorage.removeItem('shopping-court-logged-in');
+              setUser(null);
+              setUserData(null);
+              setIsLoading(false);
+              return;
+            } catch (error) {
+              console.error('[Auth] Error during forced logout:', error);
+            }
+          }
+        }
+      } catch (error) {
+        console.error('[Auth] Error during auth check:', error);
+      }
+    };
+    
+    // 초기 검증 실행
+    checkAndCleanupAuth();
+    
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       setUser(firebaseUser);
       if (firebaseUser) {
+        // Firebase Auth 토큰 재검증 (사용자가 삭제되었는지 확인)
+        try {
+          await firebaseUser.getIdToken(true); // forceRefresh: true로 강제 갱신
+        } catch (tokenError: any) {
+          // 토큰이 유효하지 않으면 (사용자가 삭제되었을 가능성)
+          console.log('[Auth] Token validation failed, user may have been deleted:', tokenError);
+          try {
+            if (auth) {
+              await signOut(auth);
+            }
+            localStorage.removeItem('shopping-court-user');
+            localStorage.removeItem('shopping-court-logged-in');
+            setUser(null);
+            setUserData(null);
+            setIsLoading(false);
+            return;
+          } catch (error) {
+            console.error('[Auth] Error during forced logout:', error);
+          }
+        }
+        
+        // Firestore에서 사용자 데이터 확인 (사용자가 삭제되었는지 검증)
+        const userDataFromFirestore = await getUserData(firebaseUser);
+        
+        // 사용자 데이터가 없으면 (콜백으로 삭제되었을 가능성) 강제 로그아웃
+        if (!userDataFromFirestore) {
+          console.log('[Auth] User data not found in Firestore (unlinked), forcing logout');
+          try {
+            if (auth) {
+              await signOut(auth);
+            }
+            localStorage.removeItem('shopping-court-user');
+            localStorage.removeItem('shopping-court-logged-in');
+            setUser(null);
+            setUserData(null);
+            setIsLoading(false);
+            return;
+          } catch (error) {
+            console.error('[Auth] Error during forced logout:', error);
+          }
+        }
+
         const localData = localStorage.getItem('shopping-court-user');
         if (localData) {
           try {
             const parsedData = JSON.parse(localData);
-            setUserData({
-              tossUserKey: parsedData.uid,
-              nickname: parsedData.nickname,
-              createdAt: parsedData.createdAt ? Timestamp.fromDate(new Date(parsedData.createdAt)) : null,
-              updatedAt: null,
-            });
+            // Firestore 데이터와 일치하는지 확인
+            if (userDataFromFirestore && parsedData.uid === firebaseUser.uid) {
+              setUserData({
+                tossUserKey: parsedData.uid,
+                nickname: parsedData.nickname,
+                createdAt: parsedData.createdAt ? Timestamp.fromDate(new Date(parsedData.createdAt)) : null,
+                updatedAt: null,
+              });
+            } else {
+              // Firestore 데이터 사용
+              setUserData(userDataFromFirestore);
+            }
           } catch {
-            const data = await getUserData(firebaseUser);
-            setUserData(data);
+            // Firestore 데이터 사용
+            setUserData(userDataFromFirestore);
           }
         } else {
-          const data = await getUserData(firebaseUser);
-          setUserData(data);
+          // Firestore 데이터 사용
+          setUserData(userDataFromFirestore);
         }
       } else {
         setUserData(null);
