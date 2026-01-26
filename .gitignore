@@ -17,6 +17,8 @@ dist-ssr/
 coverage/
 .vite/
 .granite
+*.ait
+shopping-court.ait
 
 # --- Firebase & Logs ---
 .firebase/
