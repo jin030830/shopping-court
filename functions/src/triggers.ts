@@ -1,14 +1,23 @@
 import * as functions from 'firebase-functions';
 import * as admin from 'firebase-admin';
 
-// Firestore 인스턴스를 한 번만 초기화하여 재사용합니다.
-const db = admin.firestore();
+// DB 접근 헬퍼: 초기화 상태 확인 및 지연 초기화
+// 명시적으로 기본 자격 증명(applicationDefault)을 사용하여 권한 오류 방지
+const getDb = () => {
+  if (!admin.apps.length) {
+    admin.initializeApp({
+      credential: admin.credential.applicationDefault()
+    });
+  }
+  return admin.firestore();
+};
 
 /**
  * 주어진 caseId에 대한 hotScore를 다시 계산하고 업데이트하는 재사용 가능한 함수입니다.
  * @param caseId - 업데이트할 게시물의 ID
  */
 const recalculateHotScore = async (caseId: string): Promise<void> => {
+  const db = getDb();
   const caseRef = db.collection('cases').doc(caseId);
 
   // 투표(votes) 서브컬렉션의 문서 개수를 가져옵니다.
@@ -35,6 +44,7 @@ const recalculateHotScore = async (caseId: string): Promise<void> => {
  * 게시물 문서의 commentCount를 증감시키는 함수
  */
 const updateCommentCount = async (caseId: string, delta: number) => {
+  const db = getDb();
   const caseRef = db.collection('cases').doc(caseId);
   await caseRef.update({
     commentCount: admin.firestore.FieldValue.increment(delta)
