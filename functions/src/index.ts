@@ -372,15 +372,14 @@ export const tossUnlinkCallback = functions
     }
   });
 
-// 변경된 export 목록: 대댓글 트리거와 마이그레이션 함수 추가
+// 변경된 export 목록: 대댓글 트리거는 유지하고, 마이그레이션 함수(recalculateAllHotScores)는 삭제
 export { 
   onVoteCreate, 
   onCommentCreate, 
   onVoteDelete, 
   onCommentDelete,
   onReplyCreate,
-  onReplyDelete,
-  recalculateAllHotScores 
+  onReplyDelete
 } from './triggers';
 
 export { closeExpiredCases } from './scheduled';
