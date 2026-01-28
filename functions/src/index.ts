@@ -1,19 +1,7 @@
 import * as functions from "firebase-functions";
 import * as admin from "firebase-admin";
 import axios from "axios";
-import * as fs from "fs";
-import * as https from "https";
-import * as path from "path";
-import * as dotenv from "dotenv";
-
-// .env 파일 로드 (로컬 개발용)
-try {
-  if (process.env.NODE_ENV !== 'production') {
-    dotenv.config();
-  }
-} catch (e) {
-  // Silent ignore in production
-}
+import { getTossApiConfig, createMtlsAgent } from "./toss";
 
 // Firebase Admin 초기화
 try {
@@ -60,47 +48,6 @@ interface TossUserInfoResponse {
     errorCode: string;
     reason: string;
   };
-}
-
-/**
- * 환경 변수에서 토스 API 설정 가져오기
- */
-function getTossApiConfig() {
-  const tossConfig = functions.config().toss;
-
-  const authApiBase = tossConfig?.auth_api_base || process.env.TOSS_AUTH_API_BASE || "https://apps-in-toss-api.toss.im";
-  const clientId = tossConfig?.client_id || process.env.TOSS_CLIENT_ID || "shopping-court";
-  
-  const isEmulator = process.env.FUNCTIONS_EMULATOR === "true";
-  const testMode = isEmulator && (process.env.TEST_MODE === "true" || tossConfig?.test_mode === "true");
-
-  return {
-    authApiBase,
-    clientId,
-    testMode,
-    isEmulator,
-  };
-}
-
-/**
- * mTLS 인증을 위한 https.Agent 생성
- */
-function createMtlsAgent(): https.Agent {
-  try {
-    const certPath = path.resolve(__dirname, "..", "certs");
-    const keyPath = path.join(certPath, "shopping-court2_private.key");
-    const certFilePath = path.join(certPath, "shopping-court2_public.crt");
-
-    return new https.Agent({
-      key: fs.readFileSync(keyPath),
-      cert: fs.readFileSync(certFilePath),
-    });
-  } catch (error) {
-    throw new functions.https.HttpsError(
-      "internal",
-      "서버 인증 설정에 실패했습니다."
-    );
-  }
 }
 
 /**
@@ -251,7 +198,6 @@ export const tossLogout = functions
   });
 
 /**
-<<<<<<< HEAD
  * 토스 앱에서 서비스 연결 해제 콜백 처리
  * GET/POST 방식 모두 지원
  */
@@ -426,5 +372,15 @@ export const tossUnlinkCallback = functions
     }
   });
 
-export { onVoteCreate, onCommentCreate, onVoteDelete, onCommentDelete } from './triggers';
+// 변경된 export 목록: 대댓글 트리거와 마이그레이션 함수 추가
+export { 
+  onVoteCreate, 
+  onCommentCreate, 
+  onVoteDelete, 
+  onCommentDelete,
+  onReplyCreate,
+  onReplyDelete,
+  recalculateAllHotScores 
+} from './triggers';
+
 export { closeExpiredCases } from './scheduled';
