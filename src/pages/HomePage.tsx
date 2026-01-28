@@ -5,7 +5,6 @@ import { getAllCases, getComments, getReplies, type CaseDocument } from '../api/
 import { Timestamp } from 'firebase/firestore';
 import { adaptive } from '@toss/tds-colors';
 import scaleIcon from '../assets/저울모양-다음에서-변환-png.svg';
-import gavelIcon from '../assets/판사봉.png';
 import hotFlameIcon from '../assets/핫게시판불모양.png';
 import commentIcon from '../assets/댓글수-다음에서-변환-png.svg';
 import voteIcon from '../assets/투표수-다음에서-변환-png.svg';
@@ -27,8 +26,6 @@ function HomePage() {
   const [allPosts, setAllPosts] = useState<CaseDocument[]>([]);
   const [isPostsLoading, setIsPostsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [completedFilter, setCompletedFilter] = useState<'전체' | '무죄' | '유죄' | '보류'>('전체');
-  const [searchKeyword, setSearchKeyword] = useState('');
   const navigate = useNavigate();
 
   // location.state에서 탭 정보를 받아오면 탭 변경
@@ -44,6 +41,11 @@ function HomePage() {
     else if (sessionStorage.getItem('caseDetailFromTab')) {
       newTab = sessionStorage.getItem('caseDetailFromTab');
       sessionStorage.removeItem('caseDetailFromTab'); // 사용 후 삭제
+    }
+    // 재판 완료 리스트 페이지에서 돌아온 경우
+    else if (sessionStorage.getItem('completedListFromTab')) {
+      newTab = sessionStorage.getItem('completedListFromTab');
+      sessionStorage.removeItem('completedListFromTab'); // 사용 후 삭제
     }
     
     if (newTab) {
@@ -406,7 +408,7 @@ function HomePage() {
         <div style={{ 
           padding: '0 20px', 
           marginBottom: '20px',
-          background: 'linear-gradient(180deg, #fff3e0 0%, #ffffff 100%)',
+          background: 'linear-gradient(180deg, #fff4e5 0%, #ffffff 100%)',
           paddingTop: '16px',
           marginTop: '-12px'
         }}>
@@ -414,7 +416,7 @@ function HomePage() {
             display: 'flex', 
             alignItems: 'flex-start', 
             justifyContent: 'space-between',
-            marginBottom: '16px'
+            marginBottom: '15px'
           }}>
             <div style={{ flex: 1 }}>
               <Text 
@@ -422,7 +424,7 @@ function HomePage() {
                 color="#191F28ff" 
                 typography="t3" 
                 fontWeight="bold"
-                style={{ marginBottom: '8px' }}
+                style={{ marginBottom: '8px', fontSize: '22px' }}
               >
                 재판 완료된 글
               </Text>
@@ -437,105 +439,24 @@ function HomePage() {
               </Text>
             </div>
             <div style={{ marginLeft: '16px' }}>
-              <img 
-                src={gavelIcon} 
-                alt="판사봉" 
-                style={{ 
-                  width: '80px', 
-                  height: '80px',
-                  objectFit: 'contain'
-                }} 
-              />
-            </div>
-          </div>
-          
-          {/* 검색창 */}
-          <div style={{ 
-            marginBottom: '16px',
-            position: 'relative'
-          }}>
-            <div style={{
-              position: 'absolute',
-              left: '16px',
-              top: '50%',
-              transform: 'translateY(-50%)',
-              pointerEvents: 'none',
-              zIndex: 1
-            }}>
               <Asset.Icon
-                frameShape={{ width: 20, height: 20 }}
-                backgroundColor="transparent"
-                name="icon-search-mono"
-                color="#9E9E9E"
+                frameShape={Asset.frameShape.CleanW60}
+                name="icon-gavel"
                 aria-hidden={true}
               />
             </div>
-            <input
-              type="text"
-              value={searchKeyword}
-              onChange={(e) => setSearchKeyword(e.target.value)}
-              placeholder="관심 키워드 검색"
-              style={{
-                width: '100%',
-                padding: '12px 16px 12px 44px',
-                border: '1px solid #E5E5E5',
-                borderRadius: '8px',
-                fontSize: '15px',
-                backgroundColor: 'white',
-                color: '#191F28',
-                boxSizing: 'border-box'
-              }}
-            />
-          </div>
-          
-          {/* 필터 버튼 */}
-          <div style={{ 
-            display: 'flex', 
-            gap: '8px', 
-            marginBottom: '16px'
-          }}>
-            {(['전체', '무죄', '유죄', '보류'] as const).map((filter) => (
-              <button
-                key={filter}
-                onClick={() => setCompletedFilter(filter)}
-                style={{
-                  padding: '6px 16px',
-                  backgroundColor: completedFilter === filter ? '#191F28' : 'transparent',
-                  color: completedFilter === filter ? 'white' : '#666',
-                  border: 'none',
-                  borderRadius: '20px',
-                  fontSize: '14px',
-                  fontWeight: completedFilter === filter ? '600' : '400',
-                  cursor: 'pointer'
-                }}
-              >
-                {filter}
-              </button>
-            ))}
           </div>
         </div>
       )}
 
       {/* 게시글 목록 */}
       {selectedTab === '재판 완료' ? (
-        <div style={{ padding: '0' }}>
-          {isPostsLoading ? (
-            <div style={{ padding: '40px', textAlign: 'center' }}>
-              <Text color="#6B7684">게시물을 불러오는 중...</Text>
-            </div>
-          ) : error ? (
-            <div style={{ padding: '40px', textAlign: 'center' }}>
-              <Text color="#D32F2F">{error}</Text>
-            </div>
-          ) : (
-            <CompletedPostList 
-              posts={allPosts} 
-              navigate={navigate}
-              filter={completedFilter}
-              searchKeyword={searchKeyword}
-            />
-          )}
-        </div>
+        <CompletedPostListMain 
+          posts={allPosts} 
+          navigate={navigate}
+          isLoading={isPostsLoading}
+          error={error}
+        />
       ) : (
         <div style={{ padding: '0 20px', backgroundColor: 'white' }}>
           {isPostsLoading ? (
@@ -753,44 +674,52 @@ function PostList({ posts, selectedTab, navigate }: PostListProps) {
             }}
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
-              <Text color="#9E9E9E" typography="t7" fontWeight="regular">
-                {post.authorNickname}
-              </Text>
+              {selectedTab === 'HOT 게시판' ? (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  <Asset.Icon
+                    frameShape={Asset.frameShape.CleanW20}
+                    backgroundColor="transparent"
+                    name="icon-emoji-fire"
+                    aria-hidden={true}
+                    ratio="1/1"
+                  />
+                  <Text
+                    display="block"
+                    color="#FF6B6B"
+                    typography="t6"
+                    fontWeight="bold"
+                  >
+                    TOP {index + 1}
+                  </Text>
+                </div>
+              ) : (
+                <Text 
+                  display="block" 
+                  color="#191F28" 
+                  typography="t5" 
+                  fontWeight="bold"
+                  style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+                >
+                  {post.title}
+                </Text>
+              )}
               {post.createdAt && (
-                <Text color="#9E9E9E" typography="st13" fontWeight="regular">
+                <Text color="#9E9E9E" typography="st13" fontWeight="regular" style={{ marginLeft: '8px', flexShrink: 0 }}>
                   {formatDate(post.createdAt)}
                 </Text>
               )}
             </div>
-            {/* HOT 게시판일 때만 TOP N 표시 */}
             {selectedTab === 'HOT 게시판' && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginBottom: '8px' }}>
-                <Asset.Icon
-                  frameShape={Asset.frameShape.CleanW20}
-                  backgroundColor="transparent"
-                  name="icon-emoji-fire"
-                  aria-hidden={true}
-                  ratio="1/1"
-                />
-                <Text
-                  display="block"
-                  color="#FF6B6B"
-                  typography="t6"
-                  fontWeight="bold"
-                >
-                  TOP {index + 1}
-                </Text>
-              </div>
+              <Text 
+                display="block" 
+                color="#191F28" 
+                typography="t5" 
+                fontWeight="bold"
+                style={{ marginBottom: '4px' }}
+              >
+                {post.title}
+              </Text>
             )}
-            <Text 
-              display="block" 
-              color="#191F28" 
-              typography="t5" 
-              fontWeight="bold"
-              style={{ marginBottom: '4px' }}
-            >
-              {post.title}
-            </Text>
             <Text 
               display="block" 
               color="#191F28ff" 
@@ -849,63 +778,65 @@ function PostList({ posts, selectedTab, navigate }: PostListProps) {
   );
 }
 
-// 재판 완료 전용 컴포넌트
-interface CompletedPostListProps {
+// 재판 완료 메인 컴포넌트 (첫 번째 화면)
+interface CompletedPostListMainProps {
   posts: CaseDocument[];
   navigate: (path: string, state?: any) => void;
-  filter: '전체' | '무죄' | '유죄' | '보류';
-  searchKeyword: string;
+  isLoading: boolean;
+  error: string | null;
 }
 
-function CompletedPostList({ posts, navigate, filter, searchKeyword }: CompletedPostListProps) {
+function CompletedPostListMain({ posts, navigate, isLoading, error }: CompletedPostListMainProps) {
   const [postsWithDetails, setPostsWithDetails] = useState<any[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoadingDetails, setIsLoadingDetails] = useState(true);
 
   useEffect(() => {
     const loadPostDetails = () => {
-      setIsLoading(true);
+      setIsLoadingDetails(true);
       try {
-        // getAllCases로 가져온 post.commentCount를 직접 사용 (N+1 문제 해결)
         const postsWithData = posts.map((post) => {
           const voteCount = post.guiltyCount + post.innocentCount;
-          // HOT 점수 계산: 투표수 + 2*댓글수 (post.commentCount 직접 사용)
           const hotScore = voteCount + (2 * (post.commentCount || 0));
-          // 재판 결과 결정 (innocent가 많으면 무죄, guilty가 많으면 유죄, 동률이면 보류)
-          let verdict: '무죄' | '유죄' | '보류' = '보류'; // 기본값을 보류로 설정
+          let verdict: '무죄' | '유죄' | '보류' = '보류';
           if (voteCount > 0) {
             if (post.innocentCount > post.guiltyCount) {
               verdict = '무죄';
             } else if (post.guiltyCount > post.innocentCount) {
               verdict = '유죄';
             } else {
-              verdict = '보류'; // 동률인 경우
+              verdict = '보류';
             }
           }
-          // voteCount === 0인 경우도 보류로 처리
-
           return {
-            ...post, // DB에 저장된 status, commentCount가 여기에 포함됩니다.
+            ...post,
             voteCount,
             hotScore,
             verdict
           };
         });
-
         setPostsWithDetails(postsWithData);
       } catch (error) {
         console.error('게시물 상세 정보 로드 실패:', error);
       } finally {
-        setIsLoading(false);
+        setIsLoadingDetails(false);
       }
     };
 
     loadPostDetails();
   }, [posts]);
 
-  if (isLoading) {
+  if (isLoading || isLoadingDetails) {
     return (
       <div style={{ padding: '40px', textAlign: 'center' }}>
         <Text color="#6B7684">게시물 정보를 불러오는 중...</Text>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div style={{ padding: '40px', textAlign: 'center' }}>
+        <Text color="#D32F2F">{error}</Text>
       </div>
     );
   }
@@ -919,46 +850,21 @@ function CompletedPostList({ posts, navigate, filter, searchKeyword }: Completed
     return `${year}-${month}-${day}`;
   };
 
-  // 재판 완료된 전체 게시물 (필터 및 검색 적용)
-  const allCompletedPosts = postsWithDetails
-    .filter(post => post.status === 'CLOSED')
-    .filter(post => {
-      // 검색어 필터 (제목 또는 본문에 포함)
-      if (searchKeyword.trim()) {
-        const keyword = searchKeyword.trim().toLowerCase();
-        const titleMatch = post.title.toLowerCase().includes(keyword);
-        const contentMatch = post.content.toLowerCase().includes(keyword);
-        if (!titleMatch && !contentMatch) {
-          return false;
-        }
-      }
-      
-      // verdict 필터
-      if (filter === '전체') return true;
-      // verdict가 정확히 일치하는 경우만 필터링
-      // 엄격한 비교 - post.verdict를 직접 비교
-      if (filter === '무죄') {
-        return post.verdict === '무죄';
-      }
-      if (filter === '유죄') {
-        return post.verdict === '유죄';
-      }
-      if (filter === '보류') {
-        // 보류는 verdict가 '보류'이거나 null/undefined인 경우
-        return post.verdict === '보류' || !post.verdict;
-      }
-      return true;
-    })
+  // 화제의 재판 기록 (hotScore > 0)
+  const hotCompletedPosts = postsWithDetails
+    .filter(post => post.status === 'CLOSED' && post.hotScore > 0)
+    .sort((a, b) => b.hotScore - a.hotScore)
+    .slice(0, 5); // 최대 5개만 표시
+
+  // 이전 재판 기록 (hotScore === 0)
+  const previousCompletedPosts = postsWithDetails
+    .filter(post => post.status === 'CLOSED' && post.hotScore === 0)
     .sort((a, b) => {
       const dateA = a.voteEndAt?.toMillis() || 0;
       const dateB = b.voteEndAt?.toMillis() || 0;
       return dateB - dateA;
-    });
-
-  // HOT 게시판에 있던 상태로 재판이 완료된 글들 (HOT 점수 기준)
-  const hotCompletedPosts = postsWithDetails
-    .filter(post => post.status === 'CLOSED' && post.hotScore > 0)
-    .sort((a, b) => b.hotScore - a.hotScore);
+    })
+    .slice(0, 5); // 최대 5개만 표시
 
   const renderPostCard = (post: any) => (
     <div
@@ -1046,76 +952,62 @@ function CompletedPostList({ posts, navigate, filter, searchKeyword }: Completed
   );
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', backgroundColor: 'white' }}>
-      {/* 위쪽: 재판 완료된 전체 게시물 */}
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '61px', backgroundColor: 'white', paddingBottom: '24px' }}>
+      {/* 화제의 재판 기록 */}
       <div>
         <div style={{
-          overflowX: 'auto',
-          overflowY: 'hidden',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
           padding: '0 20px',
-          WebkitOverflowScrolling: 'touch',
-          scrollbarWidth: 'none',
-          msOverflowStyle: 'none',
-          cursor: 'grab'
-        }}
-        onWheel={(e) => {
-          const container = e.currentTarget;
-          container.scrollLeft += e.deltaY;
-          e.preventDefault();
-        }}
-        >
-          <div style={{
-            display: 'flex',
-            flexDirection: 'row',
-            gap: '0',
-            paddingRight: '20px'
-          }}>
-            {allCompletedPosts.map(renderPostCard)}
-          </div>
-        </div>
-        <style>{`
-          div::-webkit-scrollbar {
-            display: none;
-          }
-        `}</style>
-      </div>
-
-      {/* 아래쪽: 화제의 재판 기록 */}
-      {hotCompletedPosts.length > 0 && (
-        <div>
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            padding: '0 20px',
-            marginBottom: '16px'
-          }}>
-            <img
-              src={hotFlameIcon}
-              alt="화제"
-              style={{
-                width: '24px',
-                height: '24px',
-                objectFit: 'contain'
-              }}
+          marginBottom: '16px'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <Asset.Image
+              frameShape={Asset.frameShape.CleanW24}
+              backgroundColor="transparent"
+              src="https://static.toss.im/2d-emojis/png/4x/u1F525.png"
+              aria-hidden={true}
+              style={{ aspectRatio: '1/1' }}
             />
             <Text
               display="block"
-              color="#191F28"
+              color={adaptive.grey900}
               typography="t4"
               fontWeight="bold"
             >
               화제의 재판 기록
             </Text>
           </div>
+          <button
+            onClick={() => navigate('/completed-trending')}
+            style={{
+              background: 'none',
+              border: 'none',
+              cursor: 'pointer',
+              padding: '4px',
+              display: 'flex',
+              alignItems: 'center'
+            }}
+          >
+            <Asset.Icon
+              frameShape={Asset.frameShape.CleanW20}
+              backgroundColor="transparent"
+              name="icon-arrow-right-circle-mono"
+              color={adaptive.grey500}
+              aria-hidden={true}
+              ratio="1/1"
+            />
+          </button>
+        </div>
+        {hotCompletedPosts.length > 0 ? (
           <div style={{
             overflowX: 'auto',
             overflowY: 'hidden',
             padding: '0 20px',
             WebkitOverflowScrolling: 'touch',
             scrollbarWidth: 'none',
-            msOverflowStyle: 'none',
-            cursor: 'grab'
+            msOverflowStyle: 'none'
           }}
           onWheel={(e) => {
             const container = e.currentTarget;
@@ -1132,10 +1024,98 @@ function CompletedPostList({ posts, navigate, filter, searchKeyword }: Completed
               {hotCompletedPosts.map(renderPostCard)}
             </div>
           </div>
+        ) : (
+          <div style={{ padding: '20px', textAlign: 'center' }}>
+            <Text color="#6B7684">화제의 재판 기록이 없습니다.</Text>
+          </div>
+        )}
+      </div>
+
+      {/* 이전 재판 기록 */}
+      <div>
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          padding: '0 20px',
+          marginBottom: '16px'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <Asset.Icon
+              frameShape={Asset.frameShape.CleanW24}
+              backgroundColor="transparent"
+              name="icon-document-folder-yellow"
+              aria-hidden={true}
+              ratio="1/1"
+            />
+            <Text
+              display="block"
+              color={adaptive.grey900}
+              typography="t4"
+              fontWeight="bold"
+            >
+              이전 재판 기록
+            </Text>
+          </div>
+          <button
+            onClick={() => navigate('/completed-previous')}
+            style={{
+              background: 'none',
+              border: 'none',
+              cursor: 'pointer',
+              padding: '4px',
+              display: 'flex',
+              alignItems: 'center'
+            }}
+          >
+            <Asset.Icon
+              frameShape={Asset.frameShape.CleanW20}
+              backgroundColor="transparent"
+              name="icon-arrow-right-circle-mono"
+              color={adaptive.grey500}
+              aria-hidden={true}
+              ratio="1/1"
+            />
+          </button>
         </div>
-      )}
+        {previousCompletedPosts.length > 0 ? (
+          <div style={{
+            overflowX: 'auto',
+            overflowY: 'hidden',
+            padding: '0 20px',
+            WebkitOverflowScrolling: 'touch',
+            scrollbarWidth: 'none',
+            msOverflowStyle: 'none'
+          }}
+          onWheel={(e) => {
+            const container = e.currentTarget;
+            container.scrollLeft += e.deltaY;
+            e.preventDefault();
+          }}
+          >
+            <div style={{
+              display: 'flex',
+              flexDirection: 'row',
+              gap: '0',
+              paddingRight: '20px'
+            }}>
+              {previousCompletedPosts.map(renderPostCard)}
+            </div>
+          </div>
+        ) : (
+          <div style={{ padding: '20px', textAlign: 'center' }}>
+            <Text color="#6B7684">이전 재판 기록이 없습니다.</Text>
+          </div>
+        )}
+      </div>
+      <style>{`
+        div::-webkit-scrollbar {
+          display: none;
+        }
+      `}</style>
     </div>
   );
 }
+
 
 export default HomePage;

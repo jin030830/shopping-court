@@ -1,7 +1,25 @@
-import { Asset, Text } from '@toss/tds-mobile';
-import { adaptive } from '@toss/tds-colors';
+import { useNavigate } from 'react-router-dom';
+import { useEffect } from 'react';
+import { Asset } from '@toss/tds-mobile';
 
 function PointMissionPage() {
+  const navigate = useNavigate();
+
+  // 페이지 진입 시 sessionStorage에 저장 (토스 앱의 뒤로가기 버튼 대응)
+  useEffect(() => {
+    sessionStorage.setItem('pointMissionFromTab', '재판 중');
+  }, []);
+
+  // 브라우저/토스 앱의 뒤로가기 버튼 처리
+  useEffect(() => {
+    const handlePopState = () => {
+      const savedFromTab = sessionStorage.getItem('pointMissionFromTab') || '재판 중';
+      navigate('/', { state: { selectedTab: savedFromTab }, replace: true });
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, [navigate]);
 
   return (
     <div style={{ 
@@ -12,192 +30,339 @@ function PointMissionPage() {
       display: 'flex',
       flexDirection: 'column'
     }}>
-      {/* Mission List */}
-      <div style={{ flex: 1, padding: '0' }}>
-        {/* 투표하기 */}
-        <div style={{
-          display: 'flex',
-          alignItems: 'center',
-          padding: '16px 20px',
-          borderBottom: '1px solid #E5E5E5'
-        }}>
+
+      {/* 투표하기 3회 */}
+      <div style={{
+        display: 'flex',
+        alignItems: 'flex-start',
+        padding: '16px 20px 8px 20px',
+        gap: '12px',
+        minHeight: '74px'
+      }}>
+        <div style={{ flexShrink: 0, marginTop: '2px' }}>
           <Asset.Icon
             frameShape={Asset.frameShape.CleanW24}
             backgroundColor="transparent"
             name="icon-vote-box-blue"
             aria-hidden={true}
+            ratio="1/1"
           />
-          <div style={{ flex: 1, marginLeft: '12px' }}>
-            <Text
-              display="block"
-              color={adaptive.grey700}
-              typography="t6"
-              fontWeight="bold"
-              style={{ marginBottom: '4px' }}
-            >
-              투표하기
-            </Text>
-            <Text
-              display="block"
-              color={adaptive.grey600}
-              typography="t7"
-              fontWeight="regular"
-            >
-              게시글에 재판 투표를 해주세요!
-            </Text>
+        </div>
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '4px', minWidth: 0 }}>
+          <div style={{
+            color: '#191F28',
+            fontSize: '17px',
+            fontWeight: '700',
+            lineHeight: '24px'
+          }}>
+            투표하기 3회
           </div>
+          <div style={{
+            color: '#4E5968',
+            fontSize: '15px',
+            fontWeight: '400',
+            lineHeight: '22px'
+          }}>
+            게시글 재판에 참여해주세요!
+          </div>
+        </div>
+        <div style={{
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          gap: '8px',
+          flexShrink: 0,
+          width: '60px'
+        }}>
           <button style={{
-            padding: '8px 16px',
+            padding: '6px 12px',
             backgroundColor: '#3182F6',
             color: 'white',
             border: 'none',
-            borderRadius: '8px',
-            fontSize: '14px',
+            borderRadius: '6px',
+            fontSize: '13px',
             fontWeight: '600',
-            cursor: 'pointer'
+            cursor: 'pointer',
+            minWidth: '44px',
+            textAlign: 'center',
+            whiteSpace: 'nowrap'
           }}>
-            포인트 1원
+            1 P
           </button>
+          <div style={{
+            display: 'flex',
+            gap: '4px',
+            justifyContent: 'center'
+          }}>
+            <Asset.Icon
+              frameShape={Asset.frameShape.CleanW16}
+              backgroundColor="transparent"
+              name="icon-check-circle-blue2-small"
+              aria-hidden={true}
+              ratio="1/1"
+            />
+            <Asset.Icon
+              frameShape={Asset.frameShape.CleanW16}
+              backgroundColor="transparent"
+              name="icon-check-circle-blue2-small"
+              aria-hidden={true}
+              ratio="1/1"
+            />
+            <Asset.Icon
+              frameShape={Asset.frameShape.CleanW16}
+              backgroundColor="transparent"
+              name="icon-check-circle-dark-grey"
+              aria-hidden={true}
+              ratio="1/1"
+            />
+          </div>
         </div>
+      </div>
 
-        {/* 댓글 작성하기 */}
-        <div style={{
-          display: 'flex',
-          alignItems: 'center',
-          padding: '16px 20px',
-          borderBottom: '1px solid #E5E5E5'
-        }}>
+      {/* Border */}
+      <div style={{
+        width: 'calc(100% - 40px)',
+        height: '1px',
+        backgroundColor: '#E5E8EB',
+        marginLeft: '20px',
+        marginRight: '20px'
+      }} />
+
+      {/* 댓글 작성하기 2회 */}
+      <div style={{
+        display: 'flex',
+        alignItems: 'flex-start',
+        padding: '8px 20px',
+        gap: '12px',
+        minHeight: '74px'
+      }}>
+        <div style={{ flexShrink: 0, marginTop: '2px' }}>
           <Asset.Icon
             frameShape={Asset.frameShape.CleanW24}
             backgroundColor="transparent"
-            name="icon-open-chat"
+            name="icon-open-chat-bubble"
             aria-hidden={true}
+            ratio="1/1"
           />
-          <div style={{ flex: 1, marginLeft: '12px' }}>
-            <Text
-              display="block"
-              color={adaptive.grey700}
-              typography="t6"
-              fontWeight="bold"
-              style={{ marginBottom: '4px' }}
-            >
-              댓글 작성하기
-            </Text>
-            <Text
-              display="block"
-              color={adaptive.grey600}
-              typography="t7"
-              fontWeight="regular"
-            >
-              의견을 공유해주세요!
-            </Text>
+        </div>
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '4px', minWidth: 0 }}>
+          <div style={{
+            color: '#191F28',
+            fontSize: '17px',
+            fontWeight: '700',
+            lineHeight: '24px'
+          }}>
+            댓글 작성하기 2회
           </div>
+          <div style={{
+            color: '#4E5968',
+            fontSize: '15px',
+            fontWeight: '400',
+            lineHeight: '22px'
+          }}>
+            의견을 공유해주세요!
+          </div>
+        </div>
+        <div style={{
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          gap: '8px',
+          flexShrink: 0,
+          width: '60px'
+        }}>
           <button style={{
-            padding: '8px 16px',
+            padding: '6px 12px',
             backgroundColor: '#3182F6',
             color: 'white',
             border: 'none',
-            borderRadius: '8px',
-            fontSize: '14px',
+            borderRadius: '6px',
+            fontSize: '13px',
             fontWeight: '600',
-            cursor: 'pointer'
+            cursor: 'pointer',
+            minWidth: '44px',
+            textAlign: 'center',
+            whiteSpace: 'nowrap'
           }}>
-            포인트 3원
+            3 P
           </button>
+          <div style={{
+            display: 'flex',
+            gap: '4px',
+            justifyContent: 'center'
+          }}>
+            <Asset.Icon
+              frameShape={Asset.frameShape.CleanW16}
+              backgroundColor="transparent"
+              name="icon-check-circle-blue2-small"
+              aria-hidden={true}
+              ratio="1/1"
+            />
+            <Asset.Icon
+              frameShape={Asset.frameShape.CleanW16}
+              backgroundColor="transparent"
+              name="icon-check-circle-dark-grey"
+              aria-hidden={true}
+              ratio="1/1"
+            />
+          </div>
         </div>
+      </div>
 
-        {/* 게시글 작성하기 */}
-        <div style={{
-          display: 'flex',
-          alignItems: 'center',
-          padding: '16px 20px',
-          borderBottom: '1px solid #E5E5E5'
-        }}>
+      {/* Border */}
+      <div style={{
+        width: 'calc(100% - 40px)',
+        height: '1px',
+        backgroundColor: '#E5E8EB',
+        marginLeft: '20px',
+        marginRight: '20px'
+      }} />
+
+      {/* 게시글 작성하기 */}
+      <div style={{
+        display: 'flex',
+        alignItems: 'flex-start',
+        padding: '8px 20px',
+        gap: '12px',
+        minHeight: '74px'
+      }}>
+        <div style={{ flexShrink: 0, marginTop: '2px' }}>
           <Asset.Icon
             frameShape={Asset.frameShape.CleanW24}
             backgroundColor="transparent"
             name="icon-pencil-blue"
             aria-hidden={true}
+            ratio="24/23"
           />
-          <div style={{ flex: 1, marginLeft: '12px' }}>
-            <Text
-              display="block"
-              color={adaptive.grey700}
-              typography="t6"
-              fontWeight="bold"
-              style={{ marginBottom: '4px' }}
-            >
-              게시글 작성하기
-            </Text>
-            <Text
-              display="block"
-              color={adaptive.grey600}
-              typography="t7"
-              fontWeight="regular"
-            >
-              고민을 공유해보세요!
-            </Text>
+        </div>
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '4px', minWidth: 0 }}>
+          <div style={{
+            color: '#191F28',
+            fontSize: '17px',
+            fontWeight: '700',
+            lineHeight: '24px'
+          }}>
+            게시글 작성하기
           </div>
+          <div style={{
+            color: '#4E5968',
+            fontSize: '15px',
+            fontWeight: '400',
+            lineHeight: '22px'
+          }}>
+            의견을 공유해주세요!
+          </div>
+        </div>
+        <div style={{
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          flexShrink: 0,
+          width: '60px'
+        }}>
           <button style={{
-            padding: '8px 16px',
+            padding: '6px 12px',
             backgroundColor: '#3182F6',
             color: 'white',
             border: 'none',
-            borderRadius: '8px',
-            fontSize: '14px',
+            borderRadius: '6px',
+            fontSize: '13px',
             fontWeight: '600',
-            cursor: 'pointer'
+            cursor: 'pointer',
+            minWidth: '44px',
+            textAlign: 'center',
+            whiteSpace: 'nowrap'
           }}>
-            포인트 3원
+            3 P
           </button>
         </div>
+      </div>
 
-        {/* HOT 게시판 등록 */}
-        <div style={{
-          display: 'flex',
-          alignItems: 'center',
-          padding: '16px 20px',
-          borderBottom: '1px solid #E5E5E5'
-        }}>
+      {/* Border */}
+      <div style={{
+        width: 'calc(100% - 40px)',
+        height: '1px',
+        backgroundColor: '#E5E8EB',
+        marginLeft: '20px',
+        marginRight: '20px'
+      }} />
+
+      {/* 화제의 재판 기록 등재 */}
+      <div style={{
+        display: 'flex',
+        alignItems: 'flex-start',
+        padding: '8px 20px 4px 20px',
+        gap: '12px',
+        minHeight: '111px'
+      }}>
+        <div style={{ flexShrink: 0, marginTop: '2px' }}>
           <Asset.Icon
             frameShape={Asset.frameShape.CleanW24}
             backgroundColor="transparent"
             name="icon-emoji-fire-blue"
             aria-hidden={true}
+            ratio="1/1"
           />
-          <div style={{ flex: 1, marginLeft: '12px' }}>
-            <Text
-              display="block"
-              color={adaptive.grey700}
-              typography="t6"
-              fontWeight="bold"
-              style={{ marginBottom: '4px' }}
-            >
-              HOT 게시판 등록
-            </Text>
-            <Text
-              display="block"
-              color={adaptive.grey600}
-              typography="t7"
-              fontWeight="regular"
-            >
-              본인의 게시물이 인기 게시물이 되면 +5포인트!
-            </Text>
+        </div>
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '4px', minWidth: 0 }}>
+          <div style={{
+            color: '#191F28',
+            fontSize: '17px',
+            fontWeight: '700',
+            lineHeight: '24px'
+          }}>
+            화제의 재판 기록 등재
           </div>
+          <div style={{
+            color: '#4E5968',
+            fontSize: '15px',
+            fontWeight: '400',
+            lineHeight: '22px'
+          }}>
+            내가 쓴 글이 화제의 재판 기록이 되면
+          </div>
+          <div style={{
+            color: '#4E5968',
+            fontSize: '15px',
+            fontWeight: '400',
+            lineHeight: '22px'
+          }}>
+            +5 포인트!
+          </div>
+        </div>
+        <div style={{
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          flexShrink: 0,
+          width: '60px'
+        }}>
           <button style={{
-            padding: '8px 16px',
+            padding: '6px 12px',
             backgroundColor: '#3182F6',
             color: 'white',
             border: 'none',
-            borderRadius: '8px',
-            fontSize: '14px',
+            borderRadius: '6px',
+            fontSize: '13px',
             fontWeight: '600',
-            cursor: 'pointer'
+            cursor: 'pointer',
+            minWidth: '44px',
+            textAlign: 'center',
+            whiteSpace: 'nowrap'
           }}>
-            포인트 5원
+            5 P
           </button>
         </div>
       </div>
+
+      {/* Border */}
+      <div style={{
+        width: 'calc(100% - 40px)',
+        height: '1px',
+        backgroundColor: '#E5E8EB',
+        marginLeft: '20px',
+        marginRight: '20px'
+      }} />
     </div>
   );
 }

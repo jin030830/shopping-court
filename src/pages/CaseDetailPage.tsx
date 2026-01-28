@@ -633,9 +633,9 @@ function CaseDetailPage() {
       <div style={{ padding: '0 20px', width: '100%', boxSizing: 'border-box' }}>
         <div style={{ backgroundColor: 'white', padding: '20px', borderRadius: '12px', width: '100%', boxSizing: 'border-box', maxWidth: '100%', overflow: 'hidden' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
               <img src={smileIcon} alt="smile" style={{ width: '40px', height: '40px', objectFit: 'contain' }} />
-              <span style={{ color: '#666', fontSize: '13px' }}>{post.authorNickname} 님</span>
+              <span style={{ color: '#666', fontSize: '13px' }}>피고인 {post.authorNickname.replace(/^배심원/, '')}님</span>
             </div>
             {/* 메뉴 버튼은 로그인 + 검증 완료 시에만 노출 */}
             {user && userData && isVerified && (
@@ -695,22 +695,29 @@ function CaseDetailPage() {
           {/* 투표 버튼들 - 재판 완료된 글에서는 표시하지 않음 */}
           {post.status === 'OPEN' && (
             <>
-              <div style={{ display: 'flex', gap: '12px', marginBottom: '16px' }}>
+              <div style={{ display: 'flex', gap: '12px', marginBottom: '16px', position: 'relative' }}>
                 <button onClick={() => handleVoteSelect('agree')} disabled={hasVoted} style={{ flex: 1, padding: '12px', backgroundColor: '#E3F2FD', color: '#1976D2', border: selectedVote === 'agree' ? '3px solid #1976D2' : 'none', borderRadius: '8px', fontSize: '15px', fontWeight: '600', cursor: hasVoted ? 'not-allowed' : 'pointer', opacity: hasVoted && selectedVote !== 'agree' ? 0.5 : 1 }}>무죄</button>
                 <button onClick={() => handleVoteSelect('disagree')} disabled={hasVoted} style={{ flex: 1, padding: '12px', backgroundColor: '#FFEBEE', color: '#D32F2F', border: selectedVote === 'disagree' ? '3px solid #D32F2F' : 'none', borderRadius: '8px', fontSize: '15px', fontWeight: '600', cursor: hasVoted ? 'not-allowed' : 'pointer', opacity: hasVoted && selectedVote !== 'disagree' ? 0.5 : 1 }}>유죄</button>
+                {timeRemaining && (
+                  <div style={{ 
+                    position: 'absolute', 
+                    bottom: '-30px', 
+                    right: '0', 
+                    fontSize: '14px', 
+                    color: '#9E9E9E', 
+                    fontWeight: '400',
+                    whiteSpace: 'nowrap'
+                  }}>
+                    남은 재판 시간 {(() => {
+                      const parts: string[] = [];
+                      if (timeRemaining.days > 0) parts.push(`${timeRemaining.days}일`);
+                      const timeStr = `${String(timeRemaining.hours).padStart(2, '0')} : ${String(timeRemaining.minutes).padStart(2, '0')} : ${String(timeRemaining.seconds).padStart(2, '0')}`;
+                      parts.push(timeStr);
+                      return parts.join(' ');
+                    })()}
+                  </div>
+                )}
               </div>
-              {timeRemaining && (
-                <div style={{ marginTop: '12px', textAlign: 'center', fontSize: '15px', color: '#191F28', fontWeight: '500' }}>
-                  {(() => {
-                    const parts: string[] = [];
-                    if (timeRemaining.days > 0) parts.push(`${timeRemaining.days}일`);
-                    parts.push(`${String(timeRemaining.hours).padStart(2, '0')}시간`);
-                    parts.push(`${String(timeRemaining.minutes).padStart(2, '0')}분`);
-                    parts.push(`${String(timeRemaining.seconds).padStart(2, '0')}초`);
-                    return `${parts.join(' ')} 후 재판 종료`;
-                  })()}
-                </div>
-              )}
             </>
           )}
           {post.status === 'CLOSED' && (
@@ -774,10 +781,16 @@ function CaseDetailPage() {
                 <div key={comment.id}>
                   {/* ... 댓글 내용 ... */}
                   <div style={{ padding: '12px 16px', backgroundColor: '#fff', borderRadius: '8px', border: '1px solid #e0e0e0', position: 'relative', marginBottom: '8px' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '6px' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <div style={{ padding: '4px 8px', backgroundColor: comment.vote === 'innocent' ? '#E3F2FD' : '#FFEBEE', color: comment.vote === 'innocent' ? '#1976D2' : '#D32F2F', fontSize: '11px', fontWeight: '600', borderRadius: '4px', height: 'fit-content', whiteSpace: 'nowrap' }}>{comment.vote === 'innocent' ? '무죄' : '유죄'}</div>
-                        <Text color="#6B7684" typography="t7" fontWeight="medium">{comment.authorNickname}</Text>
+                        {comment.authorId === post?.authorId ? (
+                          <div style={{ padding: '4px 8px', backgroundColor: '#FFB33128', borderRadius: '4px', height: 'fit-content', whiteSpace: 'nowrap', fontSize: '11px', fontWeight: '600' }}>
+                            <span style={{ color: '#B45309', fontSize: '11px', fontWeight: '600' }}>작성자</span>
+                          </div>
+                        ) : (
+                          <div style={{ padding: '4px 8px', backgroundColor: comment.vote === 'innocent' ? '#E3F2FD' : '#FFEBEE', color: comment.vote === 'innocent' ? '#1976D2' : '#D32F2F', fontSize: '11px', fontWeight: '600', borderRadius: '4px', height: 'fit-content', whiteSpace: 'nowrap' }}>{comment.vote === 'innocent' ? '무죄' : '유죄'}</div>
+                        )}
+                        <Text color="#6B7684" typography="t7" fontWeight="medium">{comment.authorId === post?.authorId ? '피고인' : '배심원'} {comment.authorNickname.replace(/^배심원/, '')}님</Text>
                       </div>
                       
                       {/* 댓글 우측 버튼들 (좋아요, 답글, 더보기) */}
@@ -806,7 +819,7 @@ function CaseDetailPage() {
                       </div>
                     ) : (
                       <>
-                        <Text display="block" color="#191F28" typography="t6" fontWeight="regular" style={{ marginBottom: '8px' }}>{comment.content}</Text>
+                        <Text display="block" color="#191F28" typography="t6" fontWeight="regular" style={{ marginBottom: '4px' }}>{comment.content}</Text>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                           <Text display="block" color="#9E9E9E" typography="t7" fontWeight="regular">{formatDate(comment.createdAt)}</Text>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
@@ -850,10 +863,16 @@ function CaseDetailPage() {
                             <img src={replyArrowIcon} alt="답글" style={{ width: '24px', height: '24px', objectFit: 'contain' }} />
                           </div>
                           <div style={{ flex: 1, padding: '10px 12px', backgroundColor: '#fff', borderRadius: '8px', border: '1px solid #e0e0e0', position: 'relative' }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '6px' }}>
                               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                <div style={{ padding: '4px 8px', backgroundColor: reply.vote === 'innocent' ? '#E3F2FD' : '#FFEBEE', color: reply.vote === 'innocent' ? '#1976D2' : '#D32F2F', fontSize: '11px', fontWeight: '600', borderRadius: '4px', height: 'fit-content', whiteSpace: 'nowrap' }}>{reply.vote === 'innocent' ? '무죄' : '유죄'}</div>
-                                <Text color="#6B7684" typography="t7" fontWeight="medium">{reply.authorNickname}</Text>
+                                {reply.authorId === post?.authorId ? (
+                                  <div style={{ padding: '4px 8px', backgroundColor: '#FFB33128', borderRadius: '4px', height: 'fit-content', whiteSpace: 'nowrap', fontSize: '11px', fontWeight: '600' }}>
+                                    <span style={{ color: '#B45309', fontSize: '11px', fontWeight: '600' }}>작성자</span>
+                                  </div>
+                                ) : (
+                                  <div style={{ padding: '4px 8px', backgroundColor: reply.vote === 'innocent' ? '#E3F2FD' : '#FFEBEE', color: reply.vote === 'innocent' ? '#1976D2' : '#D32F2F', fontSize: '11px', fontWeight: '600', borderRadius: '4px', height: 'fit-content', whiteSpace: 'nowrap' }}>{reply.vote === 'innocent' ? '무죄' : '유죄'}</div>
+                                )}
+                                <Text color="#6B7684" typography="t7" fontWeight="medium">{reply.authorId === post?.authorId ? '피고인' : '배심원'} {reply.authorNickname.replace(/^배심원/, '')}님</Text>
                               </div>
                               <div style={{ display: 'flex', alignItems: 'center', backgroundColor: '#f2f4f6', borderRadius: '20px', padding: '4px 8px', gap: '0' }}>
                                 <button onClick={() => handleLikeReply(comment.id, reply.id)} disabled={post?.status === 'CLOSED'} style={{ background: 'none', border: 'none', cursor: post?.status === 'CLOSED' ? 'not-allowed' : 'pointer', padding: '4px 8px', display: 'flex', alignItems: 'center', gap: '4px', opacity: post?.status === 'CLOSED' ? 0.5 : 1 }}>
@@ -876,7 +895,7 @@ function CaseDetailPage() {
                               </div>
                             ) : (
                               <>
-                                <Text display="block" color="#191F28" typography="t6" fontWeight="regular" style={{ marginBottom: '8px' }}>{reply.content}</Text>
+                                <Text display="block" color="#191F28" typography="t6" fontWeight="regular" style={{ marginBottom: '4px' }}>{reply.content}</Text>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                                   <Text display="block" color="#9E9E9E" typography="t7" fontWeight="regular">{formatDate(reply.createdAt)}</Text>
                                   <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
