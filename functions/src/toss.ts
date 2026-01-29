@@ -86,7 +86,8 @@ export async function sendTossPush(
       {
         headers: {
           "Content-Type": "application/json",
-          "x-toss-user-key": userKey
+          "x-toss-user-key": userKey,
+          "X-Client-Id": config.clientId
         },
         httpsAgent
       }
@@ -133,7 +134,8 @@ export async function sendTestTossPush(
       {
         headers: {
           "Content-Type": "application/json",
-          "x-toss-user-key": userKey
+          "x-toss-user-key": userKey,
+          "X-Client-Id": config.clientId
         },
         httpsAgent
       }
