@@ -175,6 +175,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               setUserData({
                 tossUserKey: parsedData.uid,
                 nickname: parsedData.nickname,
+                stats: { voteCount: 0, commentCount: 0, postCount: 0, hotCaseCount: 0, lastActiveDate: '' },
+                missions: {
+                  voteMission: { claimed: false },
+                  commentMission: { claimed: false },
+                  postMission: { claimed: false },
+                  hotCaseMission: { claimed: false }
+                },
+                points: 0,
                 createdAt: parsedData.createdAt ? Timestamp.fromDate(new Date(parsedData.createdAt)) : null,
                 updatedAt: null,
               });
