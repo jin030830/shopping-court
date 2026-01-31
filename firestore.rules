@@ -1,18 +1,61 @@
 rules_version = '2';
-service cloud.firestore 
-{
-        match /databases/{database}/documents{
+service cloud.firestore {
+  match /databases/{database}/documents {
 
-        // users 컬렉션: 자신의 정보만 수정 가능
-        match /users/{userId} {
-            allow read, write: if request.auth != null && request.auth.uid == userId;
-        }
-
-        // cases 컬렉션 및 모든 하위 컬렉션(댓글, 투표 등)
-        // 로그인한 사용자는 읽고 쓰기 가능
-        match /cases/{caseId=**} {
-            allow read, write: if request.auth != null;
-        }
+    // [함수] 게시물 생성 시 초기값 검증 (조작 방지)
+    function isValidNewCase() {
+      let data = request.resource.data;
+      return data.hotScore == 0 &&
+             data.guiltyCount == 0 &&
+             data.innocentCount == 0 &&
+             data.commentCount == 0 &&
+             data.status == 'OPEN' &&
+             data.authorId == request.auth.uid;
     }
-}
 
+    // [함수] 생성 요청 데이터의 작성자가 본인인지 확인
+    function isAuthor() {
+      return request.resource.data.authorId == request.auth.uid;
+    }
+    
+    // [함수] 기존 데이터의 소유자가 본인인지 확인 (수정/삭제 시)
+    function isOwner() {
+      return resource.data.authorId == request.auth.uid;
+    }
+
+    // users 컬렉션: 본인 정보만 접근 가능
+    match /users/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // cases 컬렉션
+    match /cases/{caseId} {
+      allow read: if request.auth != null;
+      // 생성: 로그인 + 초기값 유효성 검사 통과 시
+      allow create: if request.auth != null && isValidNewCase();
+      // 수정/삭제: 작성자 본인만 가능
+      allow update, delete: if request.auth != null && isOwner();
+
+      // votes 서브컬렉션: 본인 명의의 투표만 가능
+      match /votes/{userId} {
+        allow read, write: if request.auth != null && request.auth.uid == userId;
+      }
+
+      // comments 서브컬렉션
+      match /comments/{commentId} {
+        allow read: if request.auth != null;
+        // 생성: 본인 명의로만 작성 가능
+        allow create: if request.auth != null && isAuthor();
+        // 수정/삭제: 본인 댓글만 가능
+        allow update, delete: if request.auth != null && isOwner();
+
+        // replies 서브컬렉션
+        match /replies/{replyId} {
+          allow read: if request.auth != null;
+          allow create: if request.auth != null && isAuthor();
+          allow update, delete: if request.auth != null && isOwner();
+        }
+      }
+    }
+  }
+}

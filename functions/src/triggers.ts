@@ -128,6 +128,24 @@ export const onCaseCreate = functions.region('asia-northeast3')
   });
 
 /**
+ * 게시물 문서의 투표 카운트(guiltyCount, innocentCount)를 증가시키는 함수
+ */
+const updateCaseVoteCount = async (caseId: string, voteType: 'guilty' | 'innocent') => {
+  const db = getDb();
+  const caseRef = db.collection('cases').doc(caseId);
+  
+  if (voteType === 'guilty') {
+    await caseRef.update({
+      guiltyCount: admin.firestore.FieldValue.increment(1)
+    });
+  } else if (voteType === 'innocent') {
+    await caseRef.update({
+      innocentCount: admin.firestore.FieldValue.increment(1)
+    });
+  }
+};
+
+/**
  * 새로운 투표가 생성될 때 실행되는 Firestore 트리거입니다.
  * 'cases/{caseId}/votes/{voteId}' 경로에 문서가 생성되면 hotScore를 업데이트하고 사용자 통계를 갱신합니다.
  */
@@ -136,8 +154,11 @@ export const onVoteCreate = functions.region('asia-northeast3')
   .onCreate(async (snapshot, context) => {
     try {
       const caseId = context.params.caseId;
-      const voteId = context.params.voteId; // voteId is userId in addVote logic
+      const voteId = context.params.voteId; // voteId is userId
+      const voteData = snapshot.data();
+      const voteType = voteData.vote as 'guilty' | 'innocent';
       
+      await updateCaseVoteCount(caseId, voteType);
       await recalculateHotScore(caseId);
       await updateUserStats(voteId, 'vote');
     } catch (error) {
