@@ -1,5 +1,5 @@
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import { useTossAd } from '../hooks/useTossAd';
 import { Asset, Text } from '@toss/tds-mobile';
@@ -116,6 +116,11 @@ function CaseDetailPage() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [showDeleteComplete, setShowDeleteComplete] = useState(false);
+  
+  // 중복 제출 방지용 로딩 상태
+  const [isCommentSubmitting, setIsCommentSubmitting] = useState(false);
+  const [isReplySubmitting, setIsReplySubmitting] = useState(false);
+  const [isVoteSubmitting, setIsVoteSubmitting] = useState(false);
 
   // 투표 가능 시간 계산
   useEffect(() => {
@@ -235,7 +240,7 @@ function CaseDetailPage() {
   }, [user, userData, isVerified]);
 
   // 핸들러 함수들
-  const handleVoteSelect = (voteType: 'agree' | 'disagree') => {
+  const handleVoteSelect = useCallback((voteType: 'agree' | 'disagree') => {
     // 이미 투표했거나 로그인 상태라면 검증
     if (user && isVerified && hasVoted) return;
     
@@ -243,10 +248,10 @@ function CaseDetailPage() {
       setPendingVoteType(voteType);
       setShowVoteConfirm(true);
     }
-  };
+  }, [user, isVerified, hasVoted, post?.status]);
 
   const handleVoteConfirm = async () => {
-    if (!pendingVoteType || !id || !post) return;
+    if (!pendingVoteType || !id || !post || isVoteSubmitting) return; // 중복 클릭 방지
 
     if (post.status === 'CLOSED') {
       alert('투표 가능 시간이 종료되었습니다!');
@@ -271,6 +276,8 @@ function CaseDetailPage() {
       return;
     }
     
+    setIsVoteSubmitting(true); // 투표 시작
+
     try {
       const firebaseVote: VoteType = pendingVoteType === 'agree' ? 'innocent' : 'guilty';
       await addVote(id, user.uid, firebaseVote);
@@ -280,6 +287,7 @@ function CaseDetailPage() {
         setHasVoted(true);
         setShowVoteConfirm(false);
         setPendingVoteType(null);
+        setIsVoteSubmitting(false); // 완료 후 해제
       });
       
       const updatedPost = await getCase(id);
@@ -288,6 +296,7 @@ function CaseDetailPage() {
       // 투표 완료 팝업 제거 (확인 팝업만 유지)
     } catch (error) {
       console.error('투표 실패:', error);
+      setIsVoteSubmitting(false); // 실패 시 해제
       if (error instanceof Error && error.message.includes('이미 투표')) {
          alert('이미 투표하셨습니다. 정보를 갱신합니다.');
          // Refresh vote status
@@ -310,6 +319,8 @@ function CaseDetailPage() {
   };
 
   const handleCommentSubmit = async () => {
+    if (isCommentSubmitting) return; // 중복 클릭 방지
+
     // ✅ 로그인 및 검증 확인
     if (!id || !user || !userData || !isVerified) {
       alert('로그인이 필요합니다.');
@@ -326,6 +337,8 @@ function CaseDetailPage() {
       alert('댓글 내용을 입력해주세요!');
       return;
     }
+
+    setIsCommentSubmitting(true); // 댓글 작성 시작
 
     try {
       const firebaseVote: VoteType = selectedVote === 'agree' ? 'innocent' : 'guilty';
@@ -348,6 +361,8 @@ function CaseDetailPage() {
     } catch (error) {
       console.error('댓글 추가 실패:', error);
       alert('댓글 추가에 실패했습니다.');
+    } finally {
+      setIsCommentSubmitting(false); // 완료 (성공/실패) 후 해제
     }
   };
 
@@ -400,6 +415,8 @@ function CaseDetailPage() {
   };
 
   const handleReplySubmit = async (commentId: string) => {
+    if (isReplySubmitting) return; // 중복 클릭 방지
+
     // ✅ 로그인 및 검증 확인
     if (!id || !user || !userData || !isVerified) {
       alert('로그인이 필요합니다.');
@@ -416,6 +433,8 @@ function CaseDetailPage() {
       alert('답글 내용을 입력해주세요!');
       return;
     }
+
+    setIsReplySubmitting(true); // 답글 작성 시작
 
     try {
       const parentComment = comments.find(c => c.id === commentId);
@@ -445,6 +464,8 @@ function CaseDetailPage() {
     } catch (error) {
       console.error('답글 추가 실패:', error);
       alert('답글 추가에 실패했습니다.');
+    } finally {
+      setIsReplySubmitting(false); // 완료 (성공/실패) 후 해제
     }
   };
 
