@@ -14,6 +14,7 @@ function EditPostPage() {
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [isPostLoading, setIsPostLoading] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false); // 중복 제출 방지 상태
   const [error, setError] = useState<string | null>(null);
 
   // Fetch post data from Firestore
@@ -62,6 +63,8 @@ function EditPostPage() {
   }, [id, user, isAuthLoading, navigate, location]);
 
   const handleSubmit = async () => {
+    if (isSubmitting) return; // 중복 클릭 방지
+
     if (!id || !user) {
       alert('로그인이 필요합니다.');
       login();
@@ -73,6 +76,8 @@ function EditPostPage() {
       return;
     }
 
+    setIsSubmitting(true); // 제출 시작
+
     try {
       await updateCase(id, { title: title.trim(), content: content.trim() });
       alert('게시물이 수정되었습니다!');
@@ -80,6 +85,7 @@ function EditPostPage() {
     } catch (error) {
       console.error('게시물 수정 실패:', error);
       alert('게시물 수정에 실패했습니다.');
+      setIsSubmitting(false); // 실패 시에만 해제 (성공 시 이동하므로 불필요)
     }
   };
   
@@ -282,8 +288,9 @@ function EditPostPage() {
             onClick={handleSubmit}
             size="large"
             style={{ width: '100%' }}
+            disabled={isSubmitting} // 비활성화
           >
-            수정 완료
+            {isSubmitting ? '수정 중...' : '수정 완료'}
           </Button>
         </div>
       </div>

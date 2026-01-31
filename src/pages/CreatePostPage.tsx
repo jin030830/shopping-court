@@ -14,6 +14,7 @@ function CreatePostPage() {
   const [showGuideModal, setShowGuideModal] = useState(false);
   const [hasShownGuide, setHasShownGuide] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false); // 중복 제출 방지용 상태
 
   // 가이드 확인 처리
   const handleGuideConfirm = () => {
@@ -36,6 +37,8 @@ function CreatePostPage() {
   }, [isLoading, user, userData, login]);
 
   const handleSubmit = async () => {
+    if (isSubmitting) return; // 이미 제출 중이면 무시
+
     if (!user || !userData) {
       alert('로그인이 필요합니다.');
       navigate('/login', { state: { from: location } });
@@ -46,6 +49,8 @@ function CreatePostPage() {
       alert('제목과 내용을 모두 입력해주세요.');
       return;
     }
+
+    setIsSubmitting(true); // 제출 시작
 
     const caseData: CaseData = {
       title: title.trim(),
@@ -60,6 +65,7 @@ function CreatePostPage() {
     } catch (error) {
       console.error('고민 등록 실패:', error);
       alert('고민을 등록하는 데 실패했습니다. 다시 시도해주세요.');
+      setIsSubmitting(false); // 실패 시에만 다시 제출 가능하게 복구
     }
   };
 
@@ -183,19 +189,20 @@ function CreatePostPage() {
       }}>
         <button
           onClick={handleSubmit}
+          disabled={isSubmitting} // 제출 중 비활성화
           style={{
             width: '100%',
             padding: '16px',
-            backgroundColor: '#3182F6',
-            color: 'white',
+            backgroundColor: isSubmitting ? '#E5E8EB' : '#3182F6', // 비활성화 시 색상 변경
+            color: isSubmitting ? '#B0B8C1' : 'white',
             border: 'none',
             borderRadius: '12px',
             fontSize: '16px',
             fontWeight: '600',
-            cursor: 'pointer'
+            cursor: isSubmitting ? 'not-allowed' : 'pointer'
           }}
         >
-          작성 완료
+          {isSubmitting ? '등록 중...' : '작성 완료'}
         </button>
       </div>
 

@@ -12,6 +12,7 @@ function PointMissionPage() {
   const { user } = useAuth();
   const [userData, setUserData] = useState<UserDocument | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isClaiming, setIsClaiming] = useState(false); // 중복 클릭 방지 상태
   
   // 리워드 광고 훅 (테스트 ID 사용)
   const { show: showRewardAd } = useTossRewardAd('ait-ad-test-rewarded-id');
@@ -50,7 +51,9 @@ function PointMissionPage() {
   }, [user]);
 
   const handleClaim = (missionType: keyof UserMissions, points: number) => {
-    if (!user || !userData) return;
+    if (!user || !userData || isClaiming) return; // 이미 처리 중이면 무시
+
+    setIsClaiming(true); // 처리 시작
 
     // 광고 보여주기
     showRewardAd(async () => {
@@ -61,6 +64,8 @@ function PointMissionPage() {
       } catch (error) {
         console.error('보상 수령 실패:', error);
         alert('보상을 받는 중 오류가 발생했습니다.');
+      } finally {
+        setIsClaiming(false); // 처리 완료 (성공/실패 무관)
       }
     });
   };
@@ -148,19 +153,20 @@ function PointMissionPage() {
             ) : canClaim ? (
               <button 
                 onClick={onClaim}
+                disabled={isClaiming}
                 style={{
                   padding: '6px 12px',
-                  backgroundColor: '#3182F6',
-                  color: 'white',
+                  backgroundColor: isClaiming ? '#E5E8EB' : '#3182F6',
+                  color: isClaiming ? '#B0B8C1' : 'white',
                   border: 'none',
                   borderRadius: '6px',
                   fontSize: '13px',
                   fontWeight: '600',
-                  cursor: 'pointer',
+                  cursor: isClaiming ? 'not-allowed' : 'pointer',
                   minWidth: '44px',
                   textAlign: 'center',
                   whiteSpace: 'nowrap',
-                  animation: 'pulse 2s infinite'
+                  animation: isClaiming ? 'none' : 'pulse 2s infinite'
                 }}
               >
                 {points} P
