@@ -240,55 +240,47 @@ function CreatePostPage() {
               color="#191F28ff"
               typography="t4"
               fontWeight="bold"
+              style={{ marginBottom: '12px' }}
+            >
+              아래 정보를 함께 적어주면 좋아요
+            </Text>
+            
+            <Text
+              display="block"
+              color="#6B7684"
+              typography="t7"
+              fontWeight="regular"
               style={{ marginBottom: '20px' }}
             >
-              아래 내용은 포함되길 권장드려요!
+              ※ 모두 선택 사항이에요!
             </Text>
             
             <div style={{ marginBottom: '24px' }}>
               <Text
                 display="block"
-                color="#6B7684"
+                color="#191F28"
                 typography="t7"
                 fontWeight="regular"
                 style={{ marginBottom: '8px' }}
               >
-                연령대
+                • 나이/연령대 (예: 20대 후반)
               </Text>
               <Text
                 display="block"
-                color="#6B7684"
+                color="#191F28"
                 typography="t7"
                 fontWeight="regular"
                 style={{ marginBottom: '8px' }}
               >
-                나이
+                • 직업/상태 (예: 대학생, 사회초년생)
               </Text>
               <Text
                 display="block"
-                color="#6B7684"
-                typography="t7"
-                fontWeight="regular"
-                style={{ marginBottom: '8px' }}
-              >
-                현재 직업
-              </Text>
-              <Text
-                display="block"
-                color="#6B7684"
-                typography="t7"
-                fontWeight="regular"
-                style={{ marginBottom: '8px' }}
-              >
-                현재 가계 상황
-              </Text>
-              <Text
-                display="block"
-                color="#6B7684"
+                color="#191F28"
                 typography="t7"
                 fontWeight="regular"
               >
-                소비하려는 것에 대한 정보
+                • 가계 상황 (여유 있음 / 보통 / 빠듯함)
               </Text>
             </div>
 
@@ -305,7 +297,7 @@ function CreatePostPage() {
                   cursor: 'pointer'
                 }}
               >
-                확인했습니다!
+                확인
               </button>
             </div>
           </div>
@@ -349,30 +341,38 @@ function CreatePostPage() {
               color="#191F28ff"
               typography="t4"
               fontWeight="bold"
-              textAlign="center"
-              style={{ marginBottom: '24px' }}
+              style={{ marginBottom: '12px' }}
             >
-              고민이 등록되었습니다!
+              사건 등록이 완료됐어요!
             </Text>
             
-            <div style={{ display: 'flex', justifyContent: 'center' }}>
+            <Text
+              display="block"
+              color="#6B7684"
+              typography="t7"
+              fontWeight="regular"
+              style={{ marginBottom: '24px' }}
+            >
+              재판 결과는 48시간 후에 확인할 수 있어요
+            </Text>
+            
+            <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
               <button
                 onClick={() => {
                   setShowSuccessModal(false);
                   navigate('/');
                 }}
                 style={{
-                  padding: '12px 24px',
-                  backgroundColor: '#3182F6',
-                  color: 'white',
+                  padding: '8px 16px',
+                  backgroundColor: 'transparent',
                   border: 'none',
-                  borderRadius: '8px',
+                  color: '#3182F6',
                   fontSize: '15px',
                   fontWeight: '600',
                   cursor: 'pointer'
                 }}
               >
-                Ok
+                확인
               </button>
             </div>
           </div>
