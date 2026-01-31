@@ -14,7 +14,6 @@ import {
   runTransaction,
   increment
 } from 'firebase/firestore';
-import { getTodayDateString, type UserDocument } from './user';
 
 // '통합명세서.md'에 정의된 데이터 구조를 기반으로 인터페이스 정의
 export interface CaseData {
@@ -118,33 +117,6 @@ export const createCase = async (caseData: CaseData): Promise<string> => {
       voteEndAt: voteEndTime,
     });
 
-    // 사용자 stats.postCount 업데이트 (일일 미션 로직 포함)
-    const userRef = doc(db, 'users', caseData.authorId);
-    await runTransaction(db, async (transaction) => {
-      const userDoc = await transaction.get(userRef);
-      if (!userDoc.exists()) return;
-
-      const userData = userDoc.data() as UserDocument;
-      const today = getTodayDateString();
-      const lastActiveDate = userData.stats?.lastActiveDate;
-
-      if (lastActiveDate !== today) {
-        transaction.update(userRef, {
-          'stats.postCount': 1,
-          'stats.voteCount': 0,
-          'stats.commentCount': 0,
-          'stats.hotCaseCount': 0,
-          'stats.lastActiveDate': today,
-          'missions.voteMission': { claimed: false, lastClaimedDate: '' },
-          'missions.commentMission': { claimed: false, lastClaimedDate: '' },
-          'missions.postMission': { claimed: false, lastClaimedDate: '' },
-          'missions.hotCaseMission': { claimed: false, lastClaimedDate: '' },
-        });
-      } else {
-        transaction.update(userRef, { 'stats.postCount': increment(1) });
-      }
-    });
-
     console.log('✅ 새로운 고민이 성공적으로 생성되었습니다. ID:', docRef.id);
     return docRef.id;
   } catch (error) {
@@ -245,7 +217,6 @@ export const addVote = async (caseId: string, userId: string, vote: VoteType): P
   
   const caseRef = doc(db, 'cases', caseId);
   const voteRef = doc(db, 'cases', caseId, 'votes', userId);
-  const userRef = doc(db, 'users', userId); // 사용자 문서 참조
 
   try {
     await runTransaction(db, async (transaction) => {
@@ -271,30 +242,6 @@ export const addVote = async (caseId: string, userId: string, vote: VoteType): P
         transaction.update(caseRef, { guiltyCount: increment(1) });
       } else {
         transaction.update(caseRef, { innocentCount: increment(1) });
-      }
-
-      // 사용자 stats.voteCount 업데이트 (일일 미션 로직 포함)
-      const userDoc = await transaction.get(userRef);
-      if (userDoc.exists()) {
-        const userData = userDoc.data() as UserDocument;
-        const today = getTodayDateString();
-        const lastActiveDate = userData.stats?.lastActiveDate;
-
-        if (lastActiveDate !== today) {
-          transaction.update(userRef, {
-            'stats.voteCount': 1,
-            'stats.commentCount': 0,
-            'stats.postCount': 0,
-            'stats.hotCaseCount': 0,
-            'stats.lastActiveDate': today,
-            'missions.voteMission': { claimed: false, lastClaimedDate: '' },
-            'missions.commentMission': { claimed: false, lastClaimedDate: '' },
-            'missions.postMission': { claimed: false, lastClaimedDate: '' },
-            'missions.hotCaseMission': { claimed: false, lastClaimedDate: '' },
-          });
-        } else {
-          transaction.update(userRef, { 'stats.voteCount': increment(1) });
-        }
       }
     });
     console.log('✅ 투표가 성공적으로 기록되었습니다.');
@@ -330,39 +277,12 @@ export const addComment = async (caseId: string, commentData: CommentData): Prom
   if (!db) throw new Error('Firebase가 초기화되지 않았습니다.');
   
   const commentsCollection = collection(db, 'cases', caseId, 'comments');
-  const userRef = doc(db, 'users', commentData.authorId);
 
   // 댓글 추가
   const docRef = await addDoc(commentsCollection, {
     ...commentData,
     likes: 0,
     createdAt: serverTimestamp(),
-  });
-
-  // 사용자 stats.commentCount 업데이트 (일일 미션 로직 포함)
-  await runTransaction(db, async (transaction) => {
-    const userDoc = await transaction.get(userRef);
-    if (!userDoc.exists()) return;
-
-    const userData = userDoc.data() as UserDocument;
-    const today = getTodayDateString();
-    const lastActiveDate = userData.stats?.lastActiveDate;
-
-    if (lastActiveDate !== today) {
-      transaction.update(userRef, {
-        'stats.commentCount': 1,
-        'stats.voteCount': 0,
-        'stats.postCount': 0,
-        'stats.hotCaseCount': 0,
-        'stats.lastActiveDate': today,
-        'missions.voteMission': { claimed: false, lastClaimedDate: '' },
-        'missions.commentMission': { claimed: false, lastClaimedDate: '' },
-        'missions.postMission': { claimed: false, lastClaimedDate: '' },
-        'missions.hotCaseMission': { claimed: false, lastClaimedDate: '' },
-      });
-    } else {
-      transaction.update(userRef, { 'stats.commentCount': increment(1) });
-    }
   });
 
   return docRef.id;
@@ -423,38 +343,11 @@ export const addReply = async (caseId: string, commentId: string, replyData: Rep
   if (!db) throw new Error('Firebase가 초기화되지 않았습니다.');
   
   const repliesCollection = collection(db, 'cases', caseId, 'comments', commentId, 'replies');
-  const userRef = doc(db, 'users', replyData.authorId);
 
   const docRef = await addDoc(repliesCollection, {
     ...replyData,
     likes: 0,
     createdAt: serverTimestamp(),
-  });
-
-  // 답글 수 증가 (댓글 수와 동일하게 처리 - 트랜잭션 사용)
-  await runTransaction(db, async (transaction) => {
-    const userDoc = await transaction.get(userRef);
-    if (!userDoc.exists()) return;
-
-    const userData = userDoc.data() as UserDocument;
-    const today = getTodayDateString();
-    const lastActiveDate = userData.stats?.lastActiveDate;
-
-    if (lastActiveDate !== today) {
-      transaction.update(userRef, {
-        'stats.commentCount': 1,
-        'stats.voteCount': 0,
-        'stats.postCount': 0,
-        'stats.hotCaseCount': 0,
-        'stats.lastActiveDate': today,
-        'missions.voteMission': { claimed: false, lastClaimedDate: '' },
-        'missions.commentMission': { claimed: false, lastClaimedDate: '' },
-        'missions.postMission': { claimed: false, lastClaimedDate: '' },
-        'missions.hotCaseMission': { claimed: false, lastClaimedDate: '' },
-      });
-    } else {
-      transaction.update(userRef, { 'stats.commentCount': increment(1) });
-    }
   });
 
   return docRef.id;

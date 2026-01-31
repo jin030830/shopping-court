@@ -13,6 +13,64 @@ const getDb = () => {
 };
 
 /**
+ * 오늘 날짜 문자열 반환 (KST 기준)
+ */
+const getTodayDateString = (): string => {
+  const now = new Date();
+  // 한국 시간대로 변환 (UTC+9)
+  const kstDate = new Date(now.getTime() + 9 * 60 * 60 * 1000);
+  return kstDate.toISOString().split('T')[0];
+};
+
+/**
+ * 사용자 활동 통계를 업데이트하는 함수
+ */
+const updateUserStats = async (userId: string, type: 'vote' | 'comment' | 'post' | 'hotCase') => {
+  const db = getDb();
+  const userRef = db.collection('users').doc(userId);
+
+  try {
+    await db.runTransaction(async (transaction) => {
+      const userDoc = await transaction.get(userRef);
+      if (!userDoc.exists) return;
+
+      const userData = userDoc.data();
+      const today = getTodayDateString();
+      const lastActiveDate = userData?.stats?.lastActiveDate;
+
+      if (lastActiveDate !== today) {
+        transaction.update(userRef, {
+          'stats.voteCount': type === 'vote' ? 1 : 0,
+          'stats.commentCount': type === 'comment' ? 1 : 0,
+          'stats.postCount': type === 'post' ? 1 : 0,
+          'stats.hotCaseCount': type === 'hotCase' ? 1 : 0,
+          'stats.lastActiveDate': today,
+          'missions.voteMission': { claimed: false, lastClaimedDate: '' },
+          'missions.commentMission': { claimed: false, lastClaimedDate: '' },
+          'missions.postMission': { claimed: false, lastClaimedDate: '' },
+          'missions.hotCaseMission': { claimed: false, lastClaimedDate: '' },
+        });
+      } else {
+        let fieldToIncrement = '';
+        if (type === 'vote') fieldToIncrement = 'stats.voteCount';
+        else if (type === 'comment') fieldToIncrement = 'stats.commentCount';
+        else if (type === 'post') fieldToIncrement = 'stats.postCount';
+        else if (type === 'hotCase') fieldToIncrement = 'stats.hotCaseCount';
+
+        if (fieldToIncrement) {
+          transaction.update(userRef, {
+            [fieldToIncrement]: admin.firestore.FieldValue.increment(1)
+          });
+        }
+      }
+    });
+    functions.logger.log(`Updated user stats for ${userId}, type: ${type}`);
+  } catch (error) {
+    functions.logger.error(`Failed to update user stats for ${userId}`, error);
+  }
+};
+
+/**
  * 주어진 caseId에 대한 hotScore를 다시 계산하고 업데이트하는 재사용 가능한 함수입니다.
  * @param caseId - 업데이트할 게시물의 ID
  */
@@ -52,15 +110,36 @@ const updateCommentCount = async (caseId: string, delta: number) => {
 };
 
 /**
+ * 새로운 게시물이 생성될 때 실행되는 Firestore 트리거입니다.
+ */
+export const onCaseCreate = functions.region('asia-northeast3')
+  .firestore.document('cases/{caseId}')
+  .onCreate(async (snapshot, context) => {
+    try {
+      const data = snapshot.data();
+      const authorId = data.authorId;
+      
+      if (authorId) {
+        await updateUserStats(authorId, 'post');
+      }
+    } catch (error) {
+      functions.logger.error(`[onCaseCreate] Failed for case ${context.params.caseId}`, error);
+    }
+  });
+
+/**
  * 새로운 투표가 생성될 때 실행되는 Firestore 트리거입니다.
- * 'cases/{caseId}/votes/{voteId}' 경로에 문서가 생성되면 hotScore를 업데이트합니다.
+ * 'cases/{caseId}/votes/{voteId}' 경로에 문서가 생성되면 hotScore를 업데이트하고 사용자 통계를 갱신합니다.
  */
 export const onVoteCreate = functions.region('asia-northeast3')
   .firestore.document('cases/{caseId}/votes/{voteId}')
   .onCreate(async (snapshot, context) => {
     try {
       const caseId = context.params.caseId;
+      const voteId = context.params.voteId; // voteId is userId in addVote logic
+      
       await recalculateHotScore(caseId);
+      await updateUserStats(voteId, 'vote');
     } catch (error) {
       functions.logger.error(`[onVoteCreate] Failed for case ${context.params.caseId}`, error);
     }
@@ -85,8 +164,15 @@ export const onCommentCreate = functions.region('asia-northeast3')
   .onCreate(async (snapshot, context) => {
     try {
       const caseId = context.params.caseId;
+      const data = snapshot.data();
+      const authorId = data.authorId;
+
       await updateCommentCount(caseId, 1);
       await recalculateHotScore(caseId);
+      
+      if (authorId) {
+        await updateUserStats(authorId, 'comment');
+      }
     } catch (error) {
       functions.logger.error(`[onCommentCreate] Failed for case ${context.params.caseId}`, error);
     }
@@ -115,8 +201,15 @@ export const onReplyCreate = functions.region('asia-northeast3')
   .onCreate(async (snapshot, context) => {
     try {
       const caseId = context.params.caseId;
+      const data = snapshot.data();
+      const authorId = data.authorId;
+
       await updateCommentCount(caseId, 1);
       await recalculateHotScore(caseId);
+
+      if (authorId) {
+        await updateUserStats(authorId, 'comment');
+      }
     } catch (error) {
       functions.logger.error(`[onReplyCreate] Failed for case ${context.params.caseId}`, error);
     }
