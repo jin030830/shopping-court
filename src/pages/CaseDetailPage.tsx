@@ -85,17 +85,24 @@ function CaseDetailPage() {
   const [sortBy, setSortBy] = useState<'latest' | 'likes'>('latest');
   const [likedComments, setLikedComments] = useState<Set<string>>(new Set());
   const [post, setPost] = useState<CaseDocument | null>(null);
+  const [isLoadingPost, setIsLoadingPost] = useState(true);
 
   // 게시물 로딩
   useEffect(() => {
     const loadPost = async () => {
-      if (!id) return;
+      if (!id) {
+        setIsLoadingPost(false);
+        return;
+      }
+      setIsLoadingPost(true);
       try {
         const caseData = await getCase(id);
         setPost(caseData || null);
       } catch (error) {
         console.error('게시물 로딩 실패:', error);
         setPost(null);
+      } finally {
+        setIsLoadingPost(false);
       }
     };
     loadPost();
@@ -282,6 +289,15 @@ function CaseDetailPage() {
       const firebaseVote: VoteType = pendingVoteType === 'agree' ? 'innocent' : 'guilty';
       await addVote(id, user.uid, firebaseVote);
       
+      // ✅ 낙관적 업데이트: 서버 트리거를 기다리지 않고 로컬 상태 즉시 반영
+      if (post) {
+        setPost({
+          ...post,
+          guiltyCount: firebaseVote === 'guilty' ? post.guiltyCount + 1 : post.guiltyCount,
+          innocentCount: firebaseVote === 'innocent' ? post.innocentCount + 1 : post.innocentCount,
+        });
+      }
+
       showAd(() => {
         setSelectedVote(pendingVoteType);
         setHasVoted(true);
@@ -290,8 +306,11 @@ function CaseDetailPage() {
         setIsVoteSubmitting(false); // 완료 후 해제
       });
       
-      const updatedPost = await getCase(id);
-      if (updatedPost) setPost(updatedPost);
+      // 약간의 지연 후 최신 데이터 한 번 더 동기화 (선택 사항)
+      setTimeout(async () => {
+        const updatedPost = await getCase(id);
+        if (updatedPost) setPost(updatedPost);
+      }, 2000);
 
       // 투표 완료 팝업 제거 (확인 팝업만 유지)
     } catch (error) {
@@ -644,11 +663,36 @@ function CaseDetailPage() {
     }
   });
 
+  // 로딩 화면
+  if (isLoadingPost) {
+    return (
+      <div style={{ padding: '40px 20px', textAlign: 'center', backgroundColor: '#F8F9FA', minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ width: '40px', height: '40px', border: '4px solid #f3f3f3', borderTop: '4px solid #3182F6', borderRadius: '50%', animation: 'spin 1s linear infinite', marginBottom: '16px' }} />
+        <Text color="#6B7684">게시물을 불러오고 있습니다...</Text>
+        <style>{`@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }`}</style>
+      </div>
+    );
+  }
+
+  // 게시물을 찾을 수 없는 경우
   if (!post) {
     return (
-      <div style={{ padding: '20px', textAlign: 'center' }}>
-        <p>게시물을 찾을 수 없습니다.</p>
-        <button onClick={handleBack} style={{ marginTop: '20px', padding: '10px 20px' }}>
+      <div style={{ padding: '40px 20px', textAlign: 'center', backgroundColor: '#F8F9FA', minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+        <Text display="block" typography="t5" fontWeight="bold" color="#191F28" style={{ marginBottom: '12px' }}>게시물을 찾을 수 없습니다.</Text>
+        <Text display="block" typography="t7" color="#6B7684" style={{ marginBottom: '24px' }}>삭제되었거나 잘못된 경로입니다.</Text>
+        <button 
+          onClick={handleBack} 
+          style={{ 
+            padding: '12px 24px', 
+            backgroundColor: '#3182F6', 
+            color: '#ffffff', 
+            border: 'none', 
+            borderRadius: '8px', 
+            fontSize: '15px', 
+            fontWeight: '600', 
+            cursor: 'pointer' 
+          }}
+        >
           홈으로 돌아가기
         </button>
       </div>
