@@ -78,14 +78,21 @@ const recalculateHotScore = async (caseId: string): Promise<void> => {
   const db = getDb();
   const caseRef = db.collection('cases').doc(caseId);
 
-  // 투표(votes) 서브컬렉션의 문서 개수를 가져옵니다.
-  const votesQuery = caseRef.collection('votes');
-  const votesSnapshot = await votesQuery.get();
-  const voteCount = votesSnapshot.size;
-
-  // commentCount 필드값을 가져옵니다 (트리거에 의해 업데이트됨)
+  // Firestore 읽기 비용 최적화:
+  // votes 서브컬렉션을 전체 조회(get)하지 않고, 부모 문서의 카운트 필드를 활용합니다.
   const caseDoc = await caseRef.get();
-  const commentCount = caseDoc.data()?.commentCount || 0;
+  const data = caseDoc.data();
+
+  if (!data) {
+    functions.logger.warn(`Case document not found for hotScore recalculation: ${caseId}`);
+    return;
+  }
+
+  const guiltyCount = data.guiltyCount || 0;
+  const innocentCount = data.innocentCount || 0;
+  const commentCount = data.commentCount || 0;
+  
+  const voteCount = guiltyCount + innocentCount;
 
   // hotScore를 계산합니다: 총 투표 수 + (총 댓글 수 * 2)
   const hotScore = voteCount + (commentCount * 2);
