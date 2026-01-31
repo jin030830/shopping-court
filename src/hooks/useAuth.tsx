@@ -198,10 +198,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           // Firestore 데이터 사용
           setUserData(userDataFromFirestore);
         }
+        setIsVerified(true);
       } else {
         setUserData(null);
         localStorage.removeItem('shopping-court-user');
         localStorage.removeItem('shopping-court-logged-in');
+        setIsVerified(false);
       }
       setIsLoading(false);
     });

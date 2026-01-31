@@ -288,7 +288,19 @@ function CaseDetailPage() {
       // 투표 완료 팝업 제거 (확인 팝업만 유지)
     } catch (error) {
       console.error('투표 실패:', error);
-      alert('투표에 실패했습니다.');
+      if (error instanceof Error && error.message.includes('이미 투표')) {
+         alert('이미 투표하셨습니다. 정보를 갱신합니다.');
+         // Refresh vote status
+         const userVote = await getUserVote(id, user.uid);
+         if (userVote) {
+            setHasVoted(true);
+            setSelectedVote(userVote === 'innocent' ? 'agree' : 'disagree');
+         }
+         setShowVoteConfirm(false);
+         setPendingVoteType(null);
+      } else {
+         alert('투표에 실패했습니다.');
+      }
     }
   };
 
