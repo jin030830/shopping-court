@@ -1,6 +1,7 @@
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import { useAuth } from '../hooks/useAuth';
+import { useTossAd } from '../hooks/useTossAd';
 import { Asset, Text } from '@toss/tds-mobile';
 import { Timestamp } from 'firebase/firestore';
 import replyArrowIcon from '../assets/답글화살표-다음에서-변환-png.svg';
@@ -46,6 +47,7 @@ function CaseDetailPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const { user, userData, login, isVerified } = useAuth();
+  const { show: showAd } = useTossAd('ait-ad-test-interstitial-id');
   
   // ❌ 자동 로그인 시도 useEffect 제거됨
   
@@ -273,10 +275,12 @@ function CaseDetailPage() {
       const firebaseVote: VoteType = pendingVoteType === 'agree' ? 'innocent' : 'guilty';
       await addVote(id, user.uid, firebaseVote);
       
-      setSelectedVote(pendingVoteType);
-      setHasVoted(true);
-      setShowVoteConfirm(false);
-      setPendingVoteType(null);
+      showAd(() => {
+        setSelectedVote(pendingVoteType);
+        setHasVoted(true);
+        setShowVoteConfirm(false);
+        setPendingVoteType(null);
+      });
       
       const updatedPost = await getCase(id);
       if (updatedPost) setPost(updatedPost);
