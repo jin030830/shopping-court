@@ -1,14 +1,12 @@
-import { useNavigate, useParams, useLocation } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { useState, useEffect } from 'react';
-import { Asset, Text, Spacing, Button } from '@toss/tds-mobile';
-import { adaptive } from '@toss/tds-colors';
+import { Text } from '@toss/tds-mobile';
 import { useAuth } from '../hooks/useAuth';
 import { getCase, updateCase } from '../api/cases';
 
 function EditPostPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const location = useLocation();
   const { user, isLoading: isAuthLoading, login } = useAuth();
   
   const [title, setTitle] = useState('');
@@ -43,7 +41,7 @@ function EditPostPage() {
           // Check for authorization
           if (user.uid !== postData.authorId) {
             alert('수정 권한이 없습니다.');
-            navigate(`/case/${id}`);
+            navigate('/');
             return;
           }
           setTitle(postData.title);
@@ -60,7 +58,17 @@ function EditPostPage() {
     };
 
     fetchCase();
-  }, [id, user, isAuthLoading, navigate, location]);
+  }, [id, user, isAuthLoading, navigate, login]);
+
+  // 브라우저/토스 앱의 뒤로가기 버튼 처리 - 홈으로 이동
+  useEffect(() => {
+    const handlePopState = () => {
+      navigate('/', { replace: true });
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, [navigate]);
 
   const handleSubmit = async () => {
     if (isSubmitting) return; // 중복 클릭 방지
@@ -81,7 +89,7 @@ function EditPostPage() {
     try {
       await updateCase(id, { title: title.trim(), content: content.trim() });
       alert('게시물이 수정되었습니다!');
-      navigate(`/case/${id}`);
+      navigate(`/case/${id}`, { replace: true });
     } catch (error) {
       console.error('게시물 수정 실패:', error);
       alert('게시물 수정에 실패했습니다.');
@@ -92,7 +100,7 @@ function EditPostPage() {
   if (isPostLoading) {
     return (
       <div style={{ padding: '20px', textAlign: 'center' }}>
-        <Text color="#191F28">로딩 중...</Text>
+        <div style={{ color: '#191F28', fontSize: '15px' }}>로딩 중...</div>
       </div>
     );
   }
@@ -100,10 +108,22 @@ function EditPostPage() {
   if (error) {
      return (
       <div style={{ padding: '20px', textAlign: 'center' }}>
-        <Text color="#D32F2F" style={{ marginBottom: '20px' }}>{error}</Text>
-        <Button onClick={() => navigate('/')} size="medium">
+        <div style={{ color: '#D32F2F', marginBottom: '20px', fontSize: '15px' }}>{error}</div>
+        <button 
+          onClick={() => navigate('/')} 
+          style={{
+            padding: '12px 24px',
+            backgroundColor: '#3182F6',
+            color: 'white',
+            border: 'none',
+            borderRadius: '8px',
+            fontSize: '15px',
+            fontWeight: '600',
+            cursor: 'pointer'
+          }}
+        >
           홈으로 돌아가기
-        </Button>
+        </button>
       </div>
     );
   }
@@ -117,60 +137,6 @@ function EditPostPage() {
       width: '100%',
       boxSizing: 'border-box'
     }}>
-      {/* Header */}
-      <div style={{ 
-        display: 'flex', 
-        alignItems: 'center', 
-        justifyContent: 'space-between',
-        padding: '14px 20px',
-        borderBottom: '1px solid #e5e5e5',
-        width: '100%',
-        boxSizing: 'border-box'
-      }}>
-        <button
-          onClick={(e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            if (id) {
-              navigate(`/case/${id}`);
-            } else {
-              navigate('/');
-            }
-          }}
-          style={{
-            background: 'none',
-            border: 'none',
-            cursor: 'pointer',
-            padding: '4px',
-            display: 'flex',
-            alignItems: 'center',
-            zIndex: 10
-          }}
-        >
-          <Asset.Icon
-            frameShape={Asset.frameShape.CleanW24}
-            backgroundColor="transparent"
-            name="icon-arrow-back-ios-mono"
-            color="#191F28"
-            aria-label="뒤로가기"
-          />
-        </button>
-        
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <Asset.Image
-            frameShape={Asset.frameShape.CleanW16}
-            backgroundColor="transparent"
-            src="https://static.toss.im/appsintoss/15155/4dfa3fe7-556e-424d-820a-61a865a49168.png"
-            aria-hidden={true}
-            style={{ width: '24px', height: '24px' }}
-          />
-          <Text color={adaptive.grey900} typography="t6" fontWeight="semibold">
-            소비 재판소
-          </Text>
-        </div>
-
-        <div style={{ width: '32px' }} />
-      </div>
 
       {/* Content Area */}
       <div style={{ 
@@ -229,7 +195,7 @@ function EditPostPage() {
           />
         </div>
 
-        <Spacing size={20} />
+        <div style={{ height: '20px' }} />
 
         {/* Content Input */}
         <div style={{ marginBottom: '20px' }}>
@@ -283,16 +249,23 @@ function EditPostPage() {
         width: '100%',
         boxSizing: 'border-box'
       }}>
-        <div style={{ width: '100%' }}>
-          <Button
-            onClick={handleSubmit}
-            size="large"
-            style={{ width: '100%' }}
-            disabled={isSubmitting} // 비활성화
-          >
-            {isSubmitting ? '수정 중...' : '수정 완료'}
-          </Button>
-        </div>
+        <button
+          onClick={handleSubmit}
+          disabled={isSubmitting}
+          style={{
+            width: '100%',
+            padding: '16px',
+            backgroundColor: isSubmitting ? '#E5E8EB' : '#3182F6',
+            color: isSubmitting ? '#B0B8C1' : 'white',
+            border: 'none',
+            borderRadius: '12px',
+            fontSize: '16px',
+            fontWeight: '600',
+            cursor: isSubmitting ? 'not-allowed' : 'pointer'
+          }}
+        >
+          {isSubmitting ? '수정 중...' : '수정 완료'}
+        </button>
       </div>
     </div>
   );

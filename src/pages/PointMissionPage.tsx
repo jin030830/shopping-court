@@ -276,11 +276,6 @@ function PointMissionPage() {
       `}</style>
 
       {/* 헤더 영역 제거됨 */}
-      <div style={{
-        width: '100%',
-        height: '12px',
-        backgroundColor: '#F8F9FA'
-      }} />
 
       {/* 투표하기 3회 */}
       <MissionItem 

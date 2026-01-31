@@ -6,8 +6,6 @@ import { Timestamp } from 'firebase/firestore';
 import { adaptive } from '@toss/tds-colors';
 import scaleIcon from '../assets/저울모양-다음에서-변환-png.svg';
 import hotFlameIcon from '../assets/핫게시판불모양.png';
-import commentIcon from '../assets/댓글수-다음에서-변환-png.svg';
-import voteIcon from '../assets/투표수-다음에서-변환-png.svg';
 import pointMissionImage from '../assets/포인트미션창.png';
 
 // 날짜 포맷팅 함수 (M/d HH:mm 형식)
@@ -22,7 +20,12 @@ const formatDate = (timestamp: Timestamp): string => {
 
 function HomePage() {
   const location = useLocation();
-  const [selectedTab, setSelectedTab] = useState((location.state as any)?.selectedTab || '재판 중');
+  // 초기값: location.state > localStorage > 기본값 '재판 중'
+  const [selectedTab, setSelectedTab] = useState(() => {
+    const stateTab = (location.state as any)?.selectedTab;
+    const savedTab = localStorage.getItem('selectedTab');
+    return stateTab || savedTab || '재판 중';
+  });
   const [allPosts, setAllPosts] = useState<CaseDocument[]>([]);
   const [isPostsLoading, setIsPostsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -50,10 +53,16 @@ function HomePage() {
     
     if (newTab) {
       setSelectedTab(newTab);
+      localStorage.setItem('selectedTab', newTab); // localStorage에도 저장
       // state를 초기화하여 다시 뒤로가기 해도 계속 같은 탭이 선택되지 않도록
       window.history.replaceState({}, document.title);
     }
   }, [location.state]);
+
+  // 탭이 변경될 때마다 localStorage에 저장
+  useEffect(() => {
+    localStorage.setItem('selectedTab', selectedTab);
+  }, [selectedTab]);
 
   useEffect(() => {
     const fetchCases = async () => {
@@ -79,19 +88,19 @@ function HomePage() {
       width: '100%',
       boxSizing: 'border-box'
     }}>
-      <Spacing size={14} />
-
       {/* 포인트 미션 배너 */}
       <div style={{
-        backgroundColor: '#f2f4f6',
-        padding: '12px 20px',
+        backgroundColor: '#E3F2FD',
+        padding: '12px 0',
         width: '100%',
-        boxSizing: 'border-box'
+        boxSizing: 'border-box',
+        marginTop: '14px'
       }}>
         <div style={{
-          width: '100%',
+          margin: '0 20px',
+          width: 'calc(100% - 40px)',
           height: '144px',
-          backgroundColor: '#e8f3ff',
+          backgroundColor: '#3182F6',
           borderRadius: '10px',
           padding: '12px',
           boxSizing: 'border-box',
@@ -104,7 +113,8 @@ function HomePage() {
             gap: '8px',
             position: 'relative',
             zIndex: 1,
-            height: '100%'
+            height: '100%',
+            width: '100%'
           }}>
             <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
               <Asset.Icon
@@ -117,61 +127,56 @@ function HomePage() {
               <div style={{ flex: 1 }}>
                 <Text
                   display="block"
-                  color={adaptive.grey800}
-                  typography="t5"
+                  color="white"
+                  typography="t2"
                   fontWeight="bold"
-                  style={{ lineHeight: '1.4' }}
+                  style={{ lineHeight: '1.4', fontSize: '18px' }}
                 >
                   재판에 참여하고{'\n'}포인트를 모아보세요
                 </Text>
               </div>
-              <Asset.Icon
-                frameShape={Asset.frameShape.CleanW16}
-                backgroundColor="transparent"
-                name="icon-info-circle"
-                aria-hidden={true}
-                ratio="1/1"
-              />
             </div>
             
-            <div 
-              style={{ 
-                marginTop: 'auto',
-                cursor: 'pointer',
-                width: 'fit-content'
-              }}
+            <div style={{ 
+              position: 'absolute',
+              bottom: '12px',
+              left: '12px',
+              cursor: 'pointer',
+              zIndex: 2
+            }}
               onClick={() => navigate('/point-mission')}
             >
               <div style={{
                 display: 'flex',
                 alignItems: 'center',
+                justifyContent: 'center',
                 gap: '4px',
                 padding: '6px 12px',
-                backgroundColor: '#3182f6',
+                backgroundColor: 'white',
                 borderRadius: '10px',
-                boxShadow: '0px 0px 4px 0px rgba(0, 0, 0, 0.25)',
+                boxShadow: '0px 0px 4px 0px rgba(255, 255, 255, 1)',
                 width: 'fit-content'
               }}>
                 <Asset.Icon
-                  frameShape={Asset.frameShape.CleanW20}
+                  frameShape={Asset.frameShape.CleanW16}
                   backgroundColor="transparent"
-                  name="icon-emoji-sparkles"
+                  name="icon-twinkle-graident"
                   aria-hidden={true}
                   ratio="1/1"
                 />
                 <Text
                   display="block"
-                  color="white"
+                  color="#3182F6"
                   typography="t6"
                   fontWeight="bold"
                 >
-                  포인트 미션
+                  미션 확인하기
                 </Text>
                 <Asset.Icon
                   frameShape={Asset.frameShape.CleanW16}
                   backgroundColor="transparent"
                   name="icon-arrow-right-mono"
-                  color="white"
+                  color="#9E9E9E"
                   aria-hidden={true}
                   ratio="1/1"
                 />
@@ -182,19 +187,17 @@ function HomePage() {
           {/* 판사봉 이미지 (배경) */}
           <div style={{
             position: 'absolute',
-            bottom: '-10px',
-            right: '20px',
-            zIndex: 0
+            bottom: '10px',
+            right: '15px',
+            zIndex: 0,
+            width: '100px',
+            height: '100px',
+            backgroundImage: `url(${pointMissionImage})`,
+            backgroundSize: 'contain',
+            backgroundRepeat: 'no-repeat',
+            backgroundPosition: 'bottom right',
+            filter: 'drop-shadow(2px 4px 6px rgba(0, 0, 0, 0.3))'
           }}>
-            <img 
-              src={pointMissionImage} 
-              alt="포인트 미션" 
-              style={{ 
-                width: '120px', 
-                height: '120px',
-                objectFit: 'contain'
-              }} 
-            />
           </div>
         </div>
       </div>
@@ -309,7 +312,7 @@ function HomePage() {
                 color="#191F28ff" 
                 typography="t3" 
                 fontWeight="bold"
-                style={{ marginBottom: '8px' }}
+                style={{ marginBottom: '8px', fontSize: '22px' }}
               >
                 재판 중인 글
               </Text>
@@ -374,7 +377,7 @@ function HomePage() {
                 color="#191F28ff" 
                 typography="t3" 
                 fontWeight="bold"
-                style={{ marginBottom: '8px' }}
+                style={{ marginBottom: '8px', fontSize: '22px' }}
               >
                 실시간 HOT한 글
               </Text>
@@ -638,12 +641,15 @@ function PostList({ posts, selectedTab, navigate }: PostListProps) {
                 </div>
                 {/* 제목 */}
                 <div style={{ 
-                  fontSize: '15px', 
+                  fontSize: '18px',
+                  lineHeight: '1.4', 
                   color: '#191F28',
                   fontWeight: '500',
                   overflow: 'hidden',
                   textOverflow: 'ellipsis',
-                  whiteSpace: 'nowrap'
+                  display: '-webkit-box',
+                  WebkitLineClamp: 2,
+                  WebkitBoxOrient: 'vertical'
                 }}>
                   {post.title}
                 </div>
@@ -696,9 +702,19 @@ function PostList({ posts, selectedTab, navigate }: PostListProps) {
                 <Text 
                   display="block" 
                   color="#191F28" 
-                  typography="t5" 
+                  typography="t4" 
                   fontWeight="bold"
-                  style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+                  style={{ 
+                    flex: 1, 
+                    minWidth: 0, 
+                    overflow: 'hidden', 
+                    textOverflow: 'ellipsis',
+                    display: '-webkit-box',
+                    WebkitLineClamp: 2,
+                    WebkitBoxOrient: 'vertical',
+                    fontSize: '18px',
+                    lineHeight: '1.4'
+                  }}
                 >
                   {post.title}
                 </Text>
@@ -713,9 +729,18 @@ function PostList({ posts, selectedTab, navigate }: PostListProps) {
               <Text 
                 display="block" 
                 color="#191F28" 
-                typography="t5" 
+                typography="t4" 
                 fontWeight="bold"
-                style={{ marginBottom: '4px' }}
+                style={{ 
+                  marginBottom: '4px',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  display: '-webkit-box',
+                  WebkitLineClamp: 2,
+                  WebkitBoxOrient: 'vertical',
+                  fontSize: '18px',
+                  lineHeight: '1.4'
+                }}
               >
                 {post.title}
               </Text>
@@ -731,43 +756,36 @@ function PostList({ posts, selectedTab, navigate }: PostListProps) {
                 textOverflow: 'ellipsis',
                 display: '-webkit-box',
                 WebkitLineClamp: 2,
-                WebkitBoxOrient: 'vertical'
+                WebkitBoxOrient: 'vertical',
+                lineHeight: '1.5',
+                maxHeight: '3em'
               }}
             >
               {post.content}
             </Text>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                <img 
-                  src={commentIcon} 
-                  alt="댓글" 
-                  style={{ 
-                    width: '18px', 
-                    height: '18px',
-                    objectFit: 'contain',
-                    verticalAlign: 'middle',
-                    display: 'inline-block',
-                    marginTop: '2px'
-                  }} 
-                />
-                <Text color="#3182F6" typography="st13" fontWeight="medium">
-                  {post.commentCount ?? 0}
-                </Text>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                <img 
-                  src={voteIcon} 
-                  alt="투표" 
-                  style={{ 
-                    width: '24px', 
-                    height: '24px',
-                    objectFit: 'contain',
-                    verticalAlign: 'middle',
-                    display: 'inline-block'
-                  }} 
+                <Asset.Icon
+                  frameShape={{ width: 18, height: 18 }}
+                  backgroundColor="transparent"
+                  name="icon-user-two-blue-tab"
+                  aria-hidden={true}
+                  ratio="1/1"
                 />
                 <Text color="#3182F6" typography="st13" fontWeight="medium">
                   {(post.guiltyCount || 0) + (post.innocentCount || 0)}
+                </Text>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                <Asset.Icon
+                  frameShape={{ width: 18, height: 18 }}
+                  backgroundColor="transparent"
+                  name="icon-chat-square-two-mono"
+                  color="#3182F6"
+                  aria-hidden={true}
+                />
+                <Text color="#3182F6" typography="st13" fontWeight="medium">
+                  {post.commentCount ?? 0}
                 </Text>
               </div>
             </div>
@@ -856,9 +874,9 @@ function CompletedPostListMain({ posts, navigate, isLoading, error }: CompletedP
     .sort((a, b) => b.hotScore - a.hotScore)
     .slice(0, 5); // 최대 5개만 표시
 
-  // 이전 재판 기록 (hotScore === 0)
+  // 이전 재판 기록 (모든 CLOSED 상태의 글 포함)
   const previousCompletedPosts = postsWithDetails
-    .filter(post => post.status === 'CLOSED' && post.hotScore === 0)
+    .filter(post => post.status === 'CLOSED')
     .sort((a, b) => {
       const dateA = a.voteEndAt?.toMillis() || 0;
       const dateB = b.voteEndAt?.toMillis() || 0;
@@ -909,16 +927,17 @@ function CompletedPostListMain({ posts, navigate, isLoading, error }: CompletedP
         <Text
           display="block"
           color="#191F28"
-          typography="t3"
+          typography="t4"
           fontWeight="bold"
           style={{
             textAlign: 'center',
             wordBreak: 'break-word',
             overflow: 'hidden',
             display: '-webkit-box',
-            WebkitLineClamp: 3,
+            WebkitLineClamp: 2,
             WebkitBoxOrient: 'vertical',
-            lineHeight: '1.4'
+            lineHeight: '1.4',
+            fontSize: '18px'
           }}
         >
           {post.title}

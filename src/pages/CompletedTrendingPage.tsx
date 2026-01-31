@@ -4,8 +4,6 @@ import { useState, useEffect } from 'react';
 import { getAllCases, getComments, getReplies, type CaseDocument } from '../api/cases';
 import { Timestamp } from 'firebase/firestore';
 import { adaptive } from '@toss/tds-colors';
-import commentIcon from '../assets/댓글수-다음에서-변환-png.svg';
-import voteIcon from '../assets/투표수-다음에서-변환-png.svg';
 
 function CompletedTrendingPage() {
   const navigate = useNavigate();
@@ -308,36 +306,28 @@ function CompletedTrendingPage() {
                   {/* Stats */}
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                      <img 
-                        src={commentIcon} 
-                        alt="댓글" 
-                        style={{ 
-                          width: '18px', 
-                          height: '18px',
-                          objectFit: 'contain',
-                          verticalAlign: 'middle',
-                          display: 'inline-block',
-                          marginTop: '2px'
-                        }} 
+                      <Asset.Icon
+                        frameShape={{ width: 18, height: 18 }}
+                        backgroundColor="transparent"
+                        name="icon-user-two-blue-tab"
+                        aria-hidden={true}
+                        ratio="1/1"
                       />
                       <Text color="#3182F6" typography="st13" fontWeight="medium">
-                        {post.commentCount ?? 0}
+                        {(post.guiltyCount || 0) + (post.innocentCount || 0)}
                       </Text>
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                      <img 
-                        src={voteIcon} 
-                        alt="투표" 
-                        style={{ 
-                          width: '24px', 
-                          height: '24px',
-                          objectFit: 'contain',
-                          verticalAlign: 'middle',
-                          display: 'inline-block'
-                        }} 
+                      <Asset.Icon
+                        frameShape={{ width: 18, height: 18 }}
+                        backgroundColor="transparent"
+                        name="icon-chat-square-two-mono"
+                        color="#3182F6"
+                        aria-hidden={true}
+                        ratio="1/1"
                       />
                       <Text color="#3182F6" typography="st13" fontWeight="medium">
-                        {post.voteCount || 0}
+                        {post.commentCount ?? 0}
                       </Text>
                     </div>
                   </div>
