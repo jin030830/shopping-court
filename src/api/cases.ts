@@ -1,4 +1,4 @@
-import { db } from './firebase';
+import { db, auth } from './firebase';
 import { 
   collection, 
   addDoc, 
@@ -12,7 +12,8 @@ import {
   query,
   orderBy,
   runTransaction,
-  increment
+  increment,
+  arrayUnion
 } from 'firebase/firestore';
 
 // '통합명세서.md'에 정의된 데이터 구조를 기반으로 인터페이스 정의

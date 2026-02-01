@@ -2,58 +2,94 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // [함수] 게시물 생성 시 초기값 검증 (조작 방지)
-    function isValidNewCase() {
-      let data = request.resource.data;
-      return data.hotScore == 0 &&
-             data.guiltyCount == 0 &&
-             data.innocentCount == 0 &&
-             data.commentCount == 0 &&
-             data.status == 'OPEN' &&
-             data.authorId == request.auth.uid;
+    // [함수] 데이터 타입 및 길이 검증 (저장소 용량 절약 및 어뷰징 방지)
+    function isValidText(text, min, max) {
+      return text is string && text.size() >= min && text.size() <= max;
     }
 
-    // [함수] 생성 요청 데이터의 작성자가 본인인지 확인
+    // [함수] 게시물 생성 시 검증
+    function isValidNewCase() {
+      let data = request.resource.data;
+      return 
+        // 1. 초기값 검증
+        data.hotScore == 0 &&
+        data.guiltyCount == 0 &&
+        data.innocentCount == 0 &&
+        data.commentCount == 0 &&
+        data.status == 'OPEN' &&
+        data.authorId == request.auth.uid &&
+        // 2. 스키마(길이) 검증 추가
+        isValidText(data.title, 1, 100) &&    // 제목 1~100자
+        isValidText(data.content, 1, 3000);   // 내용 1~3000자
+    }
+
+    // [함수] 작성자 본인 확인
     function isAuthor() {
       return request.resource.data.authorId == request.auth.uid;
     }
     
-    // [함수] 기존 데이터의 소유자가 본인인지 확인 (수정/삭제 시)
     function isOwner() {
       return resource.data.authorId == request.auth.uid;
     }
 
-    // users 컬렉션: 본인 정보만 접근 가능
+    // [함수] 좋아요 로직 검증 (모듈화)
+    // 조건: 투표자여야 함 + 좋아요 배열에 본인 추가 + 카운트 1 증가
+    function isValidLikeUpdate(caseId) {
+       // 1. 투표 여부 확인 (비용: 1 읽기)
+       return exists(/databases/$(database)/documents/cases/$(caseId)/votes/$(request.auth.uid)) &&
+       
+       // 2. 변경 필드 제한 (likes와 likedBy만 변경 가능)
+       request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likes', 'likedBy']) &&
+       
+       // 3. 중복 좋아요 방지 로직
+       // 기존에는 내 ID가 없어야 하고, 요청 데이터에는 내 ID가 포함되어야 함
+       !(request.auth.uid in resource.data.likedBy) &&
+       (request.auth.uid in request.resource.data.likedBy) &&
+       
+       // 4. 카운트 정확성 확인
+       request.resource.data.likes == resource.data.likes + 1 &&
+       request.resource.data.likedBy.size() == resource.data.likedBy.size() + 1;
+    }
+
+    // users 컬렉션
     match /users/{userId} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
+      // 닉네임 중복 체크를 위해 읽기 허용 (민감 정보 없다는 전제)
+      allow read: if request.auth != null;
+      allow write: if request.auth != null && request.auth.uid == userId;
     }
 
     // cases 컬렉션
     match /cases/{caseId} {
-      allow read: if request.auth != null;
-      // 생성: 로그인 + 초기값 유효성 검사 통과 시
+      allow read: if true;
       allow create: if request.auth != null && isValidNewCase();
-      // 수정/삭제: 작성자 본인만 가능
       allow update, delete: if request.auth != null && isOwner();
 
-      // votes 서브컬렉션: 본인 명의의 투표만 가능
       match /votes/{userId} {
-        allow read, write: if request.auth != null && request.auth.uid == userId;
+        allow read: if true;
+        allow write: if request.auth != null && request.auth.uid == userId;
       }
 
       // comments 서브컬렉션
       match /comments/{commentId} {
-        allow read: if request.auth != null;
-        // 생성: 본인 명의로만 작성 가능
-        allow create: if request.auth != null && isAuthor();
-        // 수정/삭제: 본인 댓글만 가능
-        allow update, delete: if request.auth != null && isOwner();
+        allow read: if true;
+        allow create: if request.auth != null && isAuthor() && isValidText(request.resource.data.content, 1, 500); // 댓글 길이 제한
+        
+        allow update: if request.auth != null && (
+          isOwner() || isValidLikeUpdate(caseId)
+        );
+        
+        allow delete: if request.auth != null && isOwner();
 
         // replies 서브컬렉션
         match /replies/{replyId} {
-          allow read: if request.auth != null;
-          allow create: if request.auth != null && isAuthor();
-          allow update, delete: if request.auth != null && isOwner();
+          allow read: if true;
+          allow create: if request.auth != null && isAuthor() && isValidText(request.resource.data.content, 1, 300); // 답글 길이 제한
+          
+          allow update: if request.auth != null && (
+            isOwner() || isValidLikeUpdate(caseId)
+          );
+          
+          allow delete: if request.auth != null && isOwner();
         }
       }
     }
