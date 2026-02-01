@@ -1,19 +1,18 @@
-import { useNavigate, useLocation, useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { useState, useEffect } from 'react';
-import { Asset, Text } from '@toss/tds-mobile';
-import { adaptive } from '@toss/tds-colors';
+import { Text } from '@toss/tds-mobile';
 import { useAuth } from '../hooks/useAuth';
 import { getCase, updateCase } from '../api/cases';
 
 function EditPostPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const location = useLocation();
-  const { user, userData, isLoading: isAuthLoading } = useAuth();
+  const { user, isLoading: isAuthLoading, login } = useAuth();
   
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [isPostLoading, setIsPostLoading] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false); // 중복 제출 방지 상태
   const [error, setError] = useState<string | null>(null);
 
   // Fetch post data from Firestore
@@ -31,7 +30,7 @@ function EditPostPage() {
 
     if (!user) {
       alert('로그인이 필요합니다.');
-      navigate('/terms', { state: { from: location } });
+      login();
       return;
     }
 
@@ -42,7 +41,7 @@ function EditPostPage() {
           // Check for authorization
           if (user.uid !== postData.authorId) {
             alert('수정 권한이 없습니다.');
-            navigate(`/case/${id}`);
+            navigate('/');
             return;
           }
           setTitle(postData.title);
@@ -59,11 +58,24 @@ function EditPostPage() {
     };
 
     fetchCase();
-  }, [id, user, isAuthLoading, navigate, location]);
+  }, [id, user, isAuthLoading, navigate, login]);
+
+  // 브라우저/토스 앱의 뒤로가기 버튼 처리 - 홈으로 이동
+  useEffect(() => {
+    const handlePopState = () => {
+      navigate('/', { replace: true });
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, [navigate]);
 
   const handleSubmit = async () => {
+    if (isSubmitting) return; // 중복 클릭 방지
+
     if (!id || !user) {
       alert('로그인이 필요합니다.');
+      login();
       return;
     }
 
@@ -72,25 +84,44 @@ function EditPostPage() {
       return;
     }
 
+    setIsSubmitting(true); // 제출 시작
+
     try {
       await updateCase(id, { title: title.trim(), content: content.trim() });
       alert('게시물이 수정되었습니다!');
-      navigate(`/case/${id}`);
+      navigate(`/case/${id}`, { replace: true });
     } catch (error) {
       console.error('게시물 수정 실패:', error);
       alert('게시물 수정에 실패했습니다.');
+      setIsSubmitting(false); // 실패 시에만 해제 (성공 시 이동하므로 불필요)
     }
   };
   
-  if (isPostLoading || isAuthLoading) {
-    return <div style={{ padding: '20px', textAlign: 'center' }}>로딩 중...</div>;
+  if (isPostLoading) {
+    return (
+      <div style={{ padding: '20px', textAlign: 'center' }}>
+        <div style={{ color: '#191F28', fontSize: '15px' }}>로딩 중...</div>
+      </div>
+    );
   }
 
   if (error) {
      return (
       <div style={{ padding: '20px', textAlign: 'center' }}>
-        <p>{error}</p>
-        <button onClick={() => navigate('/')} style={{ marginTop: '20px', padding: '10px 20px' }}>
+        <div style={{ color: '#D32F2F', marginBottom: '20px', fontSize: '15px' }}>{error}</div>
+        <button 
+          onClick={() => navigate('/')} 
+          style={{
+            padding: '12px 24px',
+            backgroundColor: '#3182F6',
+            color: 'white',
+            border: 'none',
+            borderRadius: '8px',
+            fontSize: '15px',
+            fontWeight: '600',
+            cursor: 'pointer'
+          }}
+        >
           홈으로 돌아가기
         </button>
       </div>
@@ -106,51 +137,6 @@ function EditPostPage() {
       width: '100%',
       boxSizing: 'border-box'
     }}>
-      {/* Header */}
-      <div style={{ 
-        display: 'flex', 
-        alignItems: 'center', 
-        justifyContent: 'space-between',
-        padding: '14px 20px',
-        borderBottom: '1px solid #e5e5e5',
-        width: '100%',
-        boxSizing: 'border-box'
-      }}>
-        <button
-          onClick={() => navigate(`/case/${id}`)}
-          style={{
-            background: 'none',
-            border: 'none',
-            cursor: 'pointer',
-            padding: '4px',
-            display: 'flex',
-            alignItems: 'center'
-          }}
-        >
-          <Asset.Icon
-            frameShape={Asset.frameShape.CleanW24}
-            backgroundColor="transparent"
-            name="icon-arrow-back-ios-mono"
-            color={adaptive.grey900}
-            aria-label="뒤로가기"
-          />
-        </button>
-        
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <Asset.Image
-            frameShape={Asset.frameShape.CleanW16}
-            backgroundColor="transparent"
-            src="https://static.toss.im/appsintoss/15155/4dfa3fe7-556e-424d-820a-61a865a49168.png"
-            aria-hidden={true}
-            style={{ width: '24px', height: '24px' }}
-          />
-          <Text color={adaptive.grey900} typography="t6" fontWeight="semibold">
-            소비 재판소
-          </Text>
-        </div>
-
-        <div style={{ width: '32px' }} />
-      </div>
 
       {/* Content Area */}
       <div style={{ 
@@ -158,7 +144,8 @@ function EditPostPage() {
         overflowY: 'auto',
         padding: '20px 20px 100px 20px',
         width: '100%',
-        boxSizing: 'border-box'
+        boxSizing: 'border-box',
+        backgroundColor: 'white'
       }}>
         <Text 
           display="block" 
@@ -190,21 +177,25 @@ function EditPostPage() {
             style={{
               width: '100%',
               padding: '12px 16px',
-              border: '1px solid #e5e5e5',
+              border: '1px solid #E5E5E5',
               borderRadius: '8px',
               fontSize: '15px',
               boxSizing: 'border-box',
               outline: 'none',
-              fontFamily: 'inherit'
+              fontFamily: 'inherit',
+              backgroundColor: 'white',
+              color: '#191F28'
             }}
             onFocus={(e) => {
               e.target.style.borderColor = '#3182F6';
             }}
             onBlur={(e) => {
-              e.target.style.borderColor = '#e5e5e5';
+              e.target.style.borderColor = '#E5E5E5';
             }}
           />
         </div>
+
+        <div style={{ height: '20px' }} />
 
         {/* Content Input */}
         <div style={{ marginBottom: '20px' }}>
@@ -223,22 +214,24 @@ function EditPostPage() {
             placeholder="고민을 얘기해보세요"
             style={{
               width: '100%',
-              height: '250px',
+              minHeight: '250px',
               padding: '12px 16px',
-              border: '1px solid #e5e5e5',
+              border: '1px solid #E5E5E5',
               borderRadius: '8px',
               fontSize: '15px',
               boxSizing: 'border-box',
               outline: 'none',
               resize: 'none',
               fontFamily: 'inherit',
-              lineHeight: '1.5'
+              lineHeight: '1.5',
+              backgroundColor: 'white',
+              color: '#191F28'
             }}
             onFocus={(e) => {
               e.target.style.borderColor = '#3182F6';
             }}
             onBlur={(e) => {
-              e.target.style.borderColor = '#e5e5e5';
+              e.target.style.borderColor = '#E5E5E5';
             }}
           />
         </div>
@@ -258,19 +251,20 @@ function EditPostPage() {
       }}>
         <button
           onClick={handleSubmit}
+          disabled={isSubmitting}
           style={{
             width: '100%',
             padding: '16px',
-            backgroundColor: '#3182F6',
-            color: 'white',
+            backgroundColor: isSubmitting ? '#E5E8EB' : '#3182F6',
+            color: isSubmitting ? '#B0B8C1' : 'white',
             border: 'none',
             borderRadius: '12px',
             fontSize: '16px',
             fontWeight: '600',
-            cursor: 'pointer'
+            cursor: isSubmitting ? 'not-allowed' : 'pointer'
           }}
         >
-          수정 완료
+          {isSubmitting ? '수정 중...' : '수정 완료'}
         </button>
       </div>
     </div>

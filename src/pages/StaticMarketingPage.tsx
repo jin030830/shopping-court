@@ -1,27 +1,97 @@
-import { Link } from 'react-router-dom'
-import './StaticPage.css'
+import { useNavigate } from 'react-router-dom';
+import { Asset, Text, Spacing } from '@toss/tds-mobile';
+import { adaptive } from '@toss/tds-colors';
 
 function StaticMarketingPage() {
+  const navigate = useNavigate();
+  
   return (
-    <div className="static-page-container">
-      <div className="static-page-header">
-        <Link to="/terms" className="back-link">← 뒤로가기</Link>
+    <div style={{ 
+      backgroundColor: '#F8F9FA', 
+      minHeight: '100vh',
+      width: '100%',
+      boxSizing: 'border-box'
+    }}>
+      <Spacing size={14} />
+      <div style={{ 
+        display: 'flex', 
+        alignItems: 'center',
+        padding: '14px 20px',
+        backgroundColor: 'white',
+        width: '100%',
+        boxSizing: 'border-box'
+      }}>
+        <button
+          onClick={() => navigate('/')}
+          style={{
+            background: 'none',
+            border: 'none',
+            cursor: 'pointer',
+            padding: '4px',
+            display: 'flex',
+            alignItems: 'center'
+          }}
+        >
+          <Asset.Icon
+            frameShape={Asset.frameShape.CleanW20}
+            name="icon-arrow-left-mono"
+            color="#191F28"
+            aria-label="뒤로가기"
+          />
+        </button>
+        <Spacing size={8} />
+        <Text color={adaptive.grey900} typography="t6" fontWeight="semibold">
+          뒤로가기
+        </Text>
       </div>
       
-      <div className="static-page-content">
-        <h1>마케팅 정보 수신 동의</h1>
+      <div style={{ 
+        padding: '20px',
+        backgroundColor: 'white',
+        width: '100%',
+        boxSizing: 'border-box'
+      }}>
+        <Text 
+          display="block" 
+          color="#191F28ff" 
+          typography="t2" 
+          fontWeight="bold"
+          style={{ marginBottom: '16px' }}
+        >
+          마케팅 정보 수신 동의
+        </Text>
         
-        <p>
+        <Text 
+          display="block" 
+          color="#191F28" 
+          typography="t7" 
+          fontWeight="regular"
+          style={{ marginBottom: '16px', lineHeight: '1.6' }}
+        >
           <strong>시행일:</strong> 2026.01.12<br />
           <strong>회사:</strong> 다향관 구멍가게(이하 "회사")<br />
           <strong>문의:</strong> hhon0213@naver.com / 010-4049-8130
-        </p>
+        </Text>
 
-        <p>
+        <Text 
+          display="block" 
+          color="#191F28" 
+          typography="t7" 
+          fontWeight="regular"
+          style={{ marginBottom: '24px', lineHeight: '1.6' }}
+        >
           본 동의는 서비스 이용에 필수적이지 않으며, 동의하지 않아도 소비재판소 서비스를 정상적으로 이용할 수 있습니다.
-        </p>
+        </Text>
 
-        <h2>1. 수신 목적</h2>
+        <Text 
+          display="block" 
+          color="#191F28ff" 
+          typography="t4" 
+          fontWeight="bold"
+          style={{ marginTop: '24px', marginBottom: '16px' }}
+        >
+          1. 수신 목적
+        </Text>
         <p>회사는 아래 목적을 위해 광고성 정보(마케팅 정보)를 전송할 수 있습니다.</p>
         <ul>
           <li>서비스 기능 업데이트, 이벤트/프로모션, 혜택 안내</li>

@@ -1,44 +1,47 @@
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useState, useEffect } from 'react';
-import { Asset, Text } from '@toss/tds-mobile';
-import { adaptive } from '@toss/tds-colors';
+import { Text } from '@toss/tds-mobile';
 import { useAuth } from '../hooks/useAuth';
 import { createCase, type CaseData } from '../api/cases';
 
 function CreatePostPage() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { user, userData, isLoading } = useAuth();
+  const { user, userData, isLoading, login } = useAuth();
   
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [showGuideModal, setShowGuideModal] = useState(false);
   const [hasShownGuide, setHasShownGuide] = useState(false);
-
-  // 가이드 팝업 표시 여부 확인
-  const checkAndShowGuide = () => {
-    if (!hasShownGuide) {
-      setShowGuideModal(true);
-      setHasShownGuide(true);
-    }
-  };
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false); // 중복 제출 방지용 상태
 
   // 가이드 확인 처리
   const handleGuideConfirm = () => {
     setShowGuideModal(false);
   };
 
+  // 페이지 로드 시 자동으로 팝업 표시
+  useEffect(() => {
+    if (!hasShownGuide) {
+      setShowGuideModal(true);
+      setHasShownGuide(true);
+    }
+  }, [hasShownGuide]);
+
   useEffect(() => {
     if (!isLoading && (!user || !userData)) {
       alert('로그인이 필요합니다.');
-      navigate('/terms', { state: { from: location } });
+      login();
     }
-  }, [isLoading, user, userData, navigate, location]);
+  }, [isLoading, user, userData, login]);
 
   const handleSubmit = async () => {
+    if (isSubmitting) return; // 이미 제출 중이면 무시
+
     if (!user || !userData) {
       alert('로그인이 필요합니다.');
-      navigate('/terms', { state: { from: location } });
+      navigate('/login', { state: { from: location } });
       return;
     }
 
@@ -46,6 +49,8 @@ function CreatePostPage() {
       alert('제목과 내용을 모두 입력해주세요.');
       return;
     }
+
+    setIsSubmitting(true); // 제출 시작
 
     const caseData: CaseData = {
       title: title.trim(),
@@ -56,11 +61,11 @@ function CreatePostPage() {
 
     try {
       await createCase(caseData);
-      alert('고민이 등록되었습니다!');
-      navigate('/');
+      setShowSuccessModal(true);
     } catch (error) {
       console.error('고민 등록 실패:', error);
       alert('고민을 등록하는 데 실패했습니다. 다시 시도해주세요.');
+      setIsSubmitting(false); // 실패 시에만 다시 제출 가능하게 복구
     }
   };
 
@@ -73,59 +78,14 @@ function CreatePostPage() {
       width: '100%',
       boxSizing: 'border-box'
     }}>
-      {/* Header */}
-      <div style={{ 
-        display: 'flex', 
-        alignItems: 'center', 
-        justifyContent: 'space-between',
-        padding: '14px 20px',
-        borderBottom: '1px solid #e5e5e5',
-        width: '100%',
-        boxSizing: 'border-box'
-      }}>
-        <button
-          onClick={() => navigate('/')}
-          style={{
-            background: 'none',
-            border: 'none',
-            cursor: 'pointer',
-            padding: '4px',
-            display: 'flex',
-            alignItems: 'center'
-          }}
-        >
-          <Asset.Icon
-            frameShape={Asset.frameShape.CleanW24}
-            backgroundColor="transparent"
-            name="icon-arrow-back-ios-mono"
-            color={adaptive.grey900}
-            aria-label="뒤로가기"
-          />
-        </button>
-        
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <Asset.Image
-            frameShape={Asset.frameShape.CleanW16}
-            backgroundColor="transparent"
-            src="https://static.toss.im/appsintoss/15155/4dfa3fe7-556e-424d-820a-61a865a49168.png"
-            aria-hidden={true}
-            style={{ width: '24px', height: '24px' }}
-          />
-          <Text color={adaptive.grey900} typography="t6" fontWeight="semibold">
-            소비 재판소
-          </Text>
-        </div>
-
-        <div style={{ width: '32px' }} />
-      </div>
-
       {/* Content Area */}
       <div style={{ 
         flex: 1, 
         overflowY: 'auto',
         padding: '20px 20px 100px 20px',
         width: '100%',
-        boxSizing: 'border-box'
+        boxSizing: 'border-box',
+        backgroundColor: 'white'
       }}>
         <Text 
           display="block" 
@@ -157,19 +117,20 @@ function CreatePostPage() {
             style={{
               width: '100%',
               padding: '12px 16px',
-              border: '1px solid #e5e5e5',
+              border: '1px solid #E5E5E5',
               borderRadius: '8px',
               fontSize: '15px',
               boxSizing: 'border-box',
               outline: 'none',
-              fontFamily: 'inherit'
+              fontFamily: 'inherit',
+              backgroundColor: 'white',
+              color: '#191F28'
             }}
             onFocus={(e) => {
               e.target.style.borderColor = '#3182F6';
-              checkAndShowGuide();
             }}
             onBlur={(e) => {
-              e.target.style.borderColor = '#e5e5e5';
+              e.target.style.borderColor = '#E5E5E5';
             }}
           />
         </div>
@@ -193,21 +154,22 @@ function CreatePostPage() {
               width: '100%',
               height: '250px',
               padding: '12px 16px',
-              border: '1px solid #e5e5e5',
+              border: '1px solid #E5E5E5',
               borderRadius: '8px',
               fontSize: '15px',
               boxSizing: 'border-box',
               outline: 'none',
               resize: 'none',
               fontFamily: 'inherit',
-              lineHeight: '1.5'
+              lineHeight: '1.5',
+              backgroundColor: 'white',
+              color: '#191F28'
             }}
             onFocus={(e) => {
               e.target.style.borderColor = '#3182F6';
-              checkAndShowGuide();
             }}
             onBlur={(e) => {
-              e.target.style.borderColor = '#e5e5e5';
+              e.target.style.borderColor = '#E5E5E5';
             }}
           />
         </div>
@@ -227,19 +189,20 @@ function CreatePostPage() {
       }}>
         <button
           onClick={handleSubmit}
+          disabled={isSubmitting} // 제출 중 비활성화
           style={{
             width: '100%',
             padding: '16px',
-            backgroundColor: '#3182F6',
-            color: 'white',
+            backgroundColor: isSubmitting ? '#E5E8EB' : '#3182F6', // 비활성화 시 색상 변경
+            color: isSubmitting ? '#B0B8C1' : 'white',
             border: 'none',
             borderRadius: '12px',
             fontSize: '16px',
             fontWeight: '600',
-            cursor: 'pointer'
+            cursor: isSubmitting ? 'not-allowed' : 'pointer'
           }}
         >
-          작성 완료
+          {isSubmitting ? '등록 중...' : '작성 완료'}
         </button>
       </div>
 
@@ -277,55 +240,47 @@ function CreatePostPage() {
               color="#191F28ff"
               typography="t4"
               fontWeight="bold"
+              style={{ marginBottom: '12px' }}
+            >
+              아래 정보를 함께 적어주면 좋아요
+            </Text>
+            
+            <Text
+              display="block"
+              color="#6B7684"
+              typography="t7"
+              fontWeight="regular"
               style={{ marginBottom: '20px' }}
             >
-              아래 내용은 포함되길 권장드려요!
+              ※ 모두 선택 사항이에요!
             </Text>
             
             <div style={{ marginBottom: '24px' }}>
               <Text
                 display="block"
-                color={adaptive.grey700}
+                color="#191F28"
                 typography="t7"
                 fontWeight="regular"
                 style={{ marginBottom: '8px' }}
               >
-                연령대
+                • 나이/연령대 (예: 20대 후반)
               </Text>
               <Text
                 display="block"
-                color={adaptive.grey700}
+                color="#191F28"
                 typography="t7"
                 fontWeight="regular"
                 style={{ marginBottom: '8px' }}
               >
-                나이
+                • 직업/상태 (예: 대학생, 사회초년생)
               </Text>
               <Text
                 display="block"
-                color={adaptive.grey700}
-                typography="t7"
-                fontWeight="regular"
-                style={{ marginBottom: '8px' }}
-              >
-                현재 직업
-              </Text>
-              <Text
-                display="block"
-                color={adaptive.grey700}
-                typography="t7"
-                fontWeight="regular"
-                style={{ marginBottom: '8px' }}
-              >
-                현재 가계 상황
-              </Text>
-              <Text
-                display="block"
-                color={adaptive.grey700}
+                color="#191F28"
                 typography="t7"
                 fontWeight="regular"
               >
-                소비하려는 것에 대한 정보
+                • 가계 상황 (여유 있음 / 보통 / 빠듯함)
               </Text>
             </div>
 
@@ -342,7 +297,82 @@ function CreatePostPage() {
                   cursor: 'pointer'
                 }}
               >
-                확인했습니다!
+                확인
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 성공 팝업 */}
+      {showSuccessModal && (
+        <div
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.5)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1000,
+            padding: '20px'
+          }}
+          onClick={() => {
+            setShowSuccessModal(false);
+            navigate('/');
+          }}
+        >
+          <div
+            style={{
+              backgroundColor: 'white',
+              borderRadius: '16px',
+              padding: '24px',
+              width: '100%',
+              maxWidth: '400px',
+              boxSizing: 'border-box'
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <Text
+              display="block"
+              color="#191F28ff"
+              typography="t4"
+              fontWeight="bold"
+              style={{ marginBottom: '12px' }}
+            >
+              사건 등록이 완료됐어요!
+            </Text>
+            
+            <Text
+              display="block"
+              color="#6B7684"
+              typography="t7"
+              fontWeight="regular"
+              style={{ marginBottom: '24px' }}
+            >
+              재판 결과는 48시간 후에 확인할 수 있어요
+            </Text>
+            
+            <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+              <button
+                onClick={() => {
+                  setShowSuccessModal(false);
+                  navigate('/');
+                }}
+                style={{
+                  padding: '8px 16px',
+                  backgroundColor: 'transparent',
+                  border: 'none',
+                  color: '#3182F6',
+                  fontSize: '15px',
+                  fontWeight: '600',
+                  cursor: 'pointer'
+                }}
+              >
+                확인
               </button>
             </div>
           </div>

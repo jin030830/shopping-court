@@ -33,6 +33,7 @@ export interface CaseDocument extends CaseData {
   id: string; // 문서 ID를 포함
   guiltyCount: number;
   innocentCount: number;
+  commentCount: number;
   voteEndAt: Timestamp;
   status: 'OPEN' | 'CLOSED';
   hotScore: number;
@@ -109,6 +110,7 @@ export const createCase = async (caseData: CaseData): Promise<string> => {
       ...caseData,
       guiltyCount: 0,
       innocentCount: 0,
+      commentCount: 0,
       status: 'OPEN',
       hotScore: 0,
       createdAt: serverTimestamp(), // 서버 시간 기준으로 생성
@@ -228,19 +230,12 @@ export const addVote = async (caseId: string, userId: string, vote: VoteType): P
         throw new Error('존재하지 않는 게시물입니다.');
       }
 
-      // 투표 기록
+      // 투표 기록 (이제 카운트 업데이트는 Cloud Functions가 처리함)
       transaction.set(voteRef, {
         userId,
         vote,
         createdAt: serverTimestamp(),
       });
-
-      // 투표 수 업데이트
-      if (vote === 'guilty') {
-        transaction.update(caseRef, { guiltyCount: increment(1) });
-      } else {
-        transaction.update(caseRef, { innocentCount: increment(1) });
-      }
     });
     console.log('✅ 투표가 성공적으로 기록되었습니다.');
   } catch (error) {
@@ -273,12 +268,16 @@ export const getComments = async (caseId: string): Promise<CommentDocument[]> =>
  */
 export const addComment = async (caseId: string, commentData: CommentData): Promise<string> => {
   if (!db) throw new Error('Firebase가 초기화되지 않았습니다.');
+  
   const commentsCollection = collection(db, 'cases', caseId, 'comments');
+
+  // 댓글 추가
   const docRef = await addDoc(commentsCollection, {
     ...commentData,
     likes: 0,
     createdAt: serverTimestamp(),
   });
+
   return docRef.id;
 };
 
@@ -335,12 +334,15 @@ export const getReplies = async (caseId: string, commentId: string): Promise<Rep
  */
 export const addReply = async (caseId: string, commentId: string, replyData: ReplyData): Promise<string> => {
   if (!db) throw new Error('Firebase가 초기화되지 않았습니다.');
+  
   const repliesCollection = collection(db, 'cases', caseId, 'comments', commentId, 'replies');
+
   const docRef = await addDoc(repliesCollection, {
     ...replyData,
     likes: 0,
     createdAt: serverTimestamp(),
   });
+
   return docRef.id;
 };
 
@@ -398,25 +400,19 @@ export const deleteReply = async (caseId: string, commentId: string, replyId: st
 
 /**
  * 특정 고민의 총 댓글 개수(대댓글 포함)를 조회합니다.
+ * 이제 Firestore의 commentCount 필드를 직접 읽어옵니다. (매우 빠름)
  * @param caseId - 고민 ID
  * @returns 총 댓글 및 대댓글 개수
  */
 export const getCommentCount = async (caseId: string): Promise<number> => {
   if (!db) throw new Error('Firebase가 초기화되지 않았습니다.');
   try {
-    const commentsCollection = collection(db, 'cases', caseId, 'comments');
-    const commentsSnapshot = await getDocs(commentsCollection);
-    
-    let totalCount = commentsSnapshot.size;
-    
-    // 각 댓글의 대댓글 개수 합산
-    for (const commentDoc of commentsSnapshot.docs) {
-      const repliesCollection = collection(db, 'cases', caseId, 'comments', commentDoc.id, 'replies');
-      const repliesSnapshot = await getDocs(repliesCollection);
-      totalCount += repliesSnapshot.size;
+    const docRef = doc(db, 'cases', caseId);
+    const docSnap = await getDoc(docRef);
+    if (docSnap.exists()) {
+      return docSnap.data().commentCount || 0;
     }
-    
-    return totalCount;
+    return 0;
   } catch (error) {
     console.error('댓글 개수 조회 실패:', error);
     return 0;

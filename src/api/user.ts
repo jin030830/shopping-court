@@ -8,9 +8,37 @@ import {
   where,
   getDocs,
   Timestamp,
+  increment,
+  runTransaction,
 } from 'firebase/firestore'
 import type { User as FirebaseUser } from 'firebase/auth'
 import { db } from './firebase'
+
+/**
+ * 사용자 활동 통계 타입 (일일 미션용)
+ */
+export interface UserStats {
+  voteCount: number;
+  commentCount: number;
+  postCount: number;
+  hotCaseCount: number;
+  lastActiveDate: string; // YYYY-MM-DD 형식
+}
+
+/**
+ * 미션 상태 타입
+ */
+export interface MissionStatus {
+  claimed: boolean; // 금일 보상 수령 여부
+  lastClaimedDate?: string; // 마지막으로 보상받은 날짜 (YYYY-MM-DD)
+}
+
+export interface UserMissions {
+  voteMission: MissionStatus;
+  commentMission: MissionStatus;
+  postMission: MissionStatus;
+  hotCaseMission: MissionStatus;
+}
 
 /**
  * Firestore 사용자 문서 타입
@@ -18,15 +46,28 @@ import { db } from './firebase'
 export interface UserDocument {
   tossUserKey: string
   nickname: string
+  stats: UserStats
+  missions: UserMissions
+  points: number // 보유 포인트
   createdAt: Timestamp | null
   updatedAt: Timestamp | null
 }
 
 /**
- * 랜덤 4자리 숫자 생성
+ * 오늘 날짜 문자열 반환 (KST 기준)
+ */
+export function getTodayDateString(): string {
+  const now = new Date();
+  // 한국 시간대로 변환 (UTC+9)
+  const kstDate = new Date(now.getTime() + 9 * 60 * 60 * 1000);
+  return kstDate.toISOString().split('T')[0];
+}
+
+/**
+ * 랜덤 5자리 숫자 생성
  */
 function generateRandomDigits(): string {
-  return Math.floor(1000 + Math.random() * 9000).toString()
+  return Math.floor(10000 + Math.random() * 90000).toString()
 }
 
 /**
@@ -64,7 +105,6 @@ async function generateUniqueNickname(
 
 /**
  * Firestore에 사용자 문서 생성/업데이트
- * 사용자가 처음 로그인할 때만 닉네임을 생성합니다.
  */
 export async function createOrUpdateUser(
   firebaseUser: FirebaseUser,
@@ -74,31 +114,83 @@ export async function createOrUpdateUser(
   }
 
   const userRef = doc(db, 'users', firebaseUser.uid)
+  const today = getTodayDateString();
 
   try {
     const userSnap = await getDoc(userRef)
 
     if (userSnap.exists()) {
-      // 기존 유저면 정보 반환
       const existingData = userSnap.data() as UserDocument;
-      await setDoc(userRef, { updatedAt: serverTimestamp() }, { merge: true });
+      const updates: any = { updatedAt: serverTimestamp() };
+      
+      // stats 필드가 없거나 날짜가 다르면 초기화
+      if (!existingData.stats || existingData.stats.lastActiveDate !== today) {
+        updates.stats = { 
+          voteCount: 0, 
+          commentCount: 0, 
+          postCount: 0, 
+          hotCaseCount: 0,
+          lastActiveDate: today 
+        };
+        existingData.stats = updates.stats;
+        
+        // 날짜가 바뀌었으므로 미션 상태도 초기화 (화면 표시용)
+        updates.missions = {
+          voteMission: { claimed: false, lastClaimedDate: '' },
+          commentMission: { claimed: false, lastClaimedDate: '' },
+          postMission: { claimed: false, lastClaimedDate: '' },
+          hotCaseMission: { claimed: false, lastClaimedDate: '' }
+        };
+        existingData.missions = updates.missions;
+      }
+      
+      // missions 필드가 아예 없는 경우 초기화
+      if (!existingData.missions) {
+        updates.missions = {
+          voteMission: { claimed: false },
+          commentMission: { claimed: false },
+          postMission: { claimed: false },
+          hotCaseMission: { claimed: false }
+        };
+        existingData.missions = updates.missions;
+      }
+
+      if (existingData.points === undefined) {
+        updates.points = 0;
+        existingData.points = 0;
+      }
+
+      await setDoc(userRef, updates, { merge: true });
+
       return {
         ...existingData,
-        updatedAt: Timestamp.now() // 즉각적인 UI 피드백을 위해 클라이언트 시간 사용
+        updatedAt: Timestamp.now()
       };
     } else {
-      // 신규 유저면 닉네임 생성 후 문서 생성
+      // 신규 유저
       const nickname = await generateUniqueNickname()
-      const newUserDocument = {
+      const newUserDocument: Omit<UserDocument, 'createdAt' | 'updatedAt'> & { createdAt: any, updatedAt: any } = {
         tossUserKey: firebaseUser.uid,
         nickname,
+        stats: {
+          voteCount: 0,
+          commentCount: 0,
+          postCount: 0,
+          hotCaseCount: 0,
+          lastActiveDate: today
+        },
+        missions: {
+          voteMission: { claimed: false, lastClaimedDate: '' },
+          commentMission: { claimed: false, lastClaimedDate: '' },
+          postMission: { claimed: false, lastClaimedDate: '' },
+          hotCaseMission: { claimed: false, lastClaimedDate: '' }
+        },
+        points: 0,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
       }
       await setDoc(userRef, newUserDocument);
       
-      // 방금 생성한 문서를 반환하되, createdAt/updatedAt은 클라이언트 시간으로 설정하여 반환
-      // toDate() 오류를 방지하기 위함
       return {
         ...newUserDocument,
         createdAt: Timestamp.now(),
@@ -110,7 +202,6 @@ export async function createOrUpdateUser(
     throw new Error('사용자 정보 저장에 실패했습니다.')
   }
 }
-
 
 /**
  * 현재 사용자 정보 조회
@@ -135,4 +226,36 @@ export async function getUserData(
     console.error('사용자 정보 조회 실패:', error)
     return null
   }
+}
+
+/**
+ * 미션 보상 수령 처리
+ */
+export async function claimMissionReward(userId: string, missionType: keyof UserMissions, rewardPoints: number): Promise<void> {
+  if (!db) throw new Error('Firestore가 초기화되지 않았습니다.');
+  
+  const userRef = doc(db, 'users', userId);
+  const today = getTodayDateString();
+  
+  await runTransaction(db, async (transaction) => {
+    const userDoc = await transaction.get(userRef);
+    if (!userDoc.exists()) throw new Error("User not found");
+    
+    const userData = userDoc.data() as UserDocument;
+    const mission = userData.missions?.[missionType];
+
+    // 이미 오늘 날짜로 보상을 받았다면 에러 처리 (클라이언트에서 막겠지만 이중 방지)
+    if (mission?.claimed && mission?.lastClaimedDate === today) {
+      throw new Error("이미 보상을 수령했습니다.");
+    }
+
+    // 날짜가 다르면(어제 받은 것) claimed가 true여도 새로 받을 수 있음 -> 로직상 덮어쓰기
+    transaction.update(userRef, {
+      [`missions.${missionType}`]: {
+        claimed: true,
+        lastClaimedDate: today
+      },
+      points: increment(rewardPoints)
+    });
+  });
 }

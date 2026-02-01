@@ -1,7 +1,7 @@
 import { appLogin } from '@apps-in-toss/web-framework';
 import { signInWithCustomToken, type User } from 'firebase/auth';
 import { auth, functions } from './firebase';
-import { getFunctions, httpsCallable } from 'firebase/functions';
+import { httpsCallable } from 'firebase/functions';
 
 /**
  * 토스 로그인 결과
@@ -24,14 +24,16 @@ export interface BackendLoginResponse {
 export async function loginWithToss(): Promise<TossLoginResult> {
   try {
     const isReactNativeWebView = typeof window !== 'undefined' && (window as any).ReactNativeWebView !== undefined;
+    const developerId = import.meta.env.VITE_DEVELOPER_ID || null;
     
     if (!isReactNativeWebView) {
-      console.log('⚠️ 웹 브라우저 환경 - 테스트 모드로 로그인');
-      const mockCode = 'web-test-' + Math.random().toString(36).substr(2, 9);
-      return {
-        authorizationCode: mockCode,
-        referrer: 'WEB_BROWSER',
-      };
+      if (developerId) {
+        return {
+          authorizationCode: 'MOCK_CODE_FOR_BROWSER',
+          referrer: 'WEB_BROWSER_TEST',
+        };
+      }
+      throw new Error('토스 앱 내부에서만 로그인이 가능합니다.');
     }
     
     const result = await appLogin();
@@ -45,7 +47,6 @@ export async function loginWithToss(): Promise<TossLoginResult> {
       referrer: result.referrer || '',
     };
   } catch (error: any) {
-    console.error('토스 로그인 실패:', error);
     if (error?.message?.includes('cancel')) {
       throw new Error('로그인이 취소되었습니다.');
     }
@@ -61,28 +62,32 @@ export async function getCustomTokenFromServer(
   referrer: string
 ): Promise<BackendLoginResponse> {
   try {
-    console.log('🔥 Firebase Cloud Function으로 토스 로그인 요청:', { authorizationCode, referrer });
+    const developerId = import.meta.env.VITE_DEVELOPER_ID || null;
+    const isReactNativeWebView = typeof window !== 'undefined' && (window as any).ReactNativeWebView !== undefined;
 
     if (!functions) {
       throw new Error('Firebase Functions 서비스가 초기화되지 않았습니다.');
     }
 
+    const payload: any = { authorizationCode, referrer };
+    if (!isReactNativeWebView && developerId) {
+      payload.developerId = developerId;
+    }
+
     const callTossLogin = httpsCallable(functions, 'tossLogin');
-    const response = await callTossLogin({ authorizationCode, referrer });
+    const response = await callTossLogin(payload);
 
     const data = response.data as any;
 
     if (!data || !data.customToken) {
-      throw new Error(data.error?.reason || 'Cloud Function으로부터 커스텀 토큰을 받지 못했습니다.');
+      throw new Error(data.error?.reason || '인증 토큰을 받지 못했습니다.');
     }
 
-    console.log('✅ Cloud Function으로부터 커스텀 토큰 받음');
     return {
       customToken: data.customToken,
     };
   } catch (error: any) {
-    console.error('❌ Cloud Function 호출 실패:', error);
-    throw new Error(error.message || 'Cloud Function 인증에 실패했습니다.');
+    throw new Error(error.message || '인증에 실패했습니다.');
   }
 }
 
@@ -90,14 +95,13 @@ export async function getCustomTokenFromServer(
  * 커스텀 토큰으로 Firebase에 로그인
  */
 export async function signInToFirebase(customToken: string): Promise<User> {
+  if (!auth) {
+    throw new Error('Firebase Auth 서비스가 초기화되지 않았습니다.');
+  }
   try {
-    console.log('🔥 Firebase에 커스텀 토큰으로 로그인 시도...');
     const userCredential = await signInWithCustomToken(auth, customToken);
-    console.log('✅ Firebase 로그인 성공:', userCredential.user.uid);
     return userCredential.user;
   } catch (error: any) {
-    console.error('❌ Firebase 커스텀 토큰 로그인 실패:', error);
     throw new Error('Firebase 로그인에 실패했습니다.');
   }
 }
-
