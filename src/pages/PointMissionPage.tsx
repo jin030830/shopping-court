@@ -189,8 +189,6 @@ function PointMissionPage() {
     conditionMet, 
     isUnlocked, 
     isClaimed, 
-    unlockCondition,
-    bgColor,
     buttonColor,
     completedColor
   }: {
@@ -202,191 +200,176 @@ function PointMissionPage() {
     conditionMet: boolean;
     isUnlocked: boolean;
     isClaimed: boolean;
-    unlockCondition?: string;
-    bgColor: string;
     buttonColor: string;
     completedColor: string;
   }) => {
     const canClaim = isUnlocked && conditionMet && !isClaimed;
 
     return (
-      <div style={{ marginBottom: '64px', padding: '0 21px' }}>
+      <div style={{ marginBottom: '8px', padding: '0 21px', display: 'flex', justifyContent: 'center' }}>
         <div style={{
           width: '100%',
           maxWidth: '333px',
-          margin: '0 auto',
-          position: 'relative',
-          opacity: isUnlocked ? 1 : 0.6
+          position: 'relative'
         }}>
-          {/* Level 배지 */}
+          {/* Level 배지와 카드 본문을 하나로 */}
           <div style={{
             width: '100%',
-            height: '34px',
-            background: level === 0 
-              ? 'linear-gradient(120deg, #64a8ff 0%, #7e74fb 76.19%, #a02ff5 100%)'
-              : level === 1 ? adaptive.green400
-              : level === 2 ? adaptive.yellow600
-              : adaptive.red400,
             borderRadius: '10px',
-            boxShadow: '0px 0px 2px 0px rgba(0, 0, 0, 0.25)',
-            marginBottom: '4px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            padding: '0 20px'
-          }}>
-            <div style={{
-              padding: '1px 4px',
-              backgroundColor: level === 0 ? '#3182F628' : level === 1 ? '#02A26228' : level === 2 ? '#FFB33128' : '#F0445228',
-              borderRadius: '4px',
-              fontSize: '12px',
-              fontWeight: '600',
-              color: level === 0 ? '#1976D2' : level === 1 ? '#02A262' : level === 2 ? '#FFB331' : '#D32F2F'
-            }}>
-              Level {level}
-            </div>
-            <Text
-              display="block"
-              color="adaptive-card-bg-white"
-              typography="t6"
-              fontWeight="semibold"
-            >
-              {title}
-            </Text>
-          </div>
-
-          {/* 카드 본문 */}
-          <div style={{
-            width: '100%',
-            minHeight: '102px',
-            backgroundColor: bgColor,
-            borderRadius: '10px',
-            padding: '20px',
+            overflow: 'hidden',
             boxShadow: '0px 2px 2px 0px rgba(0, 0, 0, 0.25)',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '4px',
             position: 'relative'
           }}>
-            {/* 설명 */}
-            <Text color={adaptive.grey700} typography="t6" fontWeight="bold" style={{ marginBottom: '4px' }}>
-              {description}
-            </Text>
-
-            {/* 판사봉 */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginBottom: '4px' }}>
-              <Text color={adaptive.grey700} typography="t6" fontWeight="medium">
-                판사봉 :{' '}
-              </Text>
-              <Text color={adaptive.grey700} typography="t6" fontWeight="bold">
-                {reward}개
-              </Text>
-            </div>
-
-            {/* 제한 */}
-            <Text color={adaptive.grey700} typography="t6" fontWeight="medium" style={{ marginBottom: '8px' }}>
-              {limitation}
-            </Text>
-
-            {/* 받기 버튼 또는 완료 표시 */}
+            {/* Level 배지 */}
             <div style={{
-              position: 'absolute',
-              right: '20px',
-              top: '20px'
-            }}>
-              {isClaimed ? (
-                <Text
-                  display="block"
-                  color={completedColor}
-                  typography="t6"
-                  fontWeight="bold"
-                  textAlign="right"
-                >
-                  완료 ✓
-                </Text>
-              ) : canClaim ? (
-                <button
-                  onClick={() => handleClaim(
-                    level === 0 ? 'firstEventMission' : 
-                    level === 1 ? 'voteMission' : 
-                    level === 2 ? 'commentMission' : 'hotCaseMission',
-                    reward
-                  )}
-                  disabled={isClaiming}
-                  style={{
-                    width: '51px',
-                    height: '33px',
-                    backgroundColor: buttonColor,
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: '5px',
-                    fontSize: '13px',
-                    fontWeight: '600',
-                    cursor: isClaiming ? 'not-allowed' : 'pointer',
-                    opacity: isClaiming ? 0.6 : 1,
-                    whiteSpace: 'nowrap'
-                  }}
-                >
-                  받기
-                </button>
-              ) : (
-                <button
-                  disabled
-                  style={{
-                    width: '51px',
-                    height: '33px',
-                    backgroundColor: '#8b95a1',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: '5px',
-                    fontSize: '13px',
-                    fontWeight: '600',
-                    cursor: 'not-allowed',
-                    opacity: 0.6,
-                    whiteSpace: 'nowrap'
-                  }}
-                >
-                  받기
-                </button>
-              )}
-            </div>
-          </div>
-
-          {/* 잠금 오버레이 */}
-          {!isUnlocked && (
-            <div style={{
-              position: 'absolute',
-              top: '34px',
-              left: 0,
-              right: 0,
-              bottom: 0,
-              backgroundColor: 'rgba(139, 149, 161, 0.6)',
-              borderRadius: '10px',
+              width: '100%',
+              height: '34px',
+              background: level === 0 
+                ? 'linear-gradient(120deg, #64a8ff 0%, #7e74fb 76.19%, #a02ff5 100%)'
+                : level === 1 ? '#15c47e'
+                : level === 2 ? '#ffb331'
+                : '#f66570',
+              borderRadius: '10px 10px 0 0',
               display: 'flex',
-              flexDirection: 'column',
               alignItems: 'center',
               justifyContent: 'center',
-              gap: '8px'
+              padding: '0 20px',
+              position: 'relative',
+              boxSizing: 'border-box'
             }}>
-              <Asset.Icon
-                frameShape={Asset.frameShape.CleanW40}
-                backgroundColor="transparent"
-                name="icon-lock-mono"
-                color={adaptive.grey100}
-                aria-hidden={true}
-                ratio="1/1"
-              />
-              <Text
-                display="block"
-                color={adaptive.grey100}
-                typography="t5"
-                fontWeight="bold"
-                textAlign="center"
-              >
-                {unlockCondition}
-              </Text>
+              <div style={{
+                position: 'absolute',
+                left: '20px',
+                padding: '1px 4px',
+                backgroundColor: level === 0 ? '#3182F628' : level === 1 ? '#02A26228' : level === 2 ? '#FFB33128' : '#F0445228',
+                borderRadius: '4px',
+                fontSize: '12px',
+                fontWeight: '600',
+                color: level === 0 ? '#1976D2' : level === 1 ? '#02A262' : level === 2 ? '#FFB331' : '#D32F2F'
+              }}>
+                Level {level}
+              </div>
+              {/* 제목 중앙정렬 */}
+              <span style={{
+                fontSize: '14px',
+                fontWeight: '600',
+                color: 'white',
+                textAlign: 'center'
+              }}>
+                {title}
+              </span>
             </div>
-          )}
+
+            {/* 카드 본문 - 각 레벨별 배경색 유지 */}
+            <div style={{
+              width: '100%',
+              minHeight: 'auto',
+              backgroundColor: level === 0 
+                ? '#c9e2ff'
+                : level === 1 ? '#aeefd5'
+                : level === 2 ? '#ffefbf'
+                : '#ffd4d6',
+              borderRadius: '0 0 10px 10px',
+              padding: '20px 70px 20px 20px',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '4px',
+              position: 'relative',
+              boxSizing: 'border-box',
+              wordBreak: 'keep-all',
+              overflowWrap: 'break-word'
+            }}>
+              {/* 설명 */}
+              <div style={{ 
+                fontSize: '14px',
+                fontWeight: '700',
+                color: '#191F28',
+                marginBottom: '4px',
+                wordBreak: 'keep-all',
+                overflowWrap: 'break-word'
+              }}>
+                {description}
+              </div>
+
+              {/* 판사봉 */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginBottom: '4px' }}>
+                <span style={{
+                  fontSize: '14px',
+                  fontWeight: '500',
+                  color: '#191F28'
+                }}>
+                  판사봉 :{' '}
+                </span>
+                <span style={{
+                  fontSize: '14px',
+                  fontWeight: '700',
+                  color: '#191F28'
+                }}>
+                  {reward}개
+                </span>
+              </div>
+
+              {/* 제한 */}
+              <div style={{ 
+                fontSize: '14px',
+                fontWeight: '500',
+                color: '#191F28'
+              }}>
+                {limitation}
+              </div>
+
+              {/* 받기 버튼 또는 완료 표시 */}
+              <div style={{
+                position: 'absolute',
+                right: '20px',
+                top: '50%',
+                transform: 'translateY(-50%)',
+                zIndex: 100,
+                pointerEvents: 'auto'
+              }}>
+                {isClaimed ? (
+                  <span style={{
+                    fontSize: '14px',
+                    fontWeight: '700',
+                    color: completedColor,
+                    display: 'block'
+                  }}>
+                    완료 ✓
+                  </span>
+                ) : (
+                  <button
+                    onClick={() => {
+                      if (canClaim) {
+                        handleClaim(
+                          level === 0 ? 'firstEventMission' : 
+                          level === 1 ? 'voteMission' : 
+                          level === 2 ? 'commentMission' : 'hotCaseMission',
+                          reward
+                        );
+                      }
+                    }}
+                    disabled={isClaiming || !canClaim}
+                    style={{
+                      width: '51px',
+                      height: '33px',
+                      backgroundColor: canClaim ? buttonColor : '#d0d5dd',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '5px',
+                      fontSize: '13px',
+                      fontWeight: '600',
+                      cursor: (isClaiming || !canClaim) ? 'not-allowed' : 'pointer',
+                      opacity: isClaiming ? 0.6 : 1,
+                      whiteSpace: 'nowrap',
+                      display: 'block'
+                    }}
+                  >
+                    받기
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     );
@@ -406,54 +389,83 @@ function PointMissionPage() {
 
       {/* 진행도 및 판사봉 */}
       <div style={{
-        padding: '0 30px',
-        marginBottom: '21px'
+        padding: '0 20px',
+        marginBottom: '21px',
+        marginTop: '15px',
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'flex-start',
+        gap: '40px'
       }}>
-        {/* Level 진행 중 */}
-        <div style={{
+        {/* 왼쪽: Level 진행 중 + 2/4 + 진행바 */}
+        <div style={{ 
           display: 'flex',
+          flexDirection: 'column',
           alignItems: 'center',
-          gap: '8px',
-          marginBottom: '8px'
+          marginTop: '0px'
         }}>
-          <Text color={adaptive.grey700} typography="t6" fontWeight="bold">
-            Level {currentLevel}{' '}
-          </Text>
-          <Text color={adaptive.blue400} typography="t6" fontWeight="bold">
-            진행 중
-          </Text>
-        </div>
-
-        {/* 2/4 표시 */}
-        <Text color={adaptive.grey700} typography="t4" fontWeight="bold" style={{ marginBottom: '21px' }}>
-          {unlockedCount} / 4
-        </Text>
-
-        {/* 진행 바 */}
-        <div style={{
-          width: '100%',
-          height: '8px',
-          backgroundColor: adaptive.grey200,
-          borderRadius: '4px',
-          marginBottom: '21px',
-          overflow: 'hidden'
-        }}>
+          {/* Level 진행 중 */}
           <div style={{
-            width: `${(unlockedCount / 4) * 100}%`,
-            height: '100%',
-            backgroundColor: adaptive.blue500,
-            transition: 'width 0.3s ease'
-          }} />
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '8px',
+            marginBottom: '8px'
+          }}>
+            <span style={{
+              fontSize: '14px',
+              fontWeight: '700',
+              color: '#191F28'
+            }}>
+              Level {currentLevel}{' '}
+            </span>
+            <span style={{
+              fontSize: '14px',
+              fontWeight: '700',
+              color: '#4593fc'
+            }}>
+              진행 중
+            </span>
+          </div>
+
+          {/* 2/4 표시 - 중앙정렬 */}
+          <div style={{ 
+            marginBottom: '12px',
+            fontSize: '20px',
+            fontWeight: '700',
+            color: '#191F28',
+            display: 'block',
+            textAlign: 'center'
+          }}>
+            {unlockedCount} / 4
+          </div>
+
+          {/* 진행 바 - Level 1 진행중 길이에 맞게 */}
+          <div style={{
+            width: '120px',
+            height: '10px',
+            backgroundColor: '#e5e8eb',
+            borderRadius: '5px',
+            overflow: 'hidden',
+            marginTop: '12px'
+          }}>
+            <div style={{
+              width: `${(unlockedCount / 4) * 100}%`,
+              height: '100%',
+              backgroundColor: '#4593fc',
+              borderRadius: '5px',
+              transition: 'width 0.3s ease'
+            }} />
+          </div>
         </div>
 
-        {/* 판사봉 정보 */}
+        {/* 오른쪽: 판사봉 정보 */}
         <div style={{
           display: 'flex',
-          alignItems: 'flex-start',
-          gap: '8px',
-          justifyContent: 'flex-end',
-          position: 'relative',
-          marginTop: '21px'
+          flexDirection: 'column',
+          alignItems: 'center',
+          gap: '4px',
+          marginTop: '0px'
         }}>
           <Asset.Icon
             frameShape={Asset.frameShape.CleanW40}
@@ -462,99 +474,89 @@ function PointMissionPage() {
             aria-hidden={true}
             ratio="1/1"
           />
+          {/* 정보 아이콘과 판사봉 개수 - 같은 줄에 정렬 */}
           <div style={{
             display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'flex-end',
-            gap: '4px',
-            position: 'relative'
+            alignItems: 'center',
+            gap: '4px'
           }}>
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '4px'
-            }}>
-              <div ref={infoPopupRef} style={{ position: 'relative' }}>
-                <Asset.Icon
-                  frameShape={Asset.frameShape.CleanW16}
-                  backgroundColor="transparent"
-                  name="icon-info-circle-mono-16"
-                  aria-hidden={true}
-                  ratio="1/1"
-                  onClick={() => setShowInfoPopup(!showInfoPopup)}
-                  style={{ cursor: 'pointer' }}
-                />
-                {showInfoPopup && (
-                  <div style={{
-                    position: 'absolute',
-                    top: '24px',
-                    right: '0',
-                    backgroundColor: 'white',
-                    padding: '12px',
-                    borderRadius: '8px',
-                    boxShadow: '0px 2px 8px rgba(0, 0, 0, 0.15)',
-                    zIndex: 1000,
-                    minWidth: '200px'
-                  }}>
-                    <Text color={adaptive.grey900} typography="t7" fontWeight="medium">
-                      판사봉 50개 모으면 5P 교환 가능!
-                    </Text>
-                    <button
-                      onClick={() => setShowInfoPopup(false)}
-                      style={{
-                        marginTop: '8px',
-                        padding: '4px 8px',
-                        backgroundColor: adaptive.blue500,
-                        color: 'white',
-                        border: 'none',
-                        borderRadius: '4px',
-                        fontSize: '12px',
-                        cursor: 'pointer'
-                      }}
-                    >
-                      확인
-                    </button>
-                  </div>
-                )}
-              </div>
-              <Text
-                display="block"
-                color={adaptive.grey800}
-                typography="t5"
-                fontWeight="bold"
-                textAlign="right"
-              >
-                판사봉 {currentGavel}
-              </Text>
-              <Text
-                display="block"
-                color={adaptive.grey600}
-                typography="t5"
-                fontWeight="bold"
-                textAlign="center"
-              >
-                / 50
-              </Text>
+            <div ref={infoPopupRef} style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+              <Asset.Icon
+                frameShape={Asset.frameShape.CleanW16}
+                backgroundColor="transparent"
+                name="icon-info-circle-mono-16"
+                aria-hidden={true}
+                ratio="1/1"
+                onClick={() => setShowInfoPopup(!showInfoPopup)}
+                style={{ cursor: 'pointer' }}
+              />
+              {showInfoPopup && (
+                <div style={{
+                  position: 'absolute',
+                  top: '24px',
+                  right: '0',
+                  backgroundColor: 'white',
+                  padding: '12px',
+                  borderRadius: '8px',
+                  boxShadow: '0px 2px 8px rgba(0, 0, 0, 0.15)',
+                  zIndex: 1000,
+                  minWidth: '200px'
+                }}>
+                  <Text color={adaptive.grey900} typography="t7" fontWeight="medium">
+                    판사봉 50개 모으면 5P 교환 가능!
+                  </Text>
+                  <button
+                    onClick={() => setShowInfoPopup(false)}
+                    style={{
+                      marginTop: '8px',
+                      padding: '4px 8px',
+                      backgroundColor: adaptive.blue500,
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '4px',
+                      fontSize: '12px',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    확인
+                  </button>
+                </div>
+              )}
             </div>
-            {/* 교환하기 버튼 */}
-            <button
-              onClick={handleExchange}
-              disabled={!canExchange}
-              style={{
-                padding: '4px 8px',
-                backgroundColor: canExchange ? adaptive.blue500 : adaptive.grey300,
-                color: 'white',
-                border: 'none',
-                borderRadius: '4px',
-                fontSize: '12px',
-                fontWeight: '600',
-                cursor: canExchange ? 'pointer' : 'not-allowed',
-                whiteSpace: 'nowrap'
-              }}
-            >
-              교환하기 &gt;
-            </button>
+            <span style={{
+              fontSize: '18px',
+              fontWeight: '700',
+              color: '#191F28'
+            }}>
+              판사봉 {currentGavel}
+            </span>
+            <span style={{
+              fontSize: '18px',
+              fontWeight: '700',
+              color: '#6b7684'
+            }}>
+              {' '}/ 50
+            </span>
           </div>
+          {/* 교환하기 버튼 - 중앙정렬 */}
+          <button
+            onClick={handleExchange}
+            disabled={!canExchange}
+            style={{
+              padding: '0',
+              backgroundColor: 'transparent',
+              color: '#4593fc',
+              border: 'none',
+              fontSize: '14px',
+              fontWeight: '700',
+              cursor: canExchange ? 'pointer' : 'not-allowed',
+              whiteSpace: 'nowrap',
+              textDecoration: 'underline',
+              opacity: canExchange ? 1 : 0.5
+            }}
+          >
+            교환하기 &gt;
+          </button>
         </div>
       </div>
 
@@ -564,66 +566,66 @@ function PointMissionPage() {
         height: '1px',
         backgroundColor: adaptive.grey200
       }} />
-      <Spacing size={19} />
 
-      {/* 미션 카드들 */}
-      <MissionCard
-        level={0}
-        title="첫 이벤트"
-        description="투표 1개 + 댓글 1개 + 게시물 1개"
-        reward={100}
-        limitation="계정당 1회 한정"
-        conditionMet={level0ConditionMet}
-        isUnlocked={unlockedLevels[0]}
-        isClaimed={missions.firstEventMission?.claimed || false}
-        bgColor={adaptive.blue100}
-        buttonColor={adaptive.blue400}
-        completedColor={adaptive.blue300}
-      />
+      {/* 미션 카드들 - 옅은 회색 배경 */}
+      <div style={{
+        width: '100%',
+        backgroundColor: '#f2f4f6',
+        paddingTop: '10px',
+        paddingBottom: '24px'
+      }}>
+        <MissionCard
+          level={0}
+          title="첫 이벤트"
+          description="투표 1개 + 댓글 1개 + 게시물 1개"
+          reward={100}
+          limitation="계정당 1회 한정"
+          conditionMet={level0ConditionMet}
+          isUnlocked={unlockedLevels[0]}
+          isClaimed={missions.firstEventMission?.claimed || false}
+          buttonColor={adaptive.blue400}
+          completedColor={adaptive.blue300}
+        />
 
-      <MissionCard
-        level={1}
-        title="초보 미션"
-        description="투표 5개"
-        reward={30}
-        limitation="하루 1번"
-        conditionMet={level1ConditionMet}
-        isUnlocked={unlockedLevels[1]}
-        isClaimed={missions.voteMission?.claimed || false}
-        bgColor={adaptive.green100}
-        buttonColor={adaptive.green500}
-        completedColor={adaptive.green300}
-      />
+        <MissionCard
+          level={1}
+          title="초보 미션"
+          description="투표 5개"
+          reward={30}
+          limitation="하루 1번"
+          conditionMet={level1ConditionMet}
+          isUnlocked={unlockedLevels[1]}
+          isClaimed={missions.voteMission?.claimed || false}
+          buttonColor={adaptive.green500}
+          completedColor={adaptive.green300}
+        />
 
-      <MissionCard
-        level={2}
-        title="참여 미션"
-        description="댓글 3개"
-        reward={60}
-        limitation="하루 1번"
-        conditionMet={level2ConditionMet}
-        isUnlocked={unlockedLevels[2]}
-        isClaimed={missions.commentMission?.claimed || false}
-        unlockCondition="Level 1 완료 시 해금"
-        bgColor={adaptive.yellow100}
-        buttonColor={adaptive.orange400}
-        completedColor={adaptive.orange300}
-      />
+        <MissionCard
+          level={2}
+          title="참여 미션"
+          description="댓글 3개"
+          reward={60}
+          limitation="하루 1번"
+          conditionMet={level2ConditionMet}
+          isUnlocked={unlockedLevels[2]}
+          isClaimed={missions.commentMission?.claimed || false}
+          buttonColor={adaptive.orange400}
+          completedColor={adaptive.orange300}
+        />
 
-      <MissionCard
-        level={3}
-        title="핵심 기여"
-        description="화제의 재판 기록에 오르기"
-        reward={100}
-        limitation="게시물당 1번"
-        conditionMet={level3ConditionMet}
-        isUnlocked={unlockedLevels[3]}
-        isClaimed={missions.hotCaseMission?.claimed || false}
-        unlockCondition="Level 2 완료 시 해금"
-        bgColor={adaptive.red100}
-        buttonColor={adaptive.red400}
-        completedColor={adaptive.red300}
-      />
+        <MissionCard
+          level={3}
+          title="핵심 기여"
+          description="화제의 재판 기록에 오르기"
+          reward={100}
+          limitation="게시물당 1번"
+          conditionMet={level3ConditionMet}
+          isUnlocked={unlockedLevels[3]}
+          isClaimed={missions.hotCaseMission?.claimed || false}
+          buttonColor={adaptive.red400}
+          completedColor={adaptive.red300}
+        />
+      </div>
     </div>
   );
 }
