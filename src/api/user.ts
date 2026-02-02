@@ -295,7 +295,8 @@ export async function claimMissionReward(userId: string, missionType: keyof User
  * 실제 차감 및 지급 로직은 서버(Cloud Functions)에서 수행됩니다.
  */
 export async function exchangeGavel(): Promise<void> {
-  const PROMOTION_CODE = import.meta.env.VITE_TOSS_PROMOTION_CODE || 'TEST_01KGA79JNAY2T8AWYCM9869TKS';
+  // 환경변수 문제 방지를 위해 테스트 코드를 직접 사용
+  const PROMOTION_CODE = 'TEST_01KGA79JNAY2T8AWYCM9869TKS'; 
   
   // 서버에 교환 요청 (모든 검증 및 처리는 서버에서 수행)
   try {
