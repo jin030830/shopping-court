@@ -38,8 +38,16 @@ const updateUserStats = async (userId: string, type: 'vote' | 'comment' | 'post'
       const today = getTodayDateString();
       const lastActiveDate = userData?.stats?.lastActiveDate;
 
+      // 누적 통계 필드 이름 매핑
+      let totalFieldToIncrement = '';
+      if (type === 'vote') totalFieldToIncrement = 'totalStats.voteCount';
+      else if (type === 'comment') totalFieldToIncrement = 'totalStats.commentCount';
+      else if (type === 'post') totalFieldToIncrement = 'totalStats.postCount';
+      // hotCase는 누적 통계에 별도로 기록하지 않거나 필요 시 추가 (현재는 명세에 없음)
+
+      // 날짜가 변경되었으면 일일 통계 초기화, 누적 통계는 증가
       if (lastActiveDate !== today) {
-        transaction.update(userRef, {
+        const updates: any = {
           'stats.voteCount': type === 'vote' ? 1 : 0,
           'stats.commentCount': type === 'comment' ? 1 : 0,
           'stats.postCount': type === 'post' ? 1 : 0,
@@ -47,20 +55,34 @@ const updateUserStats = async (userId: string, type: 'vote' | 'comment' | 'post'
           'stats.lastActiveDate': today,
           'missions.voteMission': { claimed: false, lastClaimedDate: '' },
           'missions.commentMission': { claimed: false, lastClaimedDate: '' },
-          'missions.postMission': { claimed: false, lastClaimedDate: '' },
-          'missions.hotCaseMission': { claimed: false, lastClaimedDate: '' },
-        });
-      } else {
-        let fieldToIncrement = '';
-        if (type === 'vote') fieldToIncrement = 'stats.voteCount';
-        else if (type === 'comment') fieldToIncrement = 'stats.commentCount';
-        else if (type === 'post') fieldToIncrement = 'stats.postCount';
-        else if (type === 'hotCase') fieldToIncrement = 'stats.hotCaseCount';
+          // postMission, hotCaseMission 등은 일일 초기화 대상이 아닐 수 있으나
+          // 명세상 Level 1, 2만 일일 미션이므로 여기서는 안전하게 초기화 루틴 유지하되
+          // Level 0은 totalStats를 보므로 영향 없음.
+        };
 
-        if (fieldToIncrement) {
-          transaction.update(userRef, {
-            [fieldToIncrement]: admin.firestore.FieldValue.increment(1)
-          });
+        if (totalFieldToIncrement) {
+          updates[totalFieldToIncrement] = admin.firestore.FieldValue.increment(1);
+        }
+
+        transaction.update(userRef, updates);
+      } else {
+        // 날짜가 같으면 둘 다 증가
+        let dailyFieldToIncrement = '';
+        if (type === 'vote') dailyFieldToIncrement = 'stats.voteCount';
+        else if (type === 'comment') dailyFieldToIncrement = 'stats.commentCount';
+        else if (type === 'post') dailyFieldToIncrement = 'stats.postCount';
+        else if (type === 'hotCase') dailyFieldToIncrement = 'stats.hotCaseCount';
+
+        const updates: any = {};
+        if (dailyFieldToIncrement) {
+          updates[dailyFieldToIncrement] = admin.firestore.FieldValue.increment(1);
+        }
+        if (totalFieldToIncrement) {
+          updates[totalFieldToIncrement] = admin.firestore.FieldValue.increment(1);
+        }
+
+        if (Object.keys(updates).length > 0) {
+          transaction.update(userRef, updates);
         }
       }
     });

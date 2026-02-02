@@ -176,6 +176,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 tossUserKey: parsedData.uid,
                 nickname: parsedData.nickname,
                 stats: { voteCount: 0, commentCount: 0, postCount: 0, hotCaseCount: 0, lastActiveDate: '' },
+                totalStats: { voteCount: 0, commentCount: 0, postCount: 0 },
                 missions: {
                   firstEventMission: { claimed: false },
                   voteMission: { claimed: false },

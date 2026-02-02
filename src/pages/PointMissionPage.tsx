@@ -160,29 +160,56 @@ function PointMissionPage() {
     hotCaseMission: { claimed: false }
   };
 
-  // 미션 해금 상태 계산
-  const level0Completed = missions.firstEventMission?.claimed || false;
-  const level1Completed = missions.voteMission?.claimed || false;
-  const level2Completed = missions.commentMission?.claimed || false;
+  // 미션 해금 상태 계산 (순차 진행 제약 제거)
+  const unlockedLevels = [true, true, true, true];
   
-  const unlockedLevels = [
-    true,
-    true,
-    level0Completed && level1Completed,
-    level2Completed,
-  ];
+  const unlockedCount = [
+    missions.firstEventMission?.claimed,
+    missions.voteMission?.claimed,
+    missions.commentMission?.claimed,
+    missions.hotCaseMission?.claimed
+  ].filter(Boolean).length;
   
-  const unlockedCount = unlockedLevels.filter(Boolean).length;
-  const currentLevel = unlockedCount > 0 ? unlockedCount - 1 : 0;
+  const currentLevel = unlockedCount; 
 
-  // Level 0 조건 확인
-  const level0ConditionMet = stats.voteCount >= 1 && stats.commentCount >= 1 && stats.postCount >= 1;
+  // 누적 통계 (Level 0 미션용)
+  const totalStats = userData?.totalStats || { voteCount: 0, commentCount: 0, postCount: 0 };
+
+  // 조건 충족 여부 변수
+  // Level 0: 누적 통계 사용
+  const level0ConditionMet = totalStats.voteCount >= 1 && totalStats.commentCount >= 1 && totalStats.postCount >= 1;
+  // Level 1, 2: 일일 통계 사용
   const level1ConditionMet = stats.voteCount >= 5;
   const level2ConditionMet = stats.commentCount >= 3;
   const level3ConditionMet = hotCases.length > 0;
 
+  // 판사봉 및 교환 가능 여부 변수
   const currentGavel = userData?.points || 0;
   const canExchange = currentGavel >= 50;
+
+  // 스타일 정의 (컴포넌트 내부 또는 별도 CSS 파일)
+  const pulseKeyframes = `
+    @keyframes pulse-blue {
+      0% { box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.7); transform: scale(1) translateY(-50%); }
+      70% { box-shadow: 0 0 0 10px rgba(59, 130, 246, 0); transform: scale(1.05) translateY(-50%); }
+      100% { box-shadow: 0 0 0 0 rgba(59, 130, 246, 0); transform: scale(1) translateY(-50%); }
+    }
+    @keyframes pulse-green {
+      0% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7); transform: scale(1) translateY(-50%); }
+      70% { box-shadow: 0 0 0 10px rgba(34, 197, 94, 0); transform: scale(1.05) translateY(-50%); }
+      100% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0); transform: scale(1) translateY(-50%); }
+    }
+    @keyframes pulse-orange {
+      0% { box-shadow: 0 0 0 0 rgba(249, 115, 22, 0.7); transform: scale(1) translateY(-50%); }
+      70% { box-shadow: 0 0 0 10px rgba(249, 115, 22, 0); transform: scale(1.05) translateY(-50%); }
+      100% { box-shadow: 0 0 0 0 rgba(249, 115, 22, 0); transform: scale(1) translateY(-50%); }
+    }
+    @keyframes pulse-red {
+      0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); transform: scale(1) translateY(-50%); }
+      70% { box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); transform: scale(1.05) translateY(-50%); }
+      100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); transform: scale(1) translateY(-50%); }
+    }
+  `;
 
   // 미션 카드 컴포넌트
   const MissionCard = ({ 
@@ -210,8 +237,15 @@ function PointMissionPage() {
   }) => {
     const canClaim = isUnlocked && conditionMet && !isClaimed;
 
+    // 레벨별 애니메이션 이름 매핑
+    const animationName = level === 0 ? 'pulse-blue' 
+      : level === 1 ? 'pulse-green' 
+      : level === 2 ? 'pulse-orange' 
+      : 'pulse-red';
+
     return (
       <div style={{ marginBottom: '8px', padding: '0 21px', display: 'flex', justifyContent: 'center' }}>
+        <style>{pulseKeyframes}</style>
         <div style={{
           width: '100%',
           maxWidth: '333px',
@@ -366,7 +400,10 @@ function PointMissionPage() {
                       cursor: (isClaiming || !canClaim) ? 'not-allowed' : 'pointer',
                       opacity: isClaiming ? 0.6 : 1,
                       whiteSpace: 'nowrap',
-                      display: 'block'
+                      display: 'block',
+                      // 애니메이션 적용
+                      animation: canClaim ? `${animationName} 2s infinite` : 'none',
+                      transformOrigin: 'center'
                     }}
                   >
                     받기

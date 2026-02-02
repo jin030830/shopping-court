@@ -29,6 +29,15 @@ export interface UserStats {
 }
 
 /**
+ * 사용자 누적 활동 통계 타입 (Level 0 등 누적 미션용)
+ */
+export interface UserTotalStats {
+  voteCount: number;
+  commentCount: number;
+  postCount: number;
+}
+
+/**
  * 미션 상태 타입
  */
 export interface MissionStatus {
@@ -50,6 +59,7 @@ export interface UserDocument {
   tossUserKey: string
   nickname: string
   stats: UserStats
+  totalStats: UserTotalStats // 누적 통계
   missions: UserMissions
   points: number // 보유 판사봉
   totalExchangedPoints: number // 누적 교환 포인트 (원)
@@ -159,6 +169,16 @@ export async function createOrUpdateUser(
         existingData.missions = updates.missions;
       }
 
+      // totalStats가 없는 기존 유저 마이그레이션
+      if (!existingData.totalStats) {
+        updates.totalStats = {
+          voteCount: 0,
+          commentCount: 0,
+          postCount: 0
+        };
+        existingData.totalStats = updates.totalStats;
+      }
+
       if (existingData.points === undefined) updates.points = 0;
       if (existingData.totalExchangedPoints === undefined) updates.totalExchangedPoints = 0;
 
@@ -180,6 +200,11 @@ export async function createOrUpdateUser(
           postCount: 0,
           hotCaseCount: 0,
           lastActiveDate: today
+        },
+        totalStats: {
+          voteCount: 0,
+          commentCount: 0,
+          postCount: 0
         },
         missions: {
           firstEventMission: { claimed: false, lastClaimedDate: '' },
@@ -266,53 +291,27 @@ export async function claimMissionReward(userId: string, missionType: keyof User
 }
 
 /**
-
  * 판사봉 교환 처리 (판사봉 50개 -> 토스 포인트 5원)
-
  * 실제 차감 및 지급 로직은 서버(Cloud Functions)에서 수행됩니다.
-
  */
-
 export async function exchangeGavel(): Promise<void> {
-
   const PROMOTION_CODE = import.meta.env.VITE_TOSS_PROMOTION_CODE || 'TEST_01KGA79JNAY2T8AWYCM9869TKS';
-
-
-
   
-
   // 서버에 교환 요청 (모든 검증 및 처리는 서버에서 수행)
-
   try {
-
     const requestPromotionReward = httpsCallable<{ promotionCode: string }, { success: boolean }>(
-
       functions, 
-
       'requestPromotionReward'
-
     );
-
     
-
     const result = await requestPromotionReward({ promotionCode: PROMOTION_CODE });
-
     
-
     if (!result.data.success) {
-
       throw new Error("토스 포인트 지급에 실패했습니다.");
-
     }
-
   } catch (error: any) {
-
     console.error('Toss Promotion Error:', error);
-
     // 서버에서 전달된 에러 메시지를 사용자에게 표시
-
     throw new Error(error.message || "포인트 교환 중 오류가 발생했습니다.");
-
   }
-
 }
