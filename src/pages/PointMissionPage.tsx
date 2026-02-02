@@ -100,9 +100,10 @@ function PointMissionPage() {
     showRewardAd(async () => {
       try {
         await claimMissionReward(user.uid, missionType, gavel);
-      } catch (error) {
+        // alert 메시지는 사용자 경험에 따라 생략하거나 변경 가능
+      } catch (error: any) {
         console.error('보상 수령 실패:', error);
-        alert('보상을 받는 중 오류가 발생했습니다.');
+        alert(error.message || '보상을 받는 중 오류가 발생했습니다.');
       } finally {
         setIsClaiming(false);
       }
