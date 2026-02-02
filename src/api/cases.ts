@@ -1,4 +1,4 @@
-import { db } from './firebase';
+import { db, auth } from './firebase';
 import { 
   collection, 
   addDoc, 
@@ -12,7 +12,8 @@ import {
   query,
   orderBy,
   runTransaction,
-  increment
+  increment,
+  arrayUnion
 } from 'firebase/firestore';
 
 // '통합명세서.md'에 정의된 데이터 구조를 기반으로 인터페이스 정의
@@ -53,6 +54,7 @@ export interface CommentDocument extends CommentData {
   id: string;
   createdAt: Timestamp;
   likes?: number;
+  likedBy?: string[];
 }
 
 export interface ReplyData {
@@ -66,6 +68,7 @@ export interface ReplyDocument extends ReplyData {
   id: string;
   createdAt: Timestamp;
   likes?: number;
+  likedBy?: string[];
 }
 
 /**
@@ -275,6 +278,7 @@ export const addComment = async (caseId: string, commentData: CommentData): Prom
   const docRef = await addDoc(commentsCollection, {
     ...commentData,
     likes: 0,
+    likedBy: [],
     createdAt: serverTimestamp(),
   });
 
@@ -288,9 +292,12 @@ export const addComment = async (caseId: string, commentData: CommentData): Prom
  */
 export const addCommentLike = async (caseId: string, commentId: string): Promise<void> => {
   if (!db) throw new Error('Firebase가 초기화되지 않았습니다.');
+  if (!auth?.currentUser) throw new Error('로그인이 필요합니다.');
+
   const commentRef = doc(db, 'cases', caseId, 'comments', commentId);
   await updateDoc(commentRef, {
     likes: increment(1),
+    likedBy: arrayUnion(auth.currentUser.uid)
   });
 };
 
@@ -302,9 +309,12 @@ export const addCommentLike = async (caseId: string, commentId: string): Promise
  */
 export const addReplyLike = async (caseId: string, commentId: string, replyId: string): Promise<void> => {
   if (!db) throw new Error('Firebase가 초기화되지 않았습니다.');
+  if (!auth?.currentUser) throw new Error('로그인이 필요합니다.');
+
   const replyRef = doc(db, 'cases', caseId, 'comments', commentId, 'replies', replyId);
   await updateDoc(replyRef, {
     likes: increment(1),
+    likedBy: arrayUnion(auth.currentUser.uid)
   });
 };
 
@@ -340,6 +350,7 @@ export const addReply = async (caseId: string, commentId: string, replyData: Rep
   const docRef = await addDoc(repliesCollection, {
     ...replyData,
     likes: 0,
+    likedBy: [],
     createdAt: serverTimestamp(),
   });
 
