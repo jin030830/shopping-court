@@ -137,6 +137,16 @@ export async function createOrUpdateUser(
       const existingData = userSnap.data() as UserDocument;
       const updates: any = { updatedAt: serverTimestamp() };
       
+      // [마이그레이션] totalStats가 없는 기존 유저 처리
+      if (!existingData.totalStats) {
+        updates.totalStats = {
+          voteCount: existingData.stats?.voteCount || 0,
+          commentCount: existingData.stats?.commentCount || 0,
+          postCount: existingData.stats?.postCount || 0
+        };
+        existingData.totalStats = updates.totalStats;
+      }
+
       // stats 필드가 없거나 날짜가 다르면 초기화
       if (!existingData.stats || existingData.stats.lastActiveDate !== today) {
         updates.stats = { 
@@ -167,16 +177,6 @@ export async function createOrUpdateUser(
           hotCaseMission: { claimed: false }
         };
         existingData.missions = updates.missions;
-      }
-
-      // totalStats가 없는 기존 유저 마이그레이션
-      if (!existingData.totalStats) {
-        updates.totalStats = {
-          voteCount: 0,
-          commentCount: 0,
-          postCount: 0
-        };
-        existingData.totalStats = updates.totalStats;
       }
 
       if (existingData.points === undefined) updates.points = 0;

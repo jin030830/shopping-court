@@ -247,6 +247,7 @@ export async function getPromotionKey(
  */
 export async function executePromotion(
   userKey: string,
+  promotionCode: string,
   promotionExecutionKey: string,
   amount: number
 ): Promise<any> {
@@ -259,6 +260,7 @@ export async function executePromotion(
     const response = await axios.post(
       url,
       {
+        promotionCode,
         promotionExecutionKey,
         amount
       },

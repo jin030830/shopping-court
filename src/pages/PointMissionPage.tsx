@@ -100,7 +100,6 @@ function PointMissionPage() {
     showRewardAd(async () => {
       try {
         await claimMissionReward(user.uid, missionType, gavel);
-        // alert 메시지는 사용자 경험에 따라 생략하거나 변경 가능
       } catch (error: any) {
         console.error('보상 수령 실패:', error);
         alert(error.message || '보상을 받는 중 오류가 발생했습니다.');
@@ -161,9 +160,6 @@ function PointMissionPage() {
     hotCaseMission: { claimed: false }
   };
 
-  // 미션 해금 상태 계산 (순차 진행 제약 제거)
-  const unlockedLevels = [true, true, true, true];
-  
   const unlockedCount = [
     missions.firstEventMission?.claimed,
     missions.voteMission?.claimed,
@@ -177,42 +173,42 @@ function PointMissionPage() {
   const totalStats = userData?.totalStats || { voteCount: 0, commentCount: 0, postCount: 0 };
 
   // 조건 충족 여부 변수
-  // Level 0: 누적 통계 사용
-  const level0ConditionMet = totalStats.voteCount >= 1 && totalStats.commentCount >= 1 && totalStats.postCount >= 1;
-  // Level 1, 2: 일일 통계 사용
+  const level0ConditionMet = 
+    (totalStats.voteCount >= 1 || stats.voteCount >= 1) && 
+    (totalStats.commentCount >= 1 || stats.commentCount >= 1) && 
+    (totalStats.postCount >= 1 || stats.postCount >= 1);
+
   const level1ConditionMet = stats.voteCount >= 5;
   const level2ConditionMet = stats.commentCount >= 3;
-  const level3ConditionMet = hotCases.length > 0;
+  const level3ConditionMet = hotCases.length > 0 || (userData?.stats?.hotCaseCount || 0) > 0;
 
-  // 판사봉 및 교환 가능 여부 변수
   const currentGavel = userData?.points || 0;
   const canExchange = currentGavel >= 50;
 
-  // 스타일 정의 (컴포넌트 내부 또는 별도 CSS 파일)
+  // 스타일 정의
   const pulseKeyframes = `
     @keyframes pulse-blue {
-      0% { box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.7); transform: scale(1) translateY(-50%); }
-      70% { box-shadow: 0 0 0 10px rgba(59, 130, 246, 0); transform: scale(1.05) translateY(-50%); }
-      100% { box-shadow: 0 0 0 0 rgba(59, 130, 246, 0); transform: scale(1) translateY(-50%); }
+      0% { box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.7); }
+      70% { box-shadow: 0 0 0 10px rgba(59, 130, 246, 0); }
+      100% { box-shadow: 0 0 0 0 rgba(59, 130, 246, 0); }
     }
     @keyframes pulse-green {
-      0% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7); transform: scale(1) translateY(-50%); }
-      70% { box-shadow: 0 0 0 10px rgba(34, 197, 94, 0); transform: scale(1.05) translateY(-50%); }
-      100% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0); transform: scale(1) translateY(-50%); }
+      0% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7); }
+      70% { box-shadow: 0 0 0 10px rgba(34, 197, 94, 0); }
+      100% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0); }
     }
     @keyframes pulse-orange {
-      0% { box-shadow: 0 0 0 0 rgba(249, 115, 22, 0.7); transform: scale(1) translateY(-50%); }
-      70% { box-shadow: 0 0 0 10px rgba(249, 115, 22, 0); transform: scale(1.05) translateY(-50%); }
-      100% { box-shadow: 0 0 0 0 rgba(249, 115, 22, 0); transform: scale(1) translateY(-50%); }
+      0% { box-shadow: 0 0 0 0 rgba(249, 115, 22, 0.7); }
+      70% { box-shadow: 0 0 0 10px rgba(249, 115, 22, 0); }
+      100% { box-shadow: 0 0 0 0 rgba(249, 115, 22, 0); }
     }
     @keyframes pulse-red {
-      0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); transform: scale(1) translateY(-50%); }
-      70% { box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); transform: scale(1.05) translateY(-50%); }
-      100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); transform: scale(1) translateY(-50%); }
+      0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
+      70% { box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); }
+      100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
     }
   `;
 
-  // 미션 카드 컴포넌트
   const MissionCard = ({ 
     level, 
     title, 
@@ -220,7 +216,6 @@ function PointMissionPage() {
     reward, 
     limitation, 
     conditionMet, 
-    isUnlocked, 
     isClaimed, 
     buttonColor,
     completedColor
@@ -231,14 +226,12 @@ function PointMissionPage() {
     reward: number;
     limitation: string;
     conditionMet: boolean;
-    isUnlocked: boolean;
     isClaimed: boolean;
     buttonColor: string;
     completedColor: string;
   }) => {
-    const canClaim = isUnlocked && conditionMet && !isClaimed;
+    const canClaim = conditionMet && !isClaimed;
 
-    // 레벨별 애니메이션 이름 매핑
     const animationName = level === 0 ? 'pulse-blue' 
       : level === 1 ? 'pulse-green' 
       : level === 2 ? 'pulse-orange' 
@@ -252,7 +245,6 @@ function PointMissionPage() {
           maxWidth: '333px',
           position: 'relative'
         }}>
-          {/* Level 배지와 카드 본문을 하나로 */}
           <div style={{
             width: '100%',
             borderRadius: '10px',
@@ -260,7 +252,6 @@ function PointMissionPage() {
             boxShadow: '0px 2px 2px 0px rgba(0, 0, 0, 0.25)',
             position: 'relative'
           }}>
-            {/* Level 배지 */}
             <div style={{
               width: '100%',
               height: '34px',
@@ -289,7 +280,6 @@ function PointMissionPage() {
               }}>
                 Level {level}
               </div>
-              {/* 제목 중앙정렬 */}
               <span style={{
                 fontSize: '14px',
                 fontWeight: '600',
@@ -300,7 +290,6 @@ function PointMissionPage() {
               </span>
             </div>
 
-            {/* 카드 본문 - 각 레벨별 배경색 유지 */}
             <div style={{
               width: '100%',
               minHeight: 'auto',
@@ -319,7 +308,6 @@ function PointMissionPage() {
               wordBreak: 'keep-all',
               overflowWrap: 'break-word'
             }}>
-              {/* 설명 */}
               <div style={{ 
                 fontSize: '14px',
                 fontWeight: '700',
@@ -331,7 +319,6 @@ function PointMissionPage() {
                 {description}
               </div>
 
-              {/* 판사봉 */}
               <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginBottom: '4px' }}>
                 <span style={{
                   fontSize: '14px',
@@ -349,7 +336,6 @@ function PointMissionPage() {
                 </span>
               </div>
 
-              {/* 제한 */}
               <div style={{ 
                 fontSize: '14px',
                 fontWeight: '500',
@@ -358,7 +344,6 @@ function PointMissionPage() {
                 {limitation}
               </div>
 
-              {/* 받기 버튼 또는 완료 표시 */}
               <div style={{
                 position: 'absolute',
                 right: '20px',
@@ -402,7 +387,6 @@ function PointMissionPage() {
                       opacity: isClaiming ? 0.6 : 1,
                       whiteSpace: 'nowrap',
                       display: 'block',
-                      // 애니메이션 적용
                       animation: canClaim ? `${animationName} 2s infinite` : 'none',
                       transformOrigin: 'center'
                     }}
@@ -430,7 +414,6 @@ function PointMissionPage() {
     }}>
       <Spacing size={29} />
 
-      {/* 진행도 및 판사봉 */}
       <div style={{
         padding: '0 20px',
         marginBottom: '21px',
@@ -440,14 +423,12 @@ function PointMissionPage() {
         alignItems: 'flex-start',
         gap: '40px'
       }}>
-        {/* 왼쪽: Level 진행 중 + 2/4 + 진행바 */}
         <div style={{ 
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
           marginTop: '0px'
         }}>
-          {/* Level 진행 중 */}
           <div style={{
             display: 'flex',
             alignItems: 'center',
@@ -471,7 +452,6 @@ function PointMissionPage() {
             </span>
           </div>
 
-          {/* 2/4 표시 - 중앙정렬 */}
           <div style={{ 
             marginBottom: '12px',
             fontSize: '20px',
@@ -483,7 +463,6 @@ function PointMissionPage() {
             {unlockedCount} / 4
           </div>
 
-          {/* 진행 바 - Level 1 진행중 길이에 맞게 */}
           <div style={{
             width: '120px',
             height: '10px',
@@ -502,7 +481,6 @@ function PointMissionPage() {
           </div>
         </div>
 
-        {/* 오른쪽: 판사봉 정보 */}
         <div style={{
           display: 'flex',
           flexDirection: 'column',
@@ -517,7 +495,6 @@ function PointMissionPage() {
             aria-hidden={true}
             ratio="1/1"
           />
-          {/* 정보 아이콘과 판사봉 개수 - 같은 줄에 정렬 */}
           <div style={{
             display: 'flex',
             alignItems: 'center',
@@ -581,7 +558,6 @@ function PointMissionPage() {
               {' '}/ 50
             </span>
           </div>
-          {/* 교환하기 버튼 - 중앙정렬 */}
           <button
             onClick={handleExchange}
             disabled={!canExchange || isExchanging}
@@ -610,7 +586,6 @@ function PointMissionPage() {
         backgroundColor: adaptive.grey200
       }} />
 
-      {/* 미션 카드들 - 옅은 회색 배경 */}
       <div style={{
         width: '100%',
         backgroundColor: '#f2f4f6',
@@ -624,7 +599,6 @@ function PointMissionPage() {
           reward={100}
           limitation="계정당 1회 한정"
           conditionMet={level0ConditionMet}
-          isUnlocked={unlockedLevels[0]}
           isClaimed={missions.firstEventMission?.claimed || false}
           buttonColor={adaptive.blue400}
           completedColor={adaptive.blue300}
@@ -637,7 +611,6 @@ function PointMissionPage() {
           reward={30}
           limitation="하루 1번"
           conditionMet={level1ConditionMet}
-          isUnlocked={unlockedLevels[1]}
           isClaimed={missions.voteMission?.claimed || false}
           buttonColor={adaptive.green500}
           completedColor={adaptive.green300}
@@ -650,7 +623,6 @@ function PointMissionPage() {
           reward={60}
           limitation="하루 1번"
           conditionMet={level2ConditionMet}
-          isUnlocked={unlockedLevels[2]}
           isClaimed={missions.commentMission?.claimed || false}
           buttonColor={adaptive.orange400}
           completedColor={adaptive.orange300}
@@ -663,7 +635,6 @@ function PointMissionPage() {
           reward={100}
           limitation="게시물당 1번"
           conditionMet={level3ConditionMet}
-          isUnlocked={unlockedLevels[3]}
           isClaimed={missions.hotCaseMission?.claimed || false}
           buttonColor={adaptive.red400}
           completedColor={adaptive.red300}

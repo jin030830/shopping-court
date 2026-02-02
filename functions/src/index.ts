@@ -123,12 +123,13 @@ export const requestPromotionReward = functions
     }
 
     // 3. 토스 API 호출 (외부 연동)
+    // 트랜잭션 외부에서 수행해야 합니다.
     try {
       // 3-1. 키 발급
       const executionKey = await getPromotionKey(userKey, promotionCode);
 
       // 3-2. 지급 실행
-      const result = await executePromotion(userKey, executionKey, REWARD_AMOUNT);
+      const result = await executePromotion(userKey, promotionCode, executionKey, REWARD_AMOUNT);
 
       console.log(`[Promotion Success] RequestID: ${requestId}, User: ${userKey}, Result:`, JSON.stringify(result));
 
