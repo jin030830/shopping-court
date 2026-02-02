@@ -148,6 +148,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         // Firestore에서 사용자 데이터 확인 (사용자가 삭제되었는지 검증)
         const userDataFromFirestore = await getUserData(firebaseUser);
         
+        // [마이그레이션] totalStats가 없으면 stats 데이터를 복사 (UI 활성화용)
+        if (userDataFromFirestore && userDataFromFirestore.stats && !userDataFromFirestore.totalStats) {
+          userDataFromFirestore.totalStats = {
+            voteCount: userDataFromFirestore.stats.voteCount || 0,
+            commentCount: userDataFromFirestore.stats.commentCount || 0,
+            postCount: userDataFromFirestore.stats.postCount || 0
+          };
+        }
+        
         // 사용자 데이터가 없으면 (콜백으로 삭제되었을 가능성) 강제 로그아웃
         if (!userDataFromFirestore) {
           console.log('[Auth] User data not found in Firestore (unlinked), forcing logout');
