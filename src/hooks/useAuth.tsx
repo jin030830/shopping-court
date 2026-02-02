@@ -75,15 +75,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       try {
         const currentUser = auth.currentUser;
         if (currentUser) {
-          // Firebase Auth 토큰 재검증 (사용자가 삭제되었는지 확인)
           try {
-            await currentUser.getIdToken(true); // forceRefresh: true로 강제 갱신
+            await currentUser.getIdToken(true);
           } catch (tokenError: any) {
-            // 토큰이 유효하지 않으면 (사용자가 삭제되었을 가능성)
             console.log('[Auth] Token validation failed, user may have been deleted:', tokenError);
-            if (auth) {
-              await signOut(auth);
-            }
+            if (auth) await signOut(auth);
             localStorage.removeItem('shopping-court-user');
             localStorage.removeItem('shopping-court-logged-in');
             setUser(null);
@@ -92,16 +88,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             return;
           }
           
-          // Firestore에서 사용자 데이터 확인 (사용자가 삭제되었는지 검증)
           const userDataFromFirestore = await getUserData(currentUser);
-          
-          // 사용자 데이터가 없으면 (콜백으로 삭제되었을 가능성) 강제 로그아웃
           if (!userDataFromFirestore) {
             console.log('[Auth] User data not found in Firestore (unlinked), forcing logout');
             try {
-              if (auth) {
-                await signOut(auth);
-              }
+              if (auth) await signOut(auth);
               localStorage.removeItem('shopping-court-user');
               localStorage.removeItem('shopping-court-logged-in');
               setUser(null);
@@ -118,22 +109,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     };
     
-    // 초기 검증 실행
     checkAndCleanupAuth();
     
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       setUser(firebaseUser);
       if (firebaseUser) {
-        // Firebase Auth 토큰 재검증 (사용자가 삭제되었는지 확인)
         try {
-          await firebaseUser.getIdToken(true); // forceRefresh: true로 강제 갱신
+          await firebaseUser.getIdToken(true);
         } catch (tokenError: any) {
-          // 토큰이 유효하지 않으면 (사용자가 삭제되었을 가능성)
           console.log('[Auth] Token validation failed, user may have been deleted:', tokenError);
           try {
-            if (auth) {
-              await signOut(auth);
-            }
+            if (auth) await signOut(auth);
             localStorage.removeItem('shopping-court-user');
             localStorage.removeItem('shopping-court-logged-in');
             setUser(null);
@@ -145,7 +131,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           }
         }
         
-        // Firestore에서 사용자 데이터 확인 (사용자가 삭제되었는지 검증)
+        // Firestore에서 사용자 데이터 확인
         const userDataFromFirestore = await getUserData(firebaseUser);
         
         // [마이그레이션] totalStats가 없으면 stats 데이터를 복사 (UI 활성화용)
@@ -157,13 +143,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           };
         }
         
-        // 사용자 데이터가 없으면 (콜백으로 삭제되었을 가능성) 강제 로그아웃
         if (!userDataFromFirestore) {
           console.log('[Auth] User data not found in Firestore (unlinked), forcing logout');
           try {
-            if (auth) {
-              await signOut(auth);
-            }
+            if (auth) await signOut(auth);
             localStorage.removeItem('shopping-court-user');
             localStorage.removeItem('shopping-court-logged-in');
             setUser(null);
@@ -180,7 +163,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           try {
             const parsedData = JSON.parse(localData);
             
-            // [UI 해결] 로컬 데이터에 totalStats가 없으면 stats 데이터를 기반으로 즉시 생성
+            // [핵심 수정] 로컬 데이터 로드 시 즉시 totalStats 마이그레이션 수행
             if (parsedData.stats && !parsedData.totalStats) {
               parsedData.totalStats = {
                 voteCount: parsedData.stats.voteCount || 0,
@@ -189,34 +172,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               };
             }
 
-            // Firestore 데이터와 일치하는지 확인
-            if (userDataFromFirestore && parsedData.uid === firebaseUser.uid) {
+            // DB 데이터가 있으면 우선적으로 사용하고 로컬 스토리지 갱신
+            if (userDataFromFirestore) {
+              setUserData(userDataFromFirestore);
+              // 로컬 스토리지 갱신 (마이그레이션된 데이터 저장)
+              localStorage.setItem('shopping-court-user', JSON.stringify({
+                ...parsedData,
+                totalStats: userDataFromFirestore.totalStats
+              }));
+            } else {
               setUserData({
-                tossUserKey: parsedData.uid,
-                nickname: parsedData.nickname,
-                stats: parsedData.stats || { voteCount: 0, commentCount: 0, postCount: 0, hotCaseCount: 0, lastActiveDate: '' },
-                totalStats: parsedData.totalStats || { voteCount: 0, commentCount: 0, postCount: 0 },
-                missions: parsedData.missions || {
-                  firstEventMission: { claimed: false },
-                  voteMission: { claimed: false },
-                  commentMission: { claimed: false },
-                  hotCaseMission: { claimed: false }
-                },
-                points: parsedData.points || 0,
-                totalExchangedPoints: parsedData.totalExchangedPoints || 0,
+                ...parsedData,
                 createdAt: parsedData.createdAt ? Timestamp.fromDate(new Date(parsedData.createdAt)) : null,
                 updatedAt: null,
-              });
-            } else {
-              // Firestore 데이터 사용
-              setUserData(userDataFromFirestore);
+              } as UserDocument);
             }
           } catch {
-            // Firestore 데이터 사용
             setUserData(userDataFromFirestore);
           }
         } else {
-          // Firestore 데이터 사용
           setUserData(userDataFromFirestore);
         }
         setIsVerified(true);
@@ -234,7 +208,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const logout = async () => {
     try {
-      // 1. 토스 연결 끊기 (서버 호출)
       if (functions && userData?.tossUserKey) {
         try {
           const callTossLogout = httpsCallable(functions, 'tossLogout');
@@ -245,7 +218,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
       }
 
-      // 2. Firebase 로그아웃 및 로컬 정리
       if (auth) {
         await signOut(auth);
         localStorage.removeItem('shopping-court-user');

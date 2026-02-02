@@ -75,7 +75,7 @@ export const requestPromotionReward = functions
       );
     }
 
-    const userKey = context.auth.uid;
+    const uid = context.auth.uid; // Firebase Auth UID
     const promotionCode = data.promotionCode;
     const GAVEL_REQUIRED = 50; // 차감할 판사봉
     const REWARD_AMOUNT = 5;   // 지급할 포인트 (원)
@@ -89,20 +89,35 @@ export const requestPromotionReward = functions
       );
     }
 
-    console.log(`[Promotion Start] RequestID: ${requestId}, User: ${userKey}, Code: ${promotionCode}`);
+    console.log(`[Promotion Start] RequestID: ${requestId}, User(UID): ${uid}, Code: ${promotionCode}`);
+
+    // [중요] DB에서 실제 tossUserKey 가져오기
+    // Firebase UID와 토스 userKey가 다를 수 있으므로 DB를 참조해야 함
+    const userSnapshot = await admin.firestore().collection('users').doc(uid).get();
+    if (!userSnapshot.exists) {
+        throw new functions.https.HttpsError("not-found", "사용자 정보를 찾을 수 없습니다.");
+    }
+    
+    const userData = userSnapshot.data();
+    const tossUserKey = userData?.tossUserKey; // 토스 API 호출용 키
+
+    if (!tossUserKey) {
+        console.error(`[Promotion Error] RequestID: ${requestId}, Missing tossUserKey for user ${uid}`);
+        throw new functions.https.HttpsError("failed-precondition", "토스 연동 정보(tossUserKey)가 없습니다.");
+    }
 
     // 2. 가차감 (Firestore Transaction)
     try {
       await admin.firestore().runTransaction(async (transaction) => {
-        const userRef = admin.firestore().collection('users').doc(userKey);
+        const userRef = admin.firestore().collection('users').doc(uid);
         const userDoc = await transaction.get(userRef);
         
         if (!userDoc.exists) {
           throw new functions.https.HttpsError("not-found", "사용자 정보를 찾을 수 없습니다.");
         }
         
-        const userData = userDoc.data();
-        const currentPoints = userData?.points || 0;
+        const currentData = userDoc.data();
+        const currentPoints = currentData?.points || 0;
 
         if (currentPoints < GAVEL_REQUIRED) {
           throw new functions.https.HttpsError(
@@ -117,24 +132,28 @@ export const requestPromotionReward = functions
         });
       });
     } catch (dbError: any) {
-      console.error(`[Promotion DB Error] RequestID: ${requestId}, User: ${userKey}, Failed to deduct points:`, dbError);
+      console.error(`[Promotion DB Error] RequestID: ${requestId}, User: ${uid}, Failed to deduct points:`, dbError);
       if (dbError instanceof functions.https.HttpsError) throw dbError;
       throw new functions.https.HttpsError("internal", "포인트 차감 중 오류가 발생했습니다.");
     }
 
     // 3. 토스 API 호출 (외부 연동)
-    // 트랜잭션 외부에서 수행해야 합니다.
     try {
-      // 3-1. 키 발급
-      const executionKey = await getPromotionKey(userKey, promotionCode);
+      // 3-1. 키 발급 (tossUserKey 사용)
+      const executionKey = await getPromotionKey(tossUserKey, promotionCode);
 
-      // 3-2. 지급 실행
-      const result = await executePromotion(userKey, promotionCode, executionKey, REWARD_AMOUNT);
+      // 3-2. 지급 실행 (tossUserKey, promotionCode, executionKey, amount 순서)
+      const result = await executePromotion(
+          tossUserKey, 
+          promotionCode, 
+          executionKey, 
+          REWARD_AMOUNT
+      );
 
-      console.log(`[Promotion Success] RequestID: ${requestId}, User: ${userKey}, Result:`, JSON.stringify(result));
+      console.log(`[Promotion Success] RequestID: ${requestId}, User: ${uid}, Result:`, JSON.stringify(result));
 
       // 4. 성공 확정: 누적 교환 포인트 기록 업데이트
-      await admin.firestore().collection('users').doc(userKey).update({
+      await admin.firestore().collection('users').doc(uid).update({
         totalExchangedPoints: admin.firestore.FieldValue.increment(REWARD_AMOUNT),
         updatedAt: admin.firestore.FieldValue.serverTimestamp()
       });
@@ -147,17 +166,17 @@ export const requestPromotionReward = functions
 
     } catch (apiError: any) {
       // 5. 실패 시 롤백 (보상 트랜잭션)
-      console.error(`[Promotion API Error] RequestID: ${requestId}, User: ${userKey}, Error: ${apiError.message}`);
+      console.error(`[Promotion API Error] RequestID: ${requestId}, User: ${uid}, Error: ${apiError.message}`);
       
       try {
-        console.warn(`[Promotion Rollback Executing] RequestID: ${requestId}, User: ${userKey}, Restoring ${GAVEL_REQUIRED} points...`);
-        await admin.firestore().collection('users').doc(userKey).update({
+        console.warn(`[Promotion Rollback Executing] RequestID: ${requestId}, User: ${uid}, Restoring ${GAVEL_REQUIRED} points...`);
+        await admin.firestore().collection('users').doc(uid).update({
           points: admin.firestore.FieldValue.increment(GAVEL_REQUIRED),
           lastErrorRequestId: requestId // 추후 상담을 위해 마지막 에러 요청 ID 기록
         });
-        console.log(`[Promotion Rollback Success] RequestID: ${requestId}, User: ${userKey}`);
+        console.log(`[Promotion Rollback Success] RequestID: ${requestId}, User: ${uid}`);
       } catch (rollbackError) {
-        console.error(`[CRITICAL ROLLBACK FAILURE] RequestID: ${requestId}, User: ${userKey}:`, rollbackError);
+        console.error(`[CRITICAL ROLLBACK FAILURE] RequestID: ${requestId}, User: ${uid}:`, rollbackError);
       }
 
       if (apiError instanceof functions.https.HttpsError) throw apiError;

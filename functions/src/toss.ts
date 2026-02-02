@@ -236,7 +236,16 @@ export async function getPromotionKey(
       }
     );
     
-    return response.data.promotionExecutionKey;
+    // [수정] 응답 구조에 맞게 경로 수정 (success.key)
+    // 문서상 응답: { "resultType": "SUCCESS", "success": { "key": "..." } }
+    const key = response.data.success?.key || response.data.promotionExecutionKey;
+    
+    if (!key) {
+      console.error(`[Toss Key Error] Response structure mismatch:`, JSON.stringify(response.data));
+      throw new Error("Toss API 응답에서 Key를 찾을 수 없습니다.");
+    }
+
+    return key;
   } catch (error: any) {
     handleTossError(error, `Promotion Key Issue Failed (user: ${userKey})`);
   }
