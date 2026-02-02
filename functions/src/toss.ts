@@ -248,7 +248,7 @@ export async function getPromotionKey(
 export async function executePromotion(
   userKey: string,
   promotionCode: string,
-  key: string, // promotionExecutionKey -> key로 변경
+  key: string, // 'key' 명칭 확정
   amount: number
 ): Promise<any> {
   const config = getTossApiConfig();
@@ -261,13 +261,13 @@ export async function executePromotion(
       url,
       {
         promotionCode,
-        key, // 문서 규격: 'key'
+        key,
         amount
       },
       {
         headers: {
           "Content-Type": "application/json",
-          "x-toss-user-key": userKey, // 필수 헤더
+          "x-toss-user-key": userKey, // 필수 헤더 확정
           "X-Client-Id": config.clientId
         },
         httpsAgent

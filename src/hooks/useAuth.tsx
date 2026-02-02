@@ -179,21 +179,31 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (localData) {
           try {
             const parsedData = JSON.parse(localData);
+            
+            // [UI 해결] 로컬 데이터에 totalStats가 없으면 stats 데이터를 기반으로 즉시 생성
+            if (parsedData.stats && !parsedData.totalStats) {
+              parsedData.totalStats = {
+                voteCount: parsedData.stats.voteCount || 0,
+                commentCount: parsedData.stats.commentCount || 0,
+                postCount: parsedData.stats.postCount || 0
+              };
+            }
+
             // Firestore 데이터와 일치하는지 확인
             if (userDataFromFirestore && parsedData.uid === firebaseUser.uid) {
               setUserData({
                 tossUserKey: parsedData.uid,
                 nickname: parsedData.nickname,
-                stats: { voteCount: 0, commentCount: 0, postCount: 0, hotCaseCount: 0, lastActiveDate: '' },
-                totalStats: { voteCount: 0, commentCount: 0, postCount: 0 },
-                missions: {
+                stats: parsedData.stats || { voteCount: 0, commentCount: 0, postCount: 0, hotCaseCount: 0, lastActiveDate: '' },
+                totalStats: parsedData.totalStats || { voteCount: 0, commentCount: 0, postCount: 0 },
+                missions: parsedData.missions || {
                   firstEventMission: { claimed: false },
                   voteMission: { claimed: false },
                   commentMission: { claimed: false },
                   hotCaseMission: { claimed: false }
                 },
-                points: 0,
-                totalExchangedPoints: 0,
+                points: parsedData.points || 0,
+                totalExchangedPoints: parsedData.totalExchangedPoints || 0,
                 createdAt: parsedData.createdAt ? Timestamp.fromDate(new Date(parsedData.createdAt)) : null,
                 updatedAt: null,
               });
