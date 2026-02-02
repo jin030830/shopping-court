@@ -177,9 +177,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 nickname: parsedData.nickname,
                 stats: { voteCount: 0, commentCount: 0, postCount: 0, hotCaseCount: 0, lastActiveDate: '' },
                 missions: {
+                  firstEventMission: { claimed: false },
                   voteMission: { claimed: false },
                   commentMission: { claimed: false },
-                  postMission: { claimed: false },
                   hotCaseMission: { claimed: false }
                 },
                 points: 0,

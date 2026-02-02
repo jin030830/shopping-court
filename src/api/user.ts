@@ -34,10 +34,10 @@ export interface MissionStatus {
 }
 
 export interface UserMissions {
-  voteMission: MissionStatus;
-  commentMission: MissionStatus;
-  postMission: MissionStatus;
-  hotCaseMission: MissionStatus;
+  firstEventMission: MissionStatus; // Level 0: 투표 1개 + 댓글 1개 + 게시물 1개 (계정당 1회)
+  voteMission: MissionStatus; // Level 1: 투표 5개 (하루 1번)
+  commentMission: MissionStatus; // Level 2: 댓글 3개 (하루 1번)
+  hotCaseMission: MissionStatus; // Level 3: 화제의 재판 기록 등재 (게시물당 1번)
 }
 
 /**
@@ -135,10 +135,12 @@ export async function createOrUpdateUser(
         existingData.stats = updates.stats;
         
         // 날짜가 바뀌었으므로 미션 상태도 초기화 (화면 표시용)
+        // 단, firstEventMission은 계정당 1회이므로 초기화하지 않음
+        const existingFirstEvent = existingData.missions?.firstEventMission || { claimed: false, lastClaimedDate: '' };
         updates.missions = {
+          firstEventMission: existingFirstEvent,
           voteMission: { claimed: false, lastClaimedDate: '' },
           commentMission: { claimed: false, lastClaimedDate: '' },
-          postMission: { claimed: false, lastClaimedDate: '' },
           hotCaseMission: { claimed: false, lastClaimedDate: '' }
         };
         existingData.missions = updates.missions;
@@ -147,9 +149,9 @@ export async function createOrUpdateUser(
       // missions 필드가 아예 없는 경우 초기화
       if (!existingData.missions) {
         updates.missions = {
+          firstEventMission: { claimed: false },
           voteMission: { claimed: false },
           commentMission: { claimed: false },
-          postMission: { claimed: false },
           hotCaseMission: { claimed: false }
         };
         existingData.missions = updates.missions;
@@ -180,9 +182,9 @@ export async function createOrUpdateUser(
           lastActiveDate: today
         },
         missions: {
+          firstEventMission: { claimed: false, lastClaimedDate: '' },
           voteMission: { claimed: false, lastClaimedDate: '' },
           commentMission: { claimed: false, lastClaimedDate: '' },
-          postMission: { claimed: false, lastClaimedDate: '' },
           hotCaseMission: { claimed: false, lastClaimedDate: '' }
         },
         points: 0,
@@ -244,8 +246,13 @@ export async function claimMissionReward(userId: string, missionType: keyof User
     const userData = userDoc.data() as UserDocument;
     const mission = userData.missions?.[missionType];
 
-    // 이미 오늘 날짜로 보상을 받았다면 에러 처리 (클라이언트에서 막겠지만 이중 방지)
-    if (mission?.claimed && mission?.lastClaimedDate === today) {
+    // firstEventMission은 계정당 1회만 가능
+    if (missionType === 'firstEventMission' && mission?.claimed) {
+      throw new Error("이미 보상을 수령했습니다.");
+    }
+
+    // 다른 미션들은 오늘 날짜로 보상을 받았다면 에러 처리
+    if (missionType !== 'firstEventMission' && mission?.claimed && mission?.lastClaimedDate === today) {
       throw new Error("이미 보상을 수령했습니다.");
     }
 
@@ -256,6 +263,33 @@ export async function claimMissionReward(userId: string, missionType: keyof User
         lastClaimedDate: today
       },
       points: increment(rewardPoints)
+    });
+  });
+}
+
+/**
+ * 판사봉 교환 처리 (판사봉 50개 -> 5P)
+ */
+export async function exchangeGavel(userId: string): Promise<void> {
+  if (!db) throw new Error('Firestore가 초기화되지 않았습니다.');
+  
+  const userRef = doc(db, 'users', userId);
+  const GAVEL_EXCHANGE_RATE = 50; // 판사봉 50개
+  const POINTS_PER_EXCHANGE = 5; // 5P
+  
+  await runTransaction(db, async (transaction) => {
+    const userDoc = await transaction.get(userRef);
+    if (!userDoc.exists()) throw new Error("User not found");
+    
+    const userData = userDoc.data() as UserDocument;
+    const currentGavel = userData.points || 0;
+
+    if (currentGavel < GAVEL_EXCHANGE_RATE) {
+      throw new Error("판사봉이 부족합니다.");
+    }
+
+    transaction.update(userRef, {
+      points: increment(-GAVEL_EXCHANGE_RATE + POINTS_PER_EXCHANGE)
     });
   });
 }
