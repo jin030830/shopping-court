@@ -138,13 +138,9 @@ function PointMissionPage() {
   const rawStats = userData?.stats || { voteCount: 0, commentCount: 0, postCount: 0, hotCaseCount: 0, lastActiveDate: '' };
   const isTodayStats = rawStats.lastActiveDate === today;
   
-  const stats = isTodayStats ? rawStats : { 
-    voteCount: 0, 
-    commentCount: 0, 
-    postCount: 0, 
-    hotCaseCount: 0, 
-    lastActiveDate: today 
-  };
+  // [수정] 날짜 비교 로직 제거 (DB 값을 그대로 신뢰)
+  // 클라이언트와 서버의 시간대 차이로 인해 초기화되는 문제 방지
+  const stats = rawStats;
 
   const rawMissions = userData?.missions || { 
     firstEventMission: { claimed: false }, 

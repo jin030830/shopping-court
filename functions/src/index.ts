@@ -509,7 +509,10 @@ export const tossUnlinkCallback = functions
     }
   });
 
-// 변경된 export 목록: 대댓글 트리거는 유지하고, 마이그레이션 함수(recalculateAllHotScores)는 삭제
+import { claimMissionReward } from './mission';
+
+// ... (기존 코드 생략)
+
 export { 
   onVoteCreate, 
   onCommentCreate, 
@@ -520,3 +523,4 @@ export {
 } from './triggers';
 
 export { closeExpiredCases } from './scheduled';
+export { claimMissionReward }; // 추가됨
