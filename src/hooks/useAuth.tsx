@@ -183,6 +183,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                   hotCaseMission: { claimed: false }
                 },
                 points: 0,
+                totalExchangedPoints: 0,
                 createdAt: parsedData.createdAt ? Timestamp.fromDate(new Date(parsedData.createdAt)) : null,
                 updatedAt: null,
               });

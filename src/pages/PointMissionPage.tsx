@@ -15,6 +15,7 @@ function PointMissionPage() {
   const [userData, setUserData] = useState<UserDocument | null>(null);
   const [loading, setLoading] = useState(true);
   const [isClaiming, setIsClaiming] = useState(false);
+  const [isExchanging, setIsExchanging] = useState(false);
   const [showInfoPopup, setShowInfoPopup] = useState(false);
   const [hotCases, setHotCases] = useState<CaseDocument[]>([]);
   const infoPopupRef = useRef<HTMLDivElement>(null);
@@ -109,7 +110,7 @@ function PointMissionPage() {
   };
 
   const handleExchange = async () => {
-    if (!user || !userData) return;
+    if (!user || !userData || isExchanging) return;
     
     const currentGavel = userData.points || 0;
     if (currentGavel < 50) {
@@ -117,11 +118,15 @@ function PointMissionPage() {
       return;
     }
 
+    setIsExchanging(true);
     try {
-      await exchangeGavel(user.uid);
+      await exchangeGavel();
+      alert('판사봉 50개가 토스 포인트 5원으로 교환되었습니다!');
     } catch (error: any) {
       console.error('교환 실패:', error);
       alert(error.message || '교환 중 오류가 발생했습니다.');
+    } finally {
+      setIsExchanging(false);
     }
   };
 
@@ -541,7 +546,7 @@ function PointMissionPage() {
           {/* 교환하기 버튼 - 중앙정렬 */}
           <button
             onClick={handleExchange}
-            disabled={!canExchange}
+            disabled={!canExchange || isExchanging}
             style={{
               padding: '0',
               backgroundColor: 'transparent',
@@ -549,13 +554,13 @@ function PointMissionPage() {
               border: 'none',
               fontSize: '14px',
               fontWeight: '700',
-              cursor: canExchange ? 'pointer' : 'not-allowed',
+              cursor: (canExchange && !isExchanging) ? 'pointer' : 'not-allowed',
               whiteSpace: 'nowrap',
               textDecoration: 'underline',
-              opacity: canExchange ? 1 : 0.5
+              opacity: (canExchange && !isExchanging) ? 1 : 0.5
             }}
           >
-            교환하기 &gt;
+            {isExchanging ? '교환 중...' : '교환하기 >'}
           </button>
         </div>
       </div>

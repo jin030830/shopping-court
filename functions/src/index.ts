@@ -1,7 +1,12 @@
 import * as functions from "firebase-functions";
 import * as admin from "firebase-admin";
 import axios from "axios";
-import { getTossApiConfig, createMtlsAgent } from "./toss";
+import { 
+  getTossApiConfig, 
+  createMtlsAgent, 
+  getPromotionKey, 
+  executePromotion 
+} from "./toss";
 
 // Firebase Admin 초기화
 try {
@@ -49,6 +54,118 @@ interface TossUserInfoResponse {
     reason: string;
   };
 }
+
+/**
+ * 프로모션 리워드 지급 요청 (서버 중심 보상 트랜잭션 적용)
+ * 클라이언트에서 호출: httpsCallable(functions, 'requestPromotionReward')({ promotionCode: '...' })
+ */
+export const requestPromotionReward = functions
+  .region("asia-northeast3")
+  .runWith({
+    enforceAppCheck: false,
+    timeoutSeconds: 60,
+    memory: "256MB"
+  })
+  .https.onCall(async (data: { promotionCode: string }, context) => {
+    // 1. 인증 확인
+    if (!context.auth) {
+      throw new functions.https.HttpsError(
+        "unauthenticated",
+        "로그인이 필요합니다."
+      );
+    }
+
+    const userKey = context.auth.uid;
+    const promotionCode = data.promotionCode;
+    const GAVEL_REQUIRED = 50; // 차감할 판사봉
+    const REWARD_AMOUNT = 5;   // 지급할 포인트 (원)
+    // CallableContext에는 eventId가 없으므로 자체 생성
+    const requestId = `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+
+    if (!promotionCode) {
+      throw new functions.https.HttpsError(
+        "invalid-argument",
+        "promotionCode가 필요합니다."
+      );
+    }
+
+    console.log(`[Promotion Start] RequestID: ${requestId}, User: ${userKey}, Code: ${promotionCode}`);
+
+    // 2. 가차감 (Firestore Transaction)
+    try {
+      await admin.firestore().runTransaction(async (transaction) => {
+        const userRef = admin.firestore().collection('users').doc(userKey);
+        const userDoc = await transaction.get(userRef);
+        
+        if (!userDoc.exists) {
+          throw new functions.https.HttpsError("not-found", "사용자 정보를 찾을 수 없습니다.");
+        }
+        
+        const userData = userDoc.data();
+        const currentPoints = userData?.points || 0;
+
+        if (currentPoints < GAVEL_REQUIRED) {
+          throw new functions.https.HttpsError(
+            "failed-precondition", 
+            `판사봉이 부족합니다. (보유: ${currentPoints}, 필요: ${GAVEL_REQUIRED})`
+          );
+        }
+
+        // 판사봉 차감 실행
+        transaction.update(userRef, {
+          points: admin.firestore.FieldValue.increment(-GAVEL_REQUIRED)
+        });
+      });
+    } catch (dbError: any) {
+      console.error(`[Promotion DB Error] RequestID: ${requestId}, User: ${userKey}, Failed to deduct points:`, dbError);
+      if (dbError instanceof functions.https.HttpsError) throw dbError;
+      throw new functions.https.HttpsError("internal", "포인트 차감 중 오류가 발생했습니다.");
+    }
+
+    // 3. 토스 API 호출 (외부 연동)
+    try {
+      // 3-1. 키 발급
+      const executionKey = await getPromotionKey(userKey, promotionCode);
+
+      // 3-2. 지급 실행
+      const result = await executePromotion(userKey, executionKey, REWARD_AMOUNT);
+
+      console.log(`[Promotion Success] RequestID: ${requestId}, User: ${userKey}, Result:`, JSON.stringify(result));
+
+      // 4. 성공 확정: 누적 교환 포인트 기록 업데이트
+      await admin.firestore().collection('users').doc(userKey).update({
+        totalExchangedPoints: admin.firestore.FieldValue.increment(REWARD_AMOUNT),
+        updatedAt: admin.firestore.FieldValue.serverTimestamp()
+      });
+
+      return {
+        success: true,
+        requestId,
+        result
+      };
+
+    } catch (apiError: any) {
+      // 5. 실패 시 롤백 (보상 트랜잭션)
+      console.error(`[Promotion API Error] RequestID: ${requestId}, User: ${userKey}, Error: ${apiError.message}`);
+      
+      try {
+        console.warn(`[Promotion Rollback Executing] RequestID: ${requestId}, User: ${userKey}, Restoring ${GAVEL_REQUIRED} points...`);
+        await admin.firestore().collection('users').doc(userKey).update({
+          points: admin.firestore.FieldValue.increment(GAVEL_REQUIRED),
+          lastErrorRequestId: requestId // 추후 상담을 위해 마지막 에러 요청 ID 기록
+        });
+        console.log(`[Promotion Rollback Success] RequestID: ${requestId}, User: ${userKey}`);
+      } catch (rollbackError) {
+        console.error(`[CRITICAL ROLLBACK FAILURE] RequestID: ${requestId}, User: ${userKey}:`, rollbackError);
+      }
+
+      if (apiError instanceof functions.https.HttpsError) throw apiError;
+      throw new functions.https.HttpsError(
+        "internal",
+        apiError.message || "프로모션 지급 처리 중 오류가 발생했습니다."
+      );
+    }
+  });
 
 /**
  * 토스 API로 토큰 생성

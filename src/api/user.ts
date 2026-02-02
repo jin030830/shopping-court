@@ -11,8 +11,11 @@ import {
   increment,
   runTransaction,
 } from 'firebase/firestore'
+import { getFunctions, httpsCallable } from 'firebase/functions';
 import type { User as FirebaseUser } from 'firebase/auth'
-import { db } from './firebase'
+import { db, app } from './firebase'
+
+const functions = getFunctions(app, 'asia-northeast3');
 
 /**
  * 사용자 활동 통계 타입 (일일 미션용)
@@ -48,7 +51,8 @@ export interface UserDocument {
   nickname: string
   stats: UserStats
   missions: UserMissions
-  points: number // 보유 포인트
+  points: number // 보유 판사봉
+  totalExchangedPoints: number // 누적 교환 포인트 (원)
   createdAt: Timestamp | null
   updatedAt: Timestamp | null
 }
@@ -77,14 +81,14 @@ async function generateUniqueNickname(
   baseNickname: string = '배심원',
   maxRetries: number = 5
 ): Promise<string> {
+  if (!db) {
+    throw new Error('Firestore가 초기화되지 않았습니다.')
+  }
+
   let nickname = `${baseNickname}${generateRandomDigits()}`
   let attempts = 0
 
   while (attempts < maxRetries) {
-    if (!db) {
-      throw new Error('Firestore가 초기화되지 않았습니다.')
-    }
-
     const nicknameQuery = query(
       collection(db, 'users'),
       where('nickname', '==', nickname)
@@ -135,7 +139,6 @@ export async function createOrUpdateUser(
         existingData.stats = updates.stats;
         
         // 날짜가 바뀌었으므로 미션 상태도 초기화 (화면 표시용)
-        // 단, firstEventMission은 계정당 1회이므로 초기화하지 않음
         const existingFirstEvent = existingData.missions?.firstEventMission || { claimed: false, lastClaimedDate: '' };
         updates.missions = {
           firstEventMission: existingFirstEvent,
@@ -146,7 +149,6 @@ export async function createOrUpdateUser(
         existingData.missions = updates.missions;
       }
       
-      // missions 필드가 아예 없는 경우 초기화
       if (!existingData.missions) {
         updates.missions = {
           firstEventMission: { claimed: false },
@@ -157,10 +159,8 @@ export async function createOrUpdateUser(
         existingData.missions = updates.missions;
       }
 
-      if (existingData.points === undefined) {
-        updates.points = 0;
-        existingData.points = 0;
-      }
+      if (existingData.points === undefined) updates.points = 0;
+      if (existingData.totalExchangedPoints === undefined) updates.totalExchangedPoints = 0;
 
       await setDoc(userRef, updates, { merge: true });
 
@@ -171,7 +171,7 @@ export async function createOrUpdateUser(
     } else {
       // 신규 유저
       const nickname = await generateUniqueNickname()
-      const newUserDocument: Omit<UserDocument, 'createdAt' | 'updatedAt'> & { createdAt: any, updatedAt: any } = {
+      const newUserDocument: any = {
         tossUserKey: firebaseUser.uid,
         nickname,
         stats: {
@@ -188,6 +188,7 @@ export async function createOrUpdateUser(
           hotCaseMission: { claimed: false, lastClaimedDate: '' }
         },
         points: 0,
+        totalExchangedPoints: 0,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
       }
@@ -246,17 +247,14 @@ export async function claimMissionReward(userId: string, missionType: keyof User
     const userData = userDoc.data() as UserDocument;
     const mission = userData.missions?.[missionType];
 
-    // firstEventMission은 계정당 1회만 가능
     if (missionType === 'firstEventMission' && mission?.claimed) {
       throw new Error("이미 보상을 수령했습니다.");
     }
 
-    // 다른 미션들은 오늘 날짜로 보상을 받았다면 에러 처리
     if (missionType !== 'firstEventMission' && mission?.claimed && mission?.lastClaimedDate === today) {
       throw new Error("이미 보상을 수령했습니다.");
     }
 
-    // 날짜가 다르면(어제 받은 것) claimed가 true여도 새로 받을 수 있음 -> 로직상 덮어쓰기
     transaction.update(userRef, {
       [`missions.${missionType}`]: {
         claimed: true,
@@ -268,28 +266,53 @@ export async function claimMissionReward(userId: string, missionType: keyof User
 }
 
 /**
- * 판사봉 교환 처리 (판사봉 50개 -> 5P)
- */
-export async function exchangeGavel(userId: string): Promise<void> {
-  if (!db) throw new Error('Firestore가 초기화되지 않았습니다.');
-  
-  const userRef = doc(db, 'users', userId);
-  const GAVEL_EXCHANGE_RATE = 50; // 판사봉 50개
-  const POINTS_PER_EXCHANGE = 5; // 5P
-  
-  await runTransaction(db, async (transaction) => {
-    const userDoc = await transaction.get(userRef);
-    if (!userDoc.exists()) throw new Error("User not found");
-    
-    const userData = userDoc.data() as UserDocument;
-    const currentGavel = userData.points || 0;
 
-    if (currentGavel < GAVEL_EXCHANGE_RATE) {
-      throw new Error("판사봉이 부족합니다.");
+ * 판사봉 교환 처리 (판사봉 50개 -> 토스 포인트 5원)
+
+ * 실제 차감 및 지급 로직은 서버(Cloud Functions)에서 수행됩니다.
+
+ */
+
+export async function exchangeGavel(): Promise<void> {
+
+  const PROMOTION_CODE = import.meta.env.VITE_TOSS_PROMOTION_CODE || 'TEST_01KGA79JNAY2T8AWYCM9869TKS';
+
+
+
+  
+
+  // 서버에 교환 요청 (모든 검증 및 처리는 서버에서 수행)
+
+  try {
+
+    const requestPromotionReward = httpsCallable<{ promotionCode: string }, { success: boolean }>(
+
+      functions, 
+
+      'requestPromotionReward'
+
+    );
+
+    
+
+    const result = await requestPromotionReward({ promotionCode: PROMOTION_CODE });
+
+    
+
+    if (!result.data.success) {
+
+      throw new Error("토스 포인트 지급에 실패했습니다.");
+
     }
 
-    transaction.update(userRef, {
-      points: increment(-GAVEL_EXCHANGE_RATE + POINTS_PER_EXCHANGE)
-    });
-  });
+  } catch (error: any) {
+
+    console.error('Toss Promotion Error:', error);
+
+    // 서버에서 전달된 에러 메시지를 사용자에게 표시
+
+    throw new Error(error.message || "포인트 교환 중 오류가 발생했습니다.");
+
+  }
+
 }
