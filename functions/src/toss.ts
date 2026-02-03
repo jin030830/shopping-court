@@ -57,6 +57,65 @@ export function createMtlsAgent(): https.Agent {
 }
 
 /**
+ * 토스 API 에러 처리 헬퍼
+ */
+function handleTossError(error: any, contextMsg: string): never {
+  const responseData = error.response?.data;
+  const statusCode = error.response?.status;
+  
+  // 토스 에러 응답 구조 분석 (code 또는 error.errorCode 등)
+  // 문서상 4자리 숫자 코드(4100 등)가 반환됨
+  const errorCode = responseData?.code || responseData?.error?.errorCode || responseData?.error?.code;
+  const errorMessage = responseData?.message || responseData?.error?.reason || "알 수 없는 오류";
+
+  console.error(`[Toss API Error] ${contextMsg}:`, {
+    status: statusCode,
+    code: errorCode,
+    message: errorMessage,
+    data: responseData
+  });
+
+  // 에러 코드별 메시지 매핑
+  let userMessage = "프로모션 처리 중 오류가 발생했습니다.";
+  let firebaseErrorCode: functions.https.FunctionsErrorCode = "internal";
+
+  switch (String(errorCode)) {
+    case "4100":
+      userMessage = "프로모션 정보를 찾을 수 없습니다.";
+      firebaseErrorCode = "not-found";
+      break;
+    case "4109":
+      userMessage = "현재 진행 중인 프로모션이 아닙니다 (종료됨).";
+      firebaseErrorCode = "failed-precondition";
+      break;
+    case "4110":
+      userMessage = "일시적인 시스템 오류로 리워드를 지급할 수 없습니다. 잠시 후 다시 시도해주세요.";
+      firebaseErrorCode = "unavailable";
+      break;
+    case "4112":
+      userMessage = "프로모션 예산이 소진되었습니다.";
+      firebaseErrorCode = "resource-exhausted";
+      break;
+    case "4113":
+      userMessage = "이미 지급된 리워드입니다.";
+      firebaseErrorCode = "already-exists";
+      break;
+    case "4114":
+    case "4116":
+      userMessage = "지급 한도를 초과했습니다.";
+      firebaseErrorCode = "out-of-range";
+      break;
+    default:
+      userMessage = `오류가 발생했습니다: ${errorMessage}`;
+  }
+
+  throw new functions.https.HttpsError(firebaseErrorCode, userMessage, {
+    originalCode: errorCode,
+    originalMessage: errorMessage
+  });
+}
+
+/**
  * 토스 앱으로 푸시 알림(메신저) 발송
  * 문서: https://developers-apps-in-toss.toss.im/push/develop.html
  */
@@ -145,5 +204,87 @@ export async function sendTestTossPush(
   } catch (error: any) {
     console.error(`[Toss Test Push ERROR] Failed:`, error.response?.data || error.message);
     throw error;
+  }
+}
+
+/**
+ * 프로모션 리워드 지급을 위한 Key 생성
+ * 문서: https://developers-apps-in-toss.toss.im/promotion/develop.html
+ */
+export async function getPromotionKey(
+  userKey: string,
+  promotionCode: string
+): Promise<string> {
+  const config = getTossApiConfig();
+  const httpsAgent = createMtlsAgent();
+
+  try {
+    const url = `${config.authApiBase}/api-partner/v1/apps-in-toss/promotion/execute-promotion/get-key`;
+    
+    const response = await axios.post(
+      url,
+      {
+        promotionCode
+      },
+      {
+        headers: {
+          "Content-Type": "application/json",
+          "x-toss-user-key": userKey,
+          "X-Client-Id": config.clientId
+        },
+        httpsAgent
+      }
+    );
+    
+    // [수정] 응답 구조에 맞게 경로 수정 (success.key)
+    // 문서상 응답: { "resultType": "SUCCESS", "success": { "key": "..." } }
+    const key = response.data.success?.key || response.data.promotionExecutionKey;
+    
+    if (!key) {
+      console.error(`[Toss Key Error] Response structure mismatch:`, JSON.stringify(response.data));
+      throw new Error("Toss API 응답에서 Key를 찾을 수 없습니다.");
+    }
+
+    return key;
+  } catch (error: any) {
+    handleTossError(error, `Promotion Key Issue Failed (user: ${userKey})`);
+  }
+}
+
+/**
+ * 프로모션 리워드 지급 실행
+ */
+export async function executePromotion(
+  userKey: string,
+  promotionCode: string,
+  key: string, // 'key' 명칭 확정
+  amount: number
+): Promise<any> {
+  const config = getTossApiConfig();
+  const httpsAgent = createMtlsAgent();
+
+  try {
+    const url = `${config.authApiBase}/api-partner/v1/apps-in-toss/promotion/execute-promotion`;
+    
+    const response = await axios.post(
+      url,
+      {
+        promotionCode,
+        key,
+        amount
+      },
+      {
+        headers: {
+          "Content-Type": "application/json",
+          "x-toss-user-key": userKey, // 필수 헤더 확정
+          "X-Client-Id": config.clientId
+        },
+        httpsAgent
+      }
+    );
+    
+    return response.data;
+  } catch (error: any) {
+    handleTossError(error, `Promotion Execution Failed (user: ${userKey})`);
   }
 }
