@@ -3,6 +3,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import { useTossAd } from '../hooks/useTossAd';
 import { Asset, Text } from '@toss/tds-mobile';
+import { adaptive } from '@toss/tds-colors';
 import { Timestamp } from 'firebase/firestore';
 import replyArrowIcon from '../assets/답글화살표-다음에서-변환-png.svg';
 import smileIcon from '../assets/smile.png';
@@ -850,8 +851,21 @@ function CaseDetailPage() {
               <div style={{ clear: 'both' }} />
             </div>
           ) : user && userData && isVerified && !hasVoted && post?.status === 'OPEN' ? (
-            <div style={{ marginBottom: '20px', padding: '16px', backgroundColor: '#FFF4E5', borderRadius: '8px', textAlign: 'center' }}>
-              <p style={{ color: '#191F28', fontSize: '14px', margin: 0 }}>💬 투표 후 댓글을 작성할 수 있습니다</p>
+            <div style={{ marginBottom: '20px', padding: '16px', backgroundColor: '#FFF4E5', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+              <Asset.Image
+                frameShape={{ width: 22, height: 22 }}
+                backgroundColor="transparent"
+                src="https://static.toss.im/icons/svg/svg/png/4x/icon-chat-bubble-dots-grey300.png"
+                aria-hidden={true}
+                style={{ aspectRatio: '1/1' }}
+              />
+              <Text
+                color={adaptive.grey700}
+                typography="t6"
+                fontWeight="regular"
+              >
+                투표 후 댓글을 작성할 수 있어요
+              </Text>
             </div>
           ) : null}
 

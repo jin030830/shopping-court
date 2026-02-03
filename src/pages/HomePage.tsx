@@ -59,9 +59,24 @@ function HomePage() {
     }
   }, [location.state]);
 
-  // 탭이 변경될 때마다 localStorage에 저장
+  // 탭이 변경될 때마다 localStorage에 저장 및 상단으로 스크롤
   useEffect(() => {
     localStorage.setItem('selectedTab', selectedTab);
+    // 탭 변경 시 상단으로 스크롤 (재판 완료 탭의 경우 렌더링 후 스크롤)
+    const scrollToTop = () => {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    };
+    
+    if (selectedTab === '재판 완료') {
+      // 재판 완료 탭은 컴포넌트 렌더링 후 스크롤
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          scrollToTop();
+        });
+      });
+    } else {
+      scrollToTop();
+    }
   }, [selectedTab]);
 
   useEffect(() => {
@@ -83,18 +98,18 @@ function HomePage() {
 
   return (
     <div style={{ 
-      backgroundColor: 'white', 
-      minHeight: '100vh',
-      width: '100%',
-      boxSizing: 'border-box'
-    }}>
+        backgroundColor: 'white', 
+        minHeight: '100vh',
+        width: '100%',
+        boxSizing: 'border-box'
+      }}>
       {/* 포인트 미션 배너 */}
       <div style={{
         backgroundColor: '#E3F2FD',
         padding: '12px 0',
         width: '100%',
         boxSizing: 'border-box',
-        marginTop: '14px'
+        marginTop: '0px'
       }}>
         <div style={{
           margin: '0 20px',
@@ -202,10 +217,15 @@ function HomePage() {
         </div>
       </div>
 
-      <Spacing size={12} />
-
       {/* 탭 */}
-      <div style={{ padding: '0 20px', backgroundColor: 'white', paddingBottom: '12px' }}>
+      <div style={{ 
+        padding: '0 20px', 
+        backgroundColor: 'white', 
+        paddingBottom: '0px',
+        position: 'sticky',
+        top: 0,
+        zIndex: 100
+      }}>
         <div style={{ display: 'flex', borderBottom: '1px solid #e5e5e5', justifyContent: 'space-between' }}>
           <button
             onClick={() => setSelectedTab('재판 중')}
@@ -298,7 +318,7 @@ function HomePage() {
           marginBottom: '20px',
           background: 'linear-gradient(180deg, #e8f3ff 0%, #ffffff 100%)',
           paddingTop: '16px',
-          marginTop: '-12px'
+          marginTop: '0px'
         }}>
           <div style={{ 
             display: 'flex', 
@@ -325,21 +345,6 @@ function HomePage() {
               >
                 재판에 참여해보세요!
               </Text>
-              <button
-                onClick={() => navigate('/create-post')}
-                style={{
-                  padding: '8px 16px',
-                  backgroundColor: '#E3F2FD',
-                  color: '#1976D2',
-                  border: 'none',
-                  borderRadius: '8px',
-                  fontSize: '14px',
-                  fontWeight: '600',
-                  cursor: 'pointer'
-                }}
-              >
-                글쓰기
-              </button>
             </div>
             <div style={{ marginLeft: '16px' }}>
               <img 
@@ -363,7 +368,7 @@ function HomePage() {
           marginBottom: '20px',
           background: 'linear-gradient(180deg, #ffeeee 0%, #ffffff 100%)',
           paddingTop: '16px',
-          marginTop: '-12px'
+          marginTop: '0px'
         }}>
           <div style={{ 
             display: 'flex', 
@@ -413,7 +418,7 @@ function HomePage() {
           marginBottom: '20px',
           background: 'linear-gradient(180deg, #fff4e5 0%, #ffffff 100%)',
           paddingTop: '16px',
-          marginTop: '-12px'
+          marginTop: '0px'
         }}>
           <div style={{ 
             display: 'flex', 
@@ -792,6 +797,37 @@ function PostList({ posts, selectedTab, navigate }: PostListProps) {
           </div>
         );
       })}
+      
+      {/* 플로팅 글쓰기 버튼 */}
+      <button
+        onClick={() => navigate('/create-post')}
+        style={{
+          position: 'fixed',
+          bottom: '36px',
+          right: '32px',
+          width: '56px',
+          height: '56px',
+          borderRadius: '50%',
+          backgroundColor: '#3182F6',
+          border: 'none',
+          cursor: 'pointer',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          boxShadow: '0px 4px 12px rgba(0, 0, 0, 0.15)',
+          zIndex: 99999,
+          padding: 0
+        }}
+      >
+        <Asset.Icon
+          frameShape={Asset.frameShape.CircleXLarge}
+          backgroundColor="transparent"
+          name="icon-pencil-18px-mono"
+          color="white"
+          scale={0.66}
+          aria-hidden={true}
+        />
+      </button>
     </div>
   );
 }
@@ -994,6 +1030,7 @@ function CompletedPostListMain({ posts, navigate, isLoading, error }: CompletedP
               color={adaptive.grey900}
               typography="t4"
               fontWeight="bold"
+              style={{ fontSize: '18px' }}
             >
               화제의 재판 기록
             </Text>
@@ -1010,7 +1047,7 @@ function CompletedPostListMain({ posts, navigate, isLoading, error }: CompletedP
             }}
           >
             <Asset.Icon
-              frameShape={Asset.frameShape.CleanW20}
+              frameShape={Asset.frameShape.CleanW24}
               backgroundColor="transparent"
               name="icon-arrow-right-circle-mono"
               color={adaptive.grey500}
@@ -1072,6 +1109,7 @@ function CompletedPostListMain({ posts, navigate, isLoading, error }: CompletedP
               color={adaptive.grey900}
               typography="t4"
               fontWeight="bold"
+              style={{ fontSize: '18px' }}
             >
               이전 재판 기록
             </Text>
@@ -1088,7 +1126,7 @@ function CompletedPostListMain({ posts, navigate, isLoading, error }: CompletedP
             }}
           >
             <Asset.Icon
-              frameShape={Asset.frameShape.CleanW20}
+              frameShape={Asset.frameShape.CleanW24}
               backgroundColor="transparent"
               name="icon-arrow-right-circle-mono"
               color={adaptive.grey500}
@@ -1127,6 +1165,7 @@ function CompletedPostListMain({ posts, navigate, isLoading, error }: CompletedP
           </div>
         )}
       </div>
+      
       <style>{`
         div::-webkit-scrollbar {
           display: none;
