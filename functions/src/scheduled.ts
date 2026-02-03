@@ -55,10 +55,13 @@ export const closeExpiredCases = functions
 
       // 업데이트가 성공한 후 푸시 알림을 발송합니다.
       // (알림 실패가 전체 프로세스에 영향을 주지 않도록 개별적으로 처리)
+      const appUrl = process.env.APP_URL || 'https://shopping-court.vercel.app';
       const pushPromises = notifications.map(noti => 
         sendTossPush(noti.authorId, {
           title: noti.title,
-          caseId: noti.caseId
+          caseId: noti.caseId,
+          // 토스 메신저 템플릿에서 사용할 URL
+          url: `${appUrl}/case/${noti.caseId}`
         })
       );
 
