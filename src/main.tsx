@@ -9,10 +9,35 @@ const rootElement = document.getElementById('root')!;
 const root = ReactDOM.createRoot(rootElement);
 
 async function renderApp() {
-  const isTossApp = typeof window !== 'undefined' && (window as any).ReactNativeWebView !== undefined;
+  // 토스 앱 환경 감지 (Polling 방식 적용)
+  const checkIsTossApp = async (): Promise<boolean> => {
+    // 1. 이미 객체가 존재하거나, 개발 환경인 경우 즉시 true 반환
+    if ((typeof window !== 'undefined' && (window as any).ReactNativeWebView !== undefined) || import.meta.env.DEV) {
+      return true;
+    }
+
+    // 2. 최대 1.5초 동안 100ms 간격으로 확인
+    const maxAttempts = 15;
+    let attempts = 0;
+
+    return new Promise((resolve) => {
+      const interval = setInterval(() => {
+        attempts++;
+        if ((window as any).ReactNativeWebView !== undefined) {
+          clearInterval(interval);
+          resolve(true);
+        } else if (attempts >= maxAttempts) {
+          clearInterval(interval);
+          resolve(false);
+        }
+      }, 100);
+    });
+  };
+
+  const isTossApp = await checkIsTossApp();
 
   // 토스 앱 환경이거나, 로컬 개발 환경일 때만 앱을 렌더링합니다.
-  if (isTossApp || import.meta.env.DEV) {
+  if (isTossApp) {
     const { default: App } = await import('./App.tsx');
     
     root.render(
