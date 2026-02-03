@@ -2,6 +2,7 @@ import { AuthProvider } from './hooks/useAuth';
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
+import ErrorBoundary from './components/ErrorBoundary';
 import './index.css';
 import './api/firebase'; // 에뮬레이터 연결 로직을 포함하므로 import 유지
 
@@ -24,11 +25,13 @@ async function renderApp() {
     
     root.render(
       <React.StrictMode>
-        <BrowserRouter>
-          <AuthProvider>
-            <App />
-          </AuthProvider>
-        </BrowserRouter>
+        <ErrorBoundary>
+          <BrowserRouter>
+            <AuthProvider>
+              <App />
+            </AuthProvider>
+          </BrowserRouter>
+        </ErrorBoundary>
       </React.StrictMode>
     );
     
