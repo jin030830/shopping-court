@@ -11,7 +11,7 @@
     "deploy": "ait deploy"
   },
   "dependencies": {
-    "@apps-in-toss/web-framework": "^1.7.1",
+    "@apps-in-toss/web-framework": "^1.9.1",
     "@emotion/react": "^11.14.0",
     "@toss/tds-colors": "^0.1.0",
     "@toss/tds-mobile": "^2.2.1",
