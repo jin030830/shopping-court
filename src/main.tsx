@@ -34,10 +34,12 @@ async function renderApp() {
     });
   };
 
+  /* 
   const isTossApp = await checkIsTossApp();
 
   // 토스 앱 환경이거나, 로컬 개발 환경일 때만 앱을 렌더링합니다.
   if (isTossApp) {
+  */
     const { default: App } = await import('./App.tsx');
     
     root.render(
@@ -49,6 +51,7 @@ async function renderApp() {
         </BrowserRouter>
       </React.StrictMode>
     );
+  /*
   } else {
     // Vercel 등 실제 배포 환경의 일반 브라우저에서는 안내 문구를 표시합니다.
     root.render(
@@ -74,6 +77,7 @@ async function renderApp() {
       </React.StrictMode>
     );
   }
+  */
 }
 
 renderApp();
