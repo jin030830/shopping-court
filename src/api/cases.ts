@@ -10,6 +10,7 @@ import {
   deleteDoc,
   getDocs,
   query,
+  where,
   orderBy,
   runTransaction,
   increment,
@@ -91,6 +92,34 @@ export const getAllCases = async (): Promise<CaseDocument[]> => {
   } catch (error) {
     console.error('❌ 모든 고민 조회 중 오류 발생:', error);
     throw new Error('고민 목록을 불러오는 데 실패했습니다.');
+  }
+};
+
+/**
+ * 특정 사용자가 작성한 모든 '고민'을 조회합니다. (최적화용)
+ * @param userId - 작성자 ID
+ * @returns 해당 사용자가 작성한 고민 문서의 배열
+ */
+export const getCasesByAuthor = async (userId: string): Promise<CaseDocument[]> => {
+  if (!db) {
+    throw new Error('Firebase가 초기화되지 않았습니다.');
+  }
+  try {
+    const casesCollection = collection(db, 'cases');
+    const q = query(
+      casesCollection, 
+      where('authorId', '==', userId),
+      orderBy('createdAt', 'desc')
+    );
+    const querySnapshot = await getDocs(q);
+    const cases = querySnapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data()
+    } as CaseDocument));
+    return cases;
+  } catch (error) {
+    console.error('❌ 내 고민 조회 중 오류 발생:', error);
+    throw new Error('내 고민 목록을 불러오는 데 실패했습니다.');
   }
 };
 
