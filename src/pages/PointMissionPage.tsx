@@ -162,13 +162,18 @@ function PointMissionPage() {
   const isLevel0Claimed = userData?.isLevel0Claimed || false;
   const isLevel1Claimed = dailyStats.isLevel1Claimed;
   const isLevel2Claimed = dailyStats.isLevel2Claimed;
-  const isLevel3Claimed = userData?.missions?.hotCaseMission?.claimed || false; 
 
   // Level 0 조건 확인 (통합명세서 v1.7: 당일 하루 안에 [투표 1 + 댓글 1 + 게시글 1] 달성)
   const level0ConditionMet = dailyStats.voteCount >= 1 && dailyStats.commentCount >= 1 && dailyStats.postCount >= 1;
   const level1ConditionMet = dailyStats.voteCount >= 5;
   const level2ConditionMet = dailyStats.commentCount >= 3;
-  const level3ConditionMet = hotCases.length > 0;
+  
+  // Level 3 조건 확인 (화제의 재판 등재된 글 중 아직 보상을 받지 않은 글이 있는지 확인)
+  const unclaimedHotCases = hotCases.filter(caseItem => !caseItem.isHotListed);
+  const level3ConditionMet = unclaimedHotCases.length > 0;
+  
+  // 모든 화제 글의 보상을 다 받았다면 '완료' 표시 (최소 하나 이상의 화제 글이 있었을 때)
+  const isLevel3Claimed = hotCases.length > 0 && unclaimedHotCases.length === 0;
 
   const currentGavel = userData?.points || 0;
   const canExchange = currentGavel >= 50;

@@ -99,27 +99,46 @@ export const claimMissionReward = functions.region('asia-northeast3')
           rewardPoints = 60;
           updateField = 'dailyStats.isLevel2Claimed';
         } else if (missionType === 'LEVEL_3') {
-          // Level 3: 화제의 재판 등재 (클라이언트에서 조건 확인 후 호출)
-          isConditionMet = true; 
-          isAlreadyClaimed = userData?.missions?.hotCaseMission?.claimed === true;
+          // Level 3: 화제의 재판 등재 (게시물당 1회 보상)
+          // 보상을 받지 않은(isHotListed: false) 화제의 게시글 하나를 찾아서 처리
+          const hotCasesSnapshot = await db.collection('cases')
+            .where('authorId', '==', userId)
+            .where('status', '==', 'CLOSED')
+            .where('hotScore', '>', 0)
+            .where('isHotListed', '==', false)
+            .limit(1)
+            .get();
+
+          if (hotCasesSnapshot.empty) {
+            throw new functions.https.HttpsError('failed-precondition', '보상 받을 수 있는 화제의 재판 기록이 없습니다.');
+          }
+
+          const targetCase = hotCasesSnapshot.docs[0];
           rewardPoints = 100;
-          updateField = 'missions.hotCaseMission.claimed';
+          
+          // 해당 게시물에 보상 완료 표시 (트랜잭션 내에서 처리)
+          transaction.update(targetCase.ref, { isHotListed: true });
+          
+          // 유저 업데이트용 필드 (여기서는 points만 올리면 됨)
+          updateField = ''; 
         }
 
-        if (!isConditionMet) {
+        if (missionType !== 'LEVEL_3' && !isConditionMet) {
           throw new functions.https.HttpsError('failed-precondition', '미션 조건을 달성하지 못했습니다.');
         }
 
-        if (isAlreadyClaimed) {
+        if (missionType !== 'LEVEL_3' && isAlreadyClaimed) {
           throw new functions.https.HttpsError('already-exists', '이미 보상을 수령했습니다.');
         }
 
         // 4. 보상 지급 및 상태 업데이트
-        // dailyStats가 초기화되었을 수도 있으므로 전체 덮어쓰기 또는 필드 업데이트
         const updates: any = {
           points: admin.firestore.FieldValue.increment(rewardPoints),
-          [updateField]: true
         };
+        
+        if (updateField) {
+          updates[updateField] = true;
+        }
 
         // 날짜가 바뀌어서 초기화된 경우 dailyStats 전체 업데이트
         if (userData?.dailyStats?.lastActiveDate !== today) {

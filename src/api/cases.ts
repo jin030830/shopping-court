@@ -39,6 +39,7 @@ export interface CaseDocument extends CaseData {
   voteEndAt: Timestamp;
   status: 'OPEN' | 'CLOSED';
   hotScore: number;
+  isHotListed: boolean; // Level 3 보상 지급 여부
   createdAt: Timestamp;
 }
 
@@ -145,6 +146,7 @@ export const createCase = async (caseData: CaseData): Promise<string> => {
       commentCount: 0,
       status: 'OPEN',
       hotScore: 0,
+      isHotListed: false, // Level 3 보상 수령 여부 초기화
       createdAt: serverTimestamp(), // 서버 시간 기준으로 생성
       voteEndAt: voteEndTime,
     });
