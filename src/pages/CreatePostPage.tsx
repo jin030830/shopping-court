@@ -8,6 +8,12 @@ function CreatePostPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const { user, userData, isLoading, login } = useAuth();
+
+  // 글쓰기 진입 전 보고 있던 탭 (작성 완료 후 복귀용)
+  const returnTab =
+    (location.state as any)?.fromTab ||
+    sessionStorage.getItem('createPostFromTab') ||
+    'HOT 게시판';
   
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
@@ -28,6 +34,14 @@ function CreatePostPage() {
       setHasShownGuide(true);
     }
   }, [hasShownGuide]);
+
+  useEffect(() => {
+    // state로 전달된 fromTab이 있으면 sessionStorage에도 저장 (새로고침/뒤로가기 대비)
+    const fromTab = (location.state as any)?.fromTab;
+    if (fromTab) {
+      sessionStorage.setItem('createPostFromTab', fromTab);
+    }
+  }, [location.state]);
 
   useEffect(() => {
     if (!isLoading && (!user || !userData)) {
@@ -322,7 +336,8 @@ function CreatePostPage() {
           }}
           onClick={() => {
             setShowSuccessModal(false);
-            navigate('/');
+            sessionStorage.removeItem('createPostFromTab');
+            navigate('/', { state: { selectedTab: returnTab }, replace: true });
           }}
         >
           <div
@@ -360,7 +375,8 @@ function CreatePostPage() {
               <button
                 onClick={() => {
                   setShowSuccessModal(false);
-                  navigate('/');
+                  sessionStorage.removeItem('createPostFromTab');
+                  navigate('/', { state: { selectedTab: returnTab }, replace: true });
                 }}
                 style={{
                   padding: '8px 16px',
