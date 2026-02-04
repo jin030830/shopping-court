@@ -20,14 +20,14 @@ const formatDate = (timestamp: Timestamp): string => {
 
 function HomePage() {
   const location = useLocation();
-  // 초기값: location.state > localStorage > 기본값 '재판 중'
+  // 초기값: location.state > 기본값 'HOT 게시판' (localStorage 무시)
   const [selectedTab, setSelectedTab] = useState(() => {
     const stateTab = (location.state as any)?.selectedTab;
-    const savedTab = localStorage.getItem('selectedTab');
-    return stateTab || savedTab || '재판 중';
+    return stateTab || 'HOT 게시판';
   });
   const [allPosts, setAllPosts] = useState<CaseDocument[]>([]);
   const [isPostsLoading, setIsPostsLoading] = useState(true);
+  const [isFabExpanded, setIsFabExpanded] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
 
@@ -50,18 +50,23 @@ function HomePage() {
       newTab = sessionStorage.getItem('completedListFromTab');
       sessionStorage.removeItem('completedListFromTab'); // 사용 후 삭제
     }
+    // 포인트 미션 페이지에서 돌아온 경우
+    else if (sessionStorage.getItem('pointMissionFromTab')) {
+      newTab = sessionStorage.getItem('pointMissionFromTab');
+      sessionStorage.removeItem('pointMissionFromTab'); // 사용 후 삭제
+    }
     
     if (newTab) {
       setSelectedTab(newTab);
-      localStorage.setItem('selectedTab', newTab); // localStorage에도 저장
+      // localStorage 저장 제거 - 항상 HOT 게시판으로 시작
       // state를 초기화하여 다시 뒤로가기 해도 계속 같은 탭이 선택되지 않도록
       window.history.replaceState({}, document.title);
     }
   }, [location.state]);
 
-  // 탭이 변경될 때마다 localStorage에 저장 및 상단으로 스크롤
+  // 탭이 변경될 때마다 상단으로 스크롤
   useEffect(() => {
-    localStorage.setItem('selectedTab', selectedTab);
+    // localStorage 저장 제거 - 항상 HOT 게시판으로 시작
     // 탭 변경 시 상단으로 스크롤 (재판 완료 탭의 경우 렌더링 후 스크롤)
     const scrollToTop = () => {
       window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -105,7 +110,7 @@ function HomePage() {
       }}>
       {/* 포인트 미션 배너 */}
       <div style={{
-        backgroundColor: '#E3F2FD',
+        backgroundColor: 'white',
         padding: '12px 0',
         width: '100%',
         boxSizing: 'border-box',
@@ -115,12 +120,13 @@ function HomePage() {
           margin: '0 20px',
           width: 'calc(100% - 40px)',
           height: '144px',
-          backgroundColor: '#3182F6',
+          backgroundColor: '#FAF0E6',
           borderRadius: '10px',
           padding: '12px',
           boxSizing: 'border-box',
           position: 'relative',
-          overflow: 'hidden'
+          overflow: 'hidden',
+          boxShadow: '0px 4px 3px 0px rgba(0, 0, 0, 0.25)'
         }}>
           <div style={{
             display: 'flex',
@@ -132,20 +138,13 @@ function HomePage() {
             width: '100%'
           }}>
             <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
-              <Asset.Icon
-                frameShape={{ width: 49, height: 49 }}
-                backgroundColor="transparent"
-                name="icon-money-bag-point-blue-gradient"
-                aria-hidden={true}
-                ratio="1/1"
-              />
-              <div style={{ flex: 1 }}>
+              <div style={{ flex: 1, paddingLeft: '8px', paddingTop: '4px' }}>
                 <Text
                   display="block"
-                  color="white"
+                  color="#191F28"
                   typography="t2"
                   fontWeight="bold"
-                  style={{ lineHeight: '1.4', fontSize: '18px' }}
+                  style={{ lineHeight: '1.4', fontSize: '20px' }}
                 >
                   재판에 참여하고{'\n'}포인트를 모아보세요
                 </Text>
@@ -159,29 +158,26 @@ function HomePage() {
               cursor: 'pointer',
               zIndex: 2
             }}
-              onClick={() => navigate('/point-mission')}
+              onClick={() => {
+                // 미션 페이지에서 뒤로가기 시 원래 보고 있던 탭으로 복귀
+                sessionStorage.setItem('pointMissionFromTab', selectedTab);
+                navigate('/point-mission', { state: { fromTab: selectedTab } });
+              }}
             >
               <div style={{
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
                 gap: '4px',
-                padding: '6px 12px',
-                backgroundColor: 'white',
+                padding: '8px 16px',
+                backgroundColor: '#5E403B',
                 borderRadius: '10px',
                 boxShadow: '0px 0px 4px 0px rgba(255, 255, 255, 1)',
                 width: 'fit-content'
               }}>
-                <Asset.Icon
-                  frameShape={Asset.frameShape.CleanW16}
-                  backgroundColor="transparent"
-                  name="icon-twinkle-graident"
-                  aria-hidden={true}
-                  ratio="1/1"
-                />
                 <Text
                   display="block"
-                  color="#3182F6"
+                  color="white"
                   typography="t6"
                   fontWeight="bold"
                 >
@@ -191,7 +187,7 @@ function HomePage() {
                   frameShape={Asset.frameShape.CleanW16}
                   backgroundColor="transparent"
                   name="icon-arrow-right-mono"
-                  color="#9E9E9E"
+                  color="white"
                   aria-hidden={true}
                   ratio="1/1"
                 />
@@ -202,11 +198,11 @@ function HomePage() {
           {/* 판사봉 이미지 (배경) */}
           <div style={{
             position: 'absolute',
-            bottom: '10px',
+            bottom: '25px',
             right: '15px',
             zIndex: 0,
-            width: '100px',
-            height: '100px',
+            width: '120px',
+            height: '120px',
             backgroundImage: `url(${pointMissionImage})`,
             backgroundSize: 'contain',
             backgroundRepeat: 'no-repeat',
@@ -484,6 +480,139 @@ function HomePage() {
           )}
         </div>
       )}
+
+      {/* 확장형 플로팅 버튼 */}
+      {selectedTab !== '재판 완료' && (
+      <div style={{
+        position: 'fixed',
+        bottom: '36px',
+        right: '32px',
+        zIndex: 99999,
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        gap: '12px'
+      }}>
+        {/* 사용자 아이콘 (위) */}
+        {isFabExpanded && (
+          <button
+            onClick={() => {
+              // 일단 그냥 표시만
+            }}
+            style={{
+              width: '56px',
+              height: '56px',
+              borderRadius: '50%',
+              backgroundColor: 'transparent',
+              border: 'none',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: 0,
+              animation: 'slideUp 0.3s ease-out 0.1s both',
+              transformOrigin: 'bottom'
+            }}
+          >
+            <Asset.Icon
+              frameShape={Asset.frameShape.CircleXLarge}
+              backgroundColor="#fef6f0"
+              name="icon-user-mono"
+              color="#5e403b"
+              scale={0.66}
+              aria-hidden={true}
+            />
+          </button>
+        )}
+        
+        {/* 연필 아이콘 (아래) */}
+        {isFabExpanded && (
+          <button
+            onClick={() => {
+              setIsFabExpanded(false);
+              // 글작성 후 원래 보던 탭으로 복귀
+              sessionStorage.setItem('createPostFromTab', selectedTab);
+              navigate('/create-post', { state: { fromTab: selectedTab } });
+            }}
+            style={{
+              width: '56px',
+              height: '56px',
+              borderRadius: '50%',
+              backgroundColor: 'transparent',
+              border: 'none',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: 0,
+              animation: 'slideUp 0.3s ease-out',
+              transformOrigin: 'bottom'
+            }}
+          >
+            <Asset.Icon
+              frameShape={Asset.frameShape.CircleXLarge}
+              backgroundColor="#fdf6f0"
+              name="icon-pencil-line-mono"
+              color="#5e403b"
+              scale={0.66}
+              aria-hidden={true}
+            />
+          </button>
+        )}
+        
+        {/* 메인 버튼 (+ 또는 X) */}
+        <button
+          onClick={() => setIsFabExpanded(!isFabExpanded)}
+          style={{
+            width: '56px',
+            height: '56px',
+            borderRadius: '50%',
+            backgroundColor: 'transparent',
+            border: 'none',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: 0,
+            transition: 'transform 0.3s ease-out'
+          }}
+        >
+          {isFabExpanded ? (
+            <Asset.Icon
+              frameShape={Asset.frameShape.CircleXLarge}
+              backgroundColor="#D6C8C3"
+              name="icon-x-mono"
+              color="#5e403b"
+              scale={0.66}
+              aria-hidden={true}
+            />
+          ) : (
+            <Asset.Icon
+              frameShape={Asset.frameShape.CircleXLarge}
+              backgroundColor="#D6C8C3"
+              name="icon-plus-thin-mono"
+              color="#5e403b"
+              scale={0.66}
+              aria-hidden={true}
+            />
+          )}
+        </button>
+      </div>
+      )}
+      
+      {/* 애니메이션 스타일 */}
+      <style>{`
+        @keyframes slideUp {
+          from {
+            opacity: 0;
+            transform: translateY(20px) scale(0.8);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+          }
+        }
+      `}</style>
 
       <Spacing size={24} />
     </div>
@@ -797,37 +926,6 @@ function PostList({ posts, selectedTab, navigate }: PostListProps) {
           </div>
         );
       })}
-      
-      {/* 플로팅 글쓰기 버튼 */}
-      <button
-        onClick={() => navigate('/create-post')}
-        style={{
-          position: 'fixed',
-          bottom: '36px',
-          right: '32px',
-          width: '56px',
-          height: '56px',
-          borderRadius: '50%',
-          backgroundColor: '#3182F6',
-          border: 'none',
-          cursor: 'pointer',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          boxShadow: '0px 4px 12px rgba(0, 0, 0, 0.15)',
-          zIndex: 99999,
-          padding: 0
-        }}
-      >
-        <Asset.Icon
-          frameShape={Asset.frameShape.CircleXLarge}
-          backgroundColor="transparent"
-          name="icon-pencil-18px-mono"
-          color="white"
-          scale={0.66}
-          aria-hidden={true}
-        />
-      </button>
     </div>
   );
 }
@@ -895,15 +993,6 @@ function CompletedPostListMain({ posts, navigate, isLoading, error }: CompletedP
     );
   }
 
-  const formatDate = (timestamp: Timestamp | undefined) => {
-    if (!timestamp) return '';
-    const date = timestamp.toDate();
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
-    return `${year}-${month}-${day}`;
-  };
-
   // 화제의 재판 기록 (hotScore > 0)
   const hotCompletedPosts = postsWithDetails
     .filter(post => post.status === 'CLOSED' && post.hotScore > 0)
@@ -925,7 +1014,7 @@ function CompletedPostListMain({ posts, navigate, isLoading, error }: CompletedP
       key={post.id}
       onClick={() => navigate(`/case/${post.id}`, { state: { fromTab: '재판 완료' } })}
       style={{
-        backgroundColor: '#f2f4f6',
+        backgroundColor: '#F7F3EE',
         borderRadius: '10px',
         padding: '16px',
         minWidth: '172px',
@@ -941,12 +1030,12 @@ function CompletedPostListMain({ posts, navigate, isLoading, error }: CompletedP
     >
       {/* 배지 */}
       <div style={{
-        padding: '4px 8px',
+        padding: '6px 12px',
         backgroundColor: (post.verdict || '보류') === '무죄' ? '#3182F628' : (post.verdict || '보류') === '유죄' ? '#F0445228' : '#4E596828',
         color: (post.verdict || '보류') === '무죄' ? '#1976D2' : (post.verdict || '보류') === '유죄' ? '#D32F2F' : '#6B7684',
-        fontSize: '12px',
+        fontSize: '14px',
         fontWeight: '600',
-        borderRadius: '4px',
+        borderRadius: '5px',
         width: 'fit-content'
       }}>
         {post.verdict || '보류'}
@@ -980,21 +1069,13 @@ function CompletedPostListMain({ posts, navigate, isLoading, error }: CompletedP
         </Text>
       </div>
 
-      {/* 날짜 */}
+      {/* 화살표 아이콘 */}
       <div style={{
         display: 'flex',
-        justifyContent: 'space-between',
+        justifyContent: 'flex-end',
         alignItems: 'center',
         marginTop: 'auto'
       }}>
-        <Text
-          display="block"
-          color="#6B7684"
-          typography="t7"
-          fontWeight="regular"
-        >
-          {formatDate(post.voteEndAt)}
-        </Text>
         <Asset.Icon
           frameShape={Asset.frameShape.CleanW24}
           backgroundColor="transparent"
@@ -1049,8 +1130,8 @@ function CompletedPostListMain({ posts, navigate, isLoading, error }: CompletedP
             <Asset.Icon
               frameShape={Asset.frameShape.CleanW24}
               backgroundColor="transparent"
-              name="icon-arrow-right-circle-mono"
-              color={adaptive.grey500}
+              name="icon-arrow-left-big-mono"
+              color="#9E9E9E"
               aria-hidden={true}
               ratio="1/1"
             />
@@ -1128,8 +1209,8 @@ function CompletedPostListMain({ posts, navigate, isLoading, error }: CompletedP
             <Asset.Icon
               frameShape={Asset.frameShape.CleanW24}
               backgroundColor="transparent"
-              name="icon-arrow-right-circle-mono"
-              color={adaptive.grey500}
+              name="icon-arrow-left-big-mono"
+              color="#9E9E9E"
               aria-hidden={true}
               ratio="1/1"
             />
