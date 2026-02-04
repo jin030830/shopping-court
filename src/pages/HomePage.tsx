@@ -6,7 +6,7 @@ import { Timestamp } from 'firebase/firestore';
 import { adaptive } from '@toss/tds-colors';
 import scaleIcon from '../assets/저울모양-다음에서-변환-png.svg';
 import hotFlameIcon from '../assets/핫게시판불모양.png';
-import pointMissionImage from '../assets/포인트미션창.png';
+import pointMissionImage from '../assets/missionbanner.png';
 
 // 날짜 포맷팅 함수 (M/d HH:mm 형식)
 const formatDate = (timestamp: Timestamp): string => {
@@ -201,8 +201,8 @@ function HomePage() {
             bottom: '25px',
             right: '15px',
             zIndex: 0,
-            width: '120px',
-            height: '120px',
+            width: '140px',
+            height: '140px',
             backgroundImage: `url(${pointMissionImage})`,
             backgroundSize: 'contain',
             backgroundRepeat: 'no-repeat',
@@ -322,7 +322,7 @@ function HomePage() {
             justifyContent: 'space-between',
             marginBottom: '16px'
           }}>
-            <div style={{ flex: 1 }}>
+            <div style={{ flex: 1, paddingTop: '6px' }}>
               <Text 
                 display="block" 
                 color="#191F28ff" 
@@ -372,7 +372,7 @@ function HomePage() {
             justifyContent: 'space-between',
             marginBottom: '16px'
           }}>
-            <div style={{ flex: 1 }}>
+            <div style={{ flex: 1, paddingTop: '6px' }}>
               <Text 
                 display="block" 
                 color="#191F28ff" 
@@ -497,7 +497,8 @@ function HomePage() {
         {isFabExpanded && (
           <button
             onClick={() => {
-              // 일단 그냥 표시만
+              navigate('/my-posts');
+              setIsFabExpanded(false);
             }}
             style={{
               width: '56px',
@@ -580,18 +581,18 @@ function HomePage() {
           {isFabExpanded ? (
             <Asset.Icon
               frameShape={Asset.frameShape.CircleXLarge}
-              backgroundColor="#D6C8C3"
+              backgroundColor="#5e403b"
               name="icon-x-mono"
-              color="#5e403b"
+              color="#fef6f1"
               scale={0.66}
               aria-hidden={true}
             />
           ) : (
             <Asset.Icon
               frameShape={Asset.frameShape.CircleXLarge}
-              backgroundColor="#D6C8C3"
+              backgroundColor="#5e403b"
               name="icon-plus-thin-mono"
-              color="#5e403b"
+              color="#fef6f1"
               scale={0.66}
               aria-hidden={true}
             />
@@ -690,7 +691,12 @@ function PostList({ posts, selectedTab, navigate }: PostListProps) {
 
   if (isLoading) {
     return (
-      <div style={{ padding: '40px', textAlign: 'center' }}>
+      <div style={{ 
+        padding: '40px', 
+        textAlign: 'center',
+        backgroundColor: 'white',
+        minHeight: '100vh'
+      }}>
         <Text color="#6B7684">게시물 정보를 불러오는 중...</Text>
       </div>
     );
@@ -700,12 +706,12 @@ function PostList({ posts, selectedTab, navigate }: PostListProps) {
   let displayPosts = postsWithDetails;
   
   if (selectedTab === 'HOT 게시판') {
-    // 재판 중인 게시물만 필터링하고 HOT 점수로 정렬, 상위 5개만 표시
+    // 재판 중인 게시물만 필터링하고 HOT 점수로 정렬, 상위 3개만 표시
     // HOT 점수가 0보다 큰 게시물만 표시 (투표나 댓글이 있는 게시물만)
     displayPosts = postsWithDetails
       .filter(post => post.status === 'OPEN' && post.hotScore > 0)
       .sort((a, b) => b.hotScore - a.hotScore)
-      .slice(0, 5);
+      .slice(0, 3);
   } else if (selectedTab === '재판 완료') {
     // status가 'CLOSED'인 게시물만 필터링하고 완료일 최신순으로 정렬
     displayPosts = postsWithDetails
@@ -813,61 +819,35 @@ function PostList({ posts, selectedTab, navigate }: PostListProps) {
               cursor: 'pointer'
             }}
           >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
-              {selectedTab === 'HOT 게시판' ? (
-                <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                  <Asset.Icon
-                    frameShape={Asset.frameShape.CleanW20}
-                    backgroundColor="transparent"
-                    name="icon-emoji-fire"
-                    aria-hidden={true}
-                    ratio="1/1"
-                  />
-                  <Text
-                    display="block"
-                    color="#FF6B6B"
-                    typography="t6"
-                    fontWeight="bold"
-                  >
-                    TOP {index + 1}
-                  </Text>
-                </div>
-              ) : (
-                <Text 
-                  display="block" 
-                  color="#191F28" 
-                  typography="t4" 
-                  fontWeight="bold"
-                  style={{ 
-                    flex: 1, 
-                    minWidth: 0, 
-                    overflow: 'hidden', 
-                    textOverflow: 'ellipsis',
-                    display: '-webkit-box',
-                    WebkitLineClamp: 2,
-                    WebkitBoxOrient: 'vertical',
-                    fontSize: '18px',
-                    lineHeight: '1.4'
-                  }}
-                >
-                  {post.title}
-                </Text>
-              )}
-              {post.createdAt && (
-                <Text color="#9E9E9E" typography="st13" fontWeight="regular" style={{ marginLeft: '8px', flexShrink: 0 }}>
-                  {formatDate(post.createdAt)}
-                </Text>
-              )}
-            </div>
             {selectedTab === 'HOT 게시판' && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginBottom: '4px' }}>
+                <Asset.Icon
+                  frameShape={Asset.frameShape.CleanW20}
+                  backgroundColor="transparent"
+                  name="icon-emoji-fire"
+                  aria-hidden={true}
+                  ratio="1/1"
+                />
+                <Text
+                  display="block"
+                  color="#FF6B6B"
+                  typography="t6"
+                  fontWeight="bold"
+                >
+                  TOP {index + 1}
+                </Text>
+              </div>
+            )}
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', marginBottom: '4px' }}>
               <Text 
                 display="block" 
                 color="#191F28" 
                 typography="t4" 
                 fontWeight="bold"
                 style={{ 
-                  marginBottom: '4px',
-                  overflow: 'hidden',
+                  flex: 1,
+                  minWidth: 0,
+                  overflow: 'hidden', 
                   textOverflow: 'ellipsis',
                   display: '-webkit-box',
                   WebkitLineClamp: 2,
@@ -878,47 +858,47 @@ function PostList({ posts, selectedTab, navigate }: PostListProps) {
               >
                 {post.title}
               </Text>
-            )}
-            <Text 
-              display="block" 
-              color="#191F28ff" 
-              typography="t7" 
-              fontWeight="regular"
+              {post.createdAt && (
+                <Text color="#9E9E9E" typography="st13" fontWeight="regular" style={{ flexShrink: 0, whiteSpace: 'nowrap' }}>
+                  {formatDate(post.createdAt)}
+                </Text>
+              )}
+            </div>
+            <div
               style={{ 
                 marginBottom: '8px',
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-                display: '-webkit-box',
-                WebkitLineClamp: 2,
-                WebkitBoxOrient: 'vertical',
                 lineHeight: '1.5',
-                maxHeight: '3em'
+                color: '#191F28ff',
+                fontSize: '14px',
+                wordBreak: 'break-word'
               }}
             >
-              {post.content}
-            </Text>
+              {post.content && post.content.length > 50 ? `${post.content.substring(0, 50)}...` : post.content}
+            </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                 <Asset.Icon
-                  frameShape={{ width: 18, height: 18 }}
+                  frameShape={{ width: 13, height: 13 }}
                   backgroundColor="transparent"
-                  name="icon-user-two-blue-tab"
+                  name="icon-user-two-mono"
+                  color="#5e403b"
                   aria-hidden={true}
                   ratio="1/1"
                 />
-                <Text color="#3182F6" typography="st13" fontWeight="medium">
+                <Text color="#5e403b" typography="st13" fontWeight="medium">
                   {(post.guiltyCount || 0) + (post.innocentCount || 0)}
                 </Text>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                 <Asset.Icon
-                  frameShape={{ width: 18, height: 18 }}
+                  frameShape={{ width: 13, height: 13 }}
                   backgroundColor="transparent"
-                  name="icon-chat-square-two-mono"
-                  color="#3182F6"
+                  name="icon-chat-bubble-mono"
+                  color="#5E403Bff"
                   aria-hidden={true}
+                  ratio="1/1"
                 />
-                <Text color="#3182F6" typography="st13" fontWeight="medium">
+                <Text color="#5e403b" typography="st13" fontWeight="medium">
                   {post.commentCount ?? 0}
                 </Text>
               </div>
@@ -979,7 +959,12 @@ function CompletedPostListMain({ posts, navigate, isLoading, error }: CompletedP
 
   if (isLoading || isLoadingDetails) {
     return (
-      <div style={{ padding: '40px', textAlign: 'center' }}>
+      <div style={{ 
+        padding: '40px', 
+        textAlign: 'center',
+        backgroundColor: 'white',
+        minHeight: '100vh'
+      }}>
         <Text color="#6B7684">게시물 정보를 불러오는 중...</Text>
       </div>
     );
