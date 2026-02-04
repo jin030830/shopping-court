@@ -1,7 +1,7 @@
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Asset, Text, Spacing } from '@toss/tds-mobile';
 import { useState, useEffect } from 'react';
-import { getAllCases, getComments, getReplies, type CaseDocument } from '../api/cases';
+import { getAllCases, type CaseDocument } from '../api/cases';
 import { Timestamp } from 'firebase/firestore';
 import { adaptive } from '@toss/tds-colors';
 import scaleIcon from '../assets/저울모양-다음에서-변환-png.svg';
@@ -644,51 +644,37 @@ function PostList({ posts, selectedTab, navigate }: PostListProps) {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const loadPostDetails = async () => {
+    const loadPostDetails = () => {
       setIsLoading(true);
       try {
-        // 각 게시글의 실제 댓글 수를 조회
-        const postsWithData = await Promise.all(
-          posts.map(async (post) => {
-            // 실제 댓글 수 조회 (CaseDetailPage와 동일한 방식)
-            let actualCommentCount = 0;
-            try {
-              const comments = await getComments(post.id);
-              const repliesPromises = comments.map(comment => getReplies(post.id, comment.id));
-              const repliesArrays = await Promise.all(repliesPromises);
-              actualCommentCount = comments.length + repliesArrays.reduce((sum, replies) => sum + replies.length, 0);
-            } catch (error) {
-              console.error(`게시글 ${post.id}의 댓글 수 조회 실패:`, error);
+        const postsWithData = posts.map((post) => {
+          // 이미 트리거로 업데이트되고 있는 commentCount 사용 (엄청난 성능 향상)
+          const actualCommentCount = post.commentCount || 0;
+          const voteCount = (post.guiltyCount || 0) + (post.innocentCount || 0);
+          
+          // HOT 점수 계산: 투표수 + 2*댓글수
+          const hotScore = voteCount + (2 * actualCommentCount);
+          
+          // 재판 결과 결정
+          let verdict: '무죄' | '유죄' | '보류' = '보류';
+          if (voteCount > 0) {
+            if (post.innocentCount > post.guiltyCount) {
+              verdict = '무죄';
+            } else if (post.guiltyCount > post.innocentCount) {
+              verdict = '유죄';
+            } else {
+              verdict = '보류';
             }
+          }
 
-            // voteCount는 화면 표시에 필요하므로 유지합니다.
-            const voteCount = post.guiltyCount + post.innocentCount;
-            
-            // HOT 점수 계산: 투표수 + 2*댓글수 (실제 조회한 댓글 수 사용)
-            const hotScore = voteCount + (2 * actualCommentCount);
-            
-            // 재판 결과 결정 (innocent가 많으면 무죄, guilty가 많으면 유죄, 동률이면 보류)
-            let verdict: '무죄' | '유죄' | '보류' = '보류'; // 기본값을 보류로 설정
-            if (voteCount > 0) {
-              if (post.innocentCount > post.guiltyCount) {
-                verdict = '무죄';
-              } else if (post.guiltyCount > post.innocentCount) {
-                verdict = '유죄';
-              } else {
-                verdict = '보류'; // 동률인 경우
-              }
-            }
-            // voteCount === 0인 경우도 보류로 처리
-
-            return {
-              ...post,
-              commentCount: actualCommentCount, // 실제 조회한 댓글 수로 덮어쓰기
-              voteCount,
-              hotScore,
-              verdict
-            };
-          })
-        );
+          return {
+            ...post,
+            commentCount: actualCommentCount,
+            voteCount,
+            hotScore,
+            verdict
+          };
+        });
 
         setPostsWithDetails(postsWithData);
       } catch (error) {

@@ -1,7 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import { Asset, Text, Spacing } from '@toss/tds-mobile';
 import { useState, useEffect } from 'react';
-import { getAllCases, getComments, getReplies, type CaseDocument } from '../api/cases';
+import { getAllCases, type CaseDocument } from '../api/cases';
 import { Timestamp } from 'firebase/firestore';
 import { adaptive } from '@toss/tds-colors';
 
@@ -49,46 +49,36 @@ function CompletedPreviousPage() {
   const [isLoadingDetails, setIsLoadingDetails] = useState(true);
 
   useEffect(() => {
-    const loadPostDetails = async () => {
+    const loadPostDetails = () => {
       setIsLoadingDetails(true);
       try {
-        const postsWithData = await Promise.all(
-          allPosts
-            .filter(post => post.status === 'CLOSED')
-            .map(async (post) => {
-              const voteCount = post.guiltyCount + post.innocentCount;
-              
-              // 실제 댓글 수 조회
-              let actualCommentCount = 0;
-              try {
-                const comments = await getComments(post.id);
-                const repliesPromises = comments.map(comment => getReplies(post.id, comment.id));
-                const repliesArrays = await Promise.all(repliesPromises);
-                actualCommentCount = comments.length + repliesArrays.reduce((sum, replies) => sum + replies.length, 0);
-              } catch (error) {
-                console.error(`게시글 ${post.id}의 댓글 수 조회 실패:`, error);
+        const postsWithData = allPosts
+          .filter(post => post.status === 'CLOSED')
+          .map((post) => {
+            const voteCount = (post.guiltyCount || 0) + (post.innocentCount || 0);
+            
+            // 트리거로 관리되는 commentCount 사용
+            const actualCommentCount = post.commentCount || 0;
+            const hotScore = voteCount + (2 * actualCommentCount);
+            
+            let verdict: '무죄' | '유죄' | '보류' = '보류';
+            if (voteCount > 0) {
+              if (post.innocentCount > post.guiltyCount) {
+                verdict = '무죄';
+              } else if (post.guiltyCount > post.innocentCount) {
+                verdict = '유죄';
+              } else {
+                verdict = '보류';
               }
-              
-              const hotScore = voteCount + (2 * actualCommentCount);
-              let verdict: '무죄' | '유죄' | '보류' = '보류';
-              if (voteCount > 0) {
-                if (post.innocentCount > post.guiltyCount) {
-                  verdict = '무죄';
-                } else if (post.guiltyCount > post.innocentCount) {
-                  verdict = '유죄';
-                } else {
-                  verdict = '보류';
-                }
-              }
-              return {
-                ...post,
-                commentCount: actualCommentCount,
-                voteCount,
-                hotScore,
-                verdict
-              };
-            })
-        );
+            }
+            return {
+              ...post,
+              commentCount: actualCommentCount,
+              voteCount,
+              hotScore,
+              verdict
+            };
+          });
         
         // 모든 CLOSED 상태의 게시물을 완료일 최신순으로 정렬
         const sortedPosts = postsWithData

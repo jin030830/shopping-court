@@ -39,6 +39,7 @@ export interface CaseDocument extends CaseData {
   voteEndAt: Timestamp;
   status: 'OPEN' | 'CLOSED';
   hotScore: number;
+  isHotListed: boolean; // Level 3 보상 지급 여부
   createdAt: Timestamp;
 }
 
@@ -145,6 +146,7 @@ export const createCase = async (caseData: CaseData): Promise<string> => {
       commentCount: 0,
       status: 'OPEN',
       hotScore: 0,
+      isHotListed: false, // Level 3 보상 수령 여부 초기화
       createdAt: serverTimestamp(), // 서버 시간 기준으로 생성
       voteEndAt: voteEndTime,
     });
@@ -262,11 +264,16 @@ export const addVote = async (caseId: string, userId: string, vote: VoteType): P
         throw new Error('존재하지 않는 게시물입니다.');
       }
 
-      // 투표 기록 (이제 카운트 업데이트는 Cloud Functions가 처리함)
+      // 투표 기록 및 카운트 업데이트 (즉시 반영을 위해 클라이언트에서 처리)
       transaction.set(voteRef, {
         userId,
         vote,
         createdAt: serverTimestamp(),
+      });
+
+      const countField = vote === 'guilty' ? 'guiltyCount' : 'innocentCount';
+      transaction.update(caseRef, {
+        [countField]: increment(1)
       });
     });
     console.log('✅ 투표가 성공적으로 기록되었습니다.');

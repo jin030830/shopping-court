@@ -288,9 +288,8 @@ function CaseDetailPage() {
 
     try {
       const firebaseVote: VoteType = pendingVoteType === 'agree' ? 'innocent' : 'guilty';
-      await addVote(id, user.uid, firebaseVote);
       
-      // ✅ 낙관적 업데이트: 서버 트리거를 기다리지 않고 로컬 상태 즉시 반영
+      // ✅ 낙관적 업데이트: 서버 요청을 기다리지 않고 로컬 상태 즉시 반영
       if (post) {
         setPost({
           ...post,
@@ -298,25 +297,37 @@ function CaseDetailPage() {
           innocentCount: firebaseVote === 'innocent' ? post.innocentCount + 1 : post.innocentCount,
         });
       }
+      
+      setSelectedVote(pendingVoteType);
+      setHasVoted(true);
+      setShowVoteConfirm(false);
+      setPendingVoteType(null);
+
+      // 서버에 투표 기록 (카운트 업데이트는 addVote 내부 트랜잭션으로 처리됨)
+      await addVote(id, user.uid, firebaseVote);
 
       showAd(() => {
-        setSelectedVote(pendingVoteType);
-        setHasVoted(true);
-        setShowVoteConfirm(false);
-        setPendingVoteType(null);
         setIsVoteSubmitting(false); // 완료 후 해제
       });
       
-      // 약간의 지연 후 최신 데이터 한 번 더 동기화 (선택 사항)
+      // 약간의 지연 후 서버 데이터와 최종 동기화
       setTimeout(async () => {
         const updatedPost = await getCase(id);
         if (updatedPost) setPost(updatedPost);
-      }, 2000);
+      }, 3000);
 
-      // 투표 완료 팝업 제거 (확인 팝업만 유지)
     } catch (error) {
       console.error('투표 실패:', error);
       setIsVoteSubmitting(false); // 실패 시 해제
+
+      // ❌ 에러 발생 시 낙관적 업데이트 되돌리기
+      const originalPost = await getCase(id);
+      if (originalPost) {
+        setPost(originalPost);
+      }
+      setHasVoted(false);
+      setSelectedVote(null);
+
       if (error instanceof Error && error.message.includes('이미 투표')) {
          alert('이미 투표하셨습니다. 정보를 갱신합니다.');
          // Refresh vote status

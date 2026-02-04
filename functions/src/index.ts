@@ -64,7 +64,7 @@ export const requestPromotionReward = functions
   .runWith({
     enforceAppCheck: false,
     timeoutSeconds: 60,
-    memory: "256MB"
+    memory: "512MB"
   })
   .https.onCall(async (data: { promotionCode: string }, context) => {
     // 1. 인증 확인

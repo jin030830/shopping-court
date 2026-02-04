@@ -119,12 +119,6 @@ function PointMissionPage() {
 
     showRewardAd(async () => {
       try {
-        // LEVEL_3는 현재 Cloud Function에서 처리하지 않으므로 안내 메시지 표시
-        if (missionType === 'LEVEL_3') {
-          alert('화제의 재판 보상은 자동으로 지급되거나 추후 지원될 예정입니다.');
-          return;
-        }
-
         await claimMissionReward(user.uid, missionType, gavel);
       } catch (error) {
         console.error('보상 수령 실패:', error);
@@ -168,27 +162,29 @@ function PointMissionPage() {
   const isLevel0Claimed = userData?.isLevel0Claimed || false;
   const isLevel1Claimed = dailyStats.isLevel1Claimed;
   const isLevel2Claimed = dailyStats.isLevel2Claimed;
-  const isLevel3Claimed = userData?.missions?.hotCaseMission?.claimed || false; 
 
   // Level 0 조건 확인 (통합명세서 v1.7: 당일 하루 안에 [투표 1 + 댓글 1 + 게시글 1] 달성)
   const level0ConditionMet = dailyStats.voteCount >= 1 && dailyStats.commentCount >= 1 && dailyStats.postCount >= 1;
   const level1ConditionMet = dailyStats.voteCount >= 5;
   const level2ConditionMet = dailyStats.commentCount >= 3;
-  const level3ConditionMet = hotCases.length > 0;
+  
+  // Level 3 조건 확인 (화제의 재판 등재된 글 중 아직 보상을 받지 않은 글이 있는지 확인)
+  const unclaimedHotCases = hotCases.filter(caseItem => !caseItem.isHotListed);
+  const level3ConditionMet = unclaimedHotCases.length > 0;
+  
+  // 모든 화제 글의 보상을 다 받았다면 '완료' 표시 (최소 하나 이상의 화제 글이 있었을 때)
+  const isLevel3Claimed = hotCases.length > 0 && unclaimedHotCases.length === 0;
 
   const currentGavel = userData?.points || 0;
   const canExchange = currentGavel >= 50;
 
   const pulseKeyframes = `
-    @keyframes pulse-blue { 0% { box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.7); } 70% { box-shadow: 0 0 0 10px rgba(59, 130, 246, 0); } 100% { box-shadow: 0 0 0 0 rgba(59, 130, 246, 0); } }
-    @keyframes pulse-green { 0% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7); } 70% { box-shadow: 0 0 0 10px rgba(34, 197, 94, 0); } 100% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0); } }
-    @keyframes pulse-orange { 0% { box-shadow: 0 0 0 0 rgba(249, 115, 22, 0.7); } 70% { box-shadow: 0 0 0 10px rgba(249, 115, 22, 0); } 100% { box-shadow: 0 0 0 0 rgba(249, 115, 22, 0); } }
-    @keyframes pulse-red { 0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); } 70% { box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); } 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); } }
+    @keyframes pulse-gold { 0% { box-shadow: 0 0 0 0 rgba(140, 107, 87, 0.7); } 70% { box-shadow: 0 0 0 10px rgba(140, 107, 87, 0); } 100% { box-shadow: 0 0 0 0 rgba(140, 107, 87, 0); } }
   `;
 
   const MissionCard = ({ level, title, description, reward, limitation, conditionMet, isClaimed, missionType, buttonText }: any) => {
     const canClaim = conditionMet && !isClaimed;
-    const animationName = level === 0 ? 'pulse-blue' : level === 1 ? 'pulse-green' : level === 2 ? 'pulse-orange' : 'pulse-red';
+    const animationName = 'pulse-gold';
     const [showInfoPopup, setShowInfoPopup] = useState(false);
     const infoPopupRef = useRef<HTMLDivElement>(null);
     const [tooltipPosition, setTooltipPosition] = useState({ top: 0, left: 0, right: 0 });
@@ -480,7 +476,7 @@ function PointMissionPage() {
               style={{ 
                 padding: '0', 
                 backgroundColor: 'transparent', 
-                color: adaptive.blue500, 
+                color: canExchange ? '#3182F6' : adaptive.grey600, 
                 border: 'none', 
                 fontSize: '14px', 
                 fontWeight: '700', 
