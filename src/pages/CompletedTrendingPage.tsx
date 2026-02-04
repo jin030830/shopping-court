@@ -146,8 +146,9 @@ function CompletedTrendingPage() {
         <Text
           display="block"
           color={adaptive.grey900}
-          typography="t4"
+          typography="t3"
           fontWeight="bold"
+          style={{ fontSize: '22px' }}
         >
           화제의 재판 기록
         </Text>
@@ -197,7 +198,7 @@ function CompletedTrendingPage() {
             onClick={() => setFilter(filterOption)}
             style={{
               padding: '6px 16px',
-              backgroundColor: filter === filterOption ? '#191F28' : 'transparent',
+              backgroundColor: filter === filterOption ? '#191F28' : '#F2F4F6',
               color: filter === filterOption ? 'white' : '#666',
               border: 'none',
               borderRadius: '20px',
@@ -258,65 +259,71 @@ function CompletedTrendingPage() {
                   </div>
 
                   {/* Title and Date */}
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', marginBottom: '4px' }}>
                     <Text 
                       display="block" 
                       color="#191F28" 
-                      typography="t5" 
+                      typography="t4" 
                       fontWeight="bold"
-                      style={{ flex: 1, marginRight: '12px' }}
+                      style={{ 
+                        flex: 1,
+                        minWidth: 0,
+                        overflow: 'hidden', 
+                        textOverflow: 'ellipsis',
+                        display: '-webkit-box',
+                        WebkitLineClamp: 2,
+                        WebkitBoxOrient: 'vertical',
+                        fontSize: '18px',
+                        lineHeight: '1.4'
+                      }}
                     >
                       {post.title}
                     </Text>
                     {post.createdAt && (
-                      <Text color="#9E9E9E" typography="st13" fontWeight="regular">
+                      <Text color="#9E9E9E" typography="st13" fontWeight="regular" style={{ flexShrink: 0, whiteSpace: 'nowrap' }}>
                         {formatDate(post.createdAt)}
                       </Text>
                     )}
                   </div>
 
                   {/* Content Preview */}
-                  <Text 
-                    display="block" 
-                    color="#191F28ff" 
-                    typography="t7" 
-                    fontWeight="regular"
+                  <div
                     style={{ 
                       marginBottom: '8px',
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis',
-                      display: '-webkit-box',
-                      WebkitLineClamp: 2,
-                      WebkitBoxOrient: 'vertical'
+                      lineHeight: '1.5',
+                      color: '#191F28ff',
+                      fontSize: '14px',
+                      wordBreak: 'break-word'
                     }}
                   >
-                    {post.content}
-                  </Text>
+                    {post.content && post.content.length > 50 ? `${post.content.substring(0, 50)}...` : post.content}
+                  </div>
 
                   {/* Stats */}
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                       <Asset.Icon
-                        frameShape={{ width: 18, height: 18 }}
+                        frameShape={{ width: 13, height: 13 }}
                         backgroundColor="transparent"
-                        name="icon-user-two-blue-tab"
+                        name="icon-user-two-mono"
+                        color="#5e403b"
                         aria-hidden={true}
                         ratio="1/1"
                       />
-                      <Text color="#3182F6" typography="st13" fontWeight="medium">
+                      <Text color="#5e403b" typography="st13" fontWeight="medium">
                         {(post.guiltyCount || 0) + (post.innocentCount || 0)}
                       </Text>
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                       <Asset.Icon
-                        frameShape={{ width: 18, height: 18 }}
+                        frameShape={{ width: 13, height: 13 }}
                         backgroundColor="transparent"
-                        name="icon-chat-square-two-mono"
-                        color="#3182F6"
+                        name="icon-chat-bubble-mono"
+                        color="#5E403Bff"
                         aria-hidden={true}
                         ratio="1/1"
                       />
-                      <Text color="#3182F6" typography="st13" fontWeight="medium">
+                      <Text color="#5e403b" typography="st13" fontWeight="medium">
                         {post.commentCount ?? 0}
                       </Text>
                     </div>

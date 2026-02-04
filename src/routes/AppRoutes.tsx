@@ -8,6 +8,7 @@ import StaticMarketingPage from '../pages/StaticMarketingPage';
 import PointMissionPage from '../pages/PointMissionPage';
 import CompletedTrendingPage from '../pages/CompletedTrendingPage';
 import CompletedPreviousPage from '../pages/CompletedPreviousPage';
+import MyPostsPage from '../pages/MyPostsPage';
 import ProtectedRoute from './ProtectedRoute';
 
 // 경로를 소문자로 강제 변환하고, 필요한 경우 리다이렉트하는 컴포넌트
@@ -66,6 +67,14 @@ function AppRoutes() {
       <Route path="/point-mission" element={<PointMissionPage />} />
       <Route path="/completed-trending" element={<CompletedTrendingPage />} />
       <Route path="/completed-previous" element={<CompletedPreviousPage />} />
+      <Route 
+        path="/my-posts" 
+        element={
+          <ProtectedRoute>
+            <MyPostsPage />
+          </ProtectedRoute>
+        } 
+      />
     </Routes>
   );
 }
