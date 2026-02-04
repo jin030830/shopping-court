@@ -319,6 +319,15 @@ function CaseDetailPage() {
     } catch (error) {
       console.error('투표 실패:', error);
       setIsVoteSubmitting(false); // 실패 시 해제
+
+      // ❌ 에러 발생 시 낙관적 업데이트 되돌리기
+      const originalPost = await getCase(id);
+      if (originalPost) {
+        setPost(originalPost);
+      }
+      setHasVoted(false);
+      setSelectedVote(null);
+
       if (error instanceof Error && error.message.includes('이미 투표')) {
          alert('이미 투표하셨습니다. 정보를 갱신합니다.');
          // Refresh vote status

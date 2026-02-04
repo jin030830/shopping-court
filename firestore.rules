@@ -35,20 +35,22 @@ service cloud.firestore {
     // [함수] 좋아요 로직 검증 (모듈화)
     // 조건: 투표자여야 함 + 좋아요 배열에 본인 추가 + 카운트 1 증가
     function isValidLikeUpdate(caseId) {
-       // 1. 투표 여부 확인 (비용: 1 읽기)
-       return exists(/databases/$(database)/documents/cases/$(caseId)/votes/$(request.auth.uid)) &&
+       let hasVoted = exists(/databases/$(database)/documents/cases/$(caseId)/votes/$(request.auth.uid));
+       let data = resource.data;
+       let resData = request.resource.data;
        
-       // 2. 변경 필드 제한 (likes와 likedBy만 변경 가능)
-       request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likes', 'likedBy']) &&
-       
-       // 3. 중복 좋아요 방지 로직
-       // 기존에는 내 ID가 없어야 하고, 요청 데이터에는 내 ID가 포함되어야 함
-       !(request.auth.uid in resource.data.likedBy) &&
-       (request.auth.uid in request.resource.data.likedBy) &&
-       
-       // 4. 카운트 정확성 확인
-       request.resource.data.likes == resource.data.likes + 1 &&
-       request.resource.data.likedBy.size() == resource.data.likedBy.size() + 1;
+       // 필드가 없을 경우를 대비한 안전한 접근
+       let currentLikedBy = data.get('likedBy', []);
+       let newLikedBy = resData.get('likedBy', []);
+       let currentLikes = data.get('likes', 0);
+       let newLikes = resData.get('likes', 0);
+
+       return hasVoted &&
+       resData.diff(data).affectedKeys().hasOnly(['likes', 'likedBy']) &&
+       !(request.auth.uid in currentLikedBy) &&
+       (request.auth.uid in newLikedBy) &&
+       newLikes == currentLikes + 1 &&
+       newLikedBy.size() == currentLikedBy.size() + 1;
     }
 
     // users 컬렉션
@@ -62,7 +64,14 @@ service cloud.firestore {
     match /cases/{caseId} {
       allow read: if true;
       allow create: if request.auth != null && isValidNewCase();
-      allow update, delete: if request.auth != null && isOwner();
+      
+      // 수정: 본인이거나, 투표 카운트만 올리는 경우 허용
+      allow update: if request.auth != null && (
+        isOwner() || 
+        (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['guiltyCount', 'innocentCount']))
+      );
+      
+      allow delete: if request.auth != null && isOwner();
 
       match /votes/{userId} {
         allow read: if true;
