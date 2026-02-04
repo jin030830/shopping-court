@@ -52,9 +52,9 @@ export const claimMissionReward = functions.region('asia-northeast3')
     }
 
     const userId = context.auth.uid;
-    const missionType = data.missionType; // 'LEVEL_0', 'LEVEL_1', 'LEVEL_2'
+    const missionType = data.missionType; // 'LEVEL_0', 'LEVEL_1', 'LEVEL_2', 'LEVEL_3'
 
-    if (!['LEVEL_0', 'LEVEL_1', 'LEVEL_2'].includes(missionType)) {
+    if (!['LEVEL_0', 'LEVEL_1', 'LEVEL_2', 'LEVEL_3'].includes(missionType)) {
       throw new functions.https.HttpsError('invalid-argument', '유효하지 않은 미션 타입입니다.');
     }
 
@@ -98,6 +98,12 @@ export const claimMissionReward = functions.region('asia-northeast3')
           isAlreadyClaimed = currentDailyStats.isLevel2Claimed === true;
           rewardPoints = 60;
           updateField = 'dailyStats.isLevel2Claimed';
+        } else if (missionType === 'LEVEL_3') {
+          // Level 3: 화제의 재판 등재 (클라이언트에서 조건 확인 후 호출)
+          isConditionMet = true; 
+          isAlreadyClaimed = userData?.missions?.hotCaseMission?.claimed === true;
+          rewardPoints = 100;
+          updateField = 'missions.hotCaseMission.claimed';
         }
 
         if (!isConditionMet) {

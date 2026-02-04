@@ -119,12 +119,6 @@ function PointMissionPage() {
 
     showRewardAd(async () => {
       try {
-        // LEVEL_3는 현재 Cloud Function에서 처리하지 않으므로 안내 메시지 표시
-        if (missionType === 'LEVEL_3') {
-          alert('화제의 재판 보상은 자동으로 지급되거나 추후 지원될 예정입니다.');
-          return;
-        }
-
         await claimMissionReward(user.uid, missionType, gavel);
       } catch (error) {
         console.error('보상 수령 실패:', error);
@@ -180,15 +174,12 @@ function PointMissionPage() {
   const canExchange = currentGavel >= 50;
 
   const pulseKeyframes = `
-    @keyframes pulse-blue { 0% { box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.7); } 70% { box-shadow: 0 0 0 10px rgba(59, 130, 246, 0); } 100% { box-shadow: 0 0 0 0 rgba(59, 130, 246, 0); } }
-    @keyframes pulse-green { 0% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7); } 70% { box-shadow: 0 0 0 10px rgba(34, 197, 94, 0); } 100% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0); } }
-    @keyframes pulse-orange { 0% { box-shadow: 0 0 0 0 rgba(249, 115, 22, 0.7); } 70% { box-shadow: 0 0 0 10px rgba(249, 115, 22, 0); } 100% { box-shadow: 0 0 0 0 rgba(249, 115, 22, 0); } }
-    @keyframes pulse-red { 0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); } 70% { box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); } 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); } }
+    @keyframes pulse-gold { 0% { box-shadow: 0 0 0 0 rgba(140, 107, 87, 0.7); } 70% { box-shadow: 0 0 0 10px rgba(140, 107, 87, 0); } 100% { box-shadow: 0 0 0 0 rgba(140, 107, 87, 0); } }
   `;
 
   const MissionCard = ({ level, title, description, reward, limitation, conditionMet, isClaimed, missionType, buttonText }: any) => {
     const canClaim = conditionMet && !isClaimed;
-    const animationName = level === 0 ? 'pulse-blue' : level === 1 ? 'pulse-green' : level === 2 ? 'pulse-orange' : 'pulse-red';
+    const animationName = 'pulse-gold';
     const [showInfoPopup, setShowInfoPopup] = useState(false);
     const infoPopupRef = useRef<HTMLDivElement>(null);
     const [tooltipPosition, setTooltipPosition] = useState({ top: 0, left: 0, right: 0 });
@@ -480,7 +471,7 @@ function PointMissionPage() {
               style={{ 
                 padding: '0', 
                 backgroundColor: 'transparent', 
-                color: adaptive.blue500, 
+                color: canExchange ? '#3182F6' : adaptive.grey600, 
                 border: 'none', 
                 fontSize: '14px', 
                 fontWeight: '700', 
