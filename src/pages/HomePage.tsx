@@ -20,6 +20,20 @@ const formatDate = (timestamp: Timestamp): string => {
 
 function HomePage() {
   const location = useLocation();
+  const navigate = useNavigate();
+  
+  // 푸시 알림에서 온 경우 URL parameter 확인하고 리다이렉트
+  useEffect(() => {
+    const searchParams = new URLSearchParams(location.search);
+    const caseId = searchParams.get('caseId');
+    
+    if (caseId) {
+      console.log('[Shopping Court] 푸시 알림에서 이동:', caseId);
+      // URL parameter 제거하고 게시글로 이동
+      navigate(`/case/${caseId}`, { replace: true });
+    }
+  }, [location.search, navigate]);
+
   // 초기값: location.state > 기본값 'HOT 게시판' (localStorage 무시)
   const [selectedTab, setSelectedTab] = useState(() => {
     const stateTab = (location.state as any)?.selectedTab;
@@ -29,7 +43,6 @@ function HomePage() {
   const [isPostsLoading, setIsPostsLoading] = useState(true);
   const [isFabExpanded, setIsFabExpanded] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const navigate = useNavigate();
 
   // location.state에서 탭 정보를 받아오면 탭 변경
   // 또는 sessionStorage에서 가져오기 (토스 앱의 뒤로가기 버튼 대응)

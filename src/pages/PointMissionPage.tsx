@@ -5,7 +5,7 @@ import { adaptive } from '@toss/tds-colors';
 import { useAuth } from '../hooks/useAuth';
 import { doc, onSnapshot } from 'firebase/firestore';
 import { db } from '../api/firebase';
-import { claimMissionReward, exchangeGavel, type UserDocument } from '../api/user';
+import { claimMissionReward, exchangeGavel, type UserDocument, getTodayDateString } from '../api/user';
 import { getAllCases, type CaseDocument } from '../api/cases';
 import { useTossRewardAd } from '../hooks/useTossRewardAd';
 
@@ -19,11 +19,11 @@ function PointMissionPage() {
   const [isExchanging, setIsExchanging] = useState(false);
   const [showInfoPopup, setShowInfoPopup] = useState(false);
   const [hotCases, setHotCases] = useState<CaseDocument[]>([]);
-  const [myPostCount, setMyPostCount] = useState(0);
   const infoPopupRef = useRef<HTMLDivElement>(null);
   
   const { show: showRewardAd } = useTossRewardAd('ait-ad-test-rewarded-id');
 
+  // 페이지 진입 시 sessionStorage에 저장
   useEffect(() => {
     const fromTab =
       (location.state as any)?.fromTab ||
@@ -32,46 +32,54 @@ function PointMissionPage() {
     sessionStorage.setItem('pointMissionFromTab', fromTab);
   }, [location.state]);
 
+  // 브라우저/토스 앱의 뒤로가기 버튼 처리
   useEffect(() => {
     const handlePopState = () => {
       const savedFromTab = sessionStorage.getItem('pointMissionFromTab') || 'HOT 게시판';
       navigate('/', { state: { selectedTab: savedFromTab }, replace: true });
     };
+
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
   }, [navigate]);
 
+  // 정보 팝업 외부 클릭 시 닫기
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (infoPopupRef.current && !infoPopupRef.current.contains(event.target as Node)) {
         setShowInfoPopup(false);
       }
     };
+
     if (showInfoPopup) {
       document.addEventListener('mousedown', handleClickOutside);
     }
+
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
   }, [showInfoPopup]);
 
-
+  // 사용자 데이터 실시간 구독
   useEffect(() => {
     if (!user || !db) {
       setLoading(false);
       return;
     }
+
     const unsub = onSnapshot(doc(db, 'users', user.uid), (docSnap) => {
       if (docSnap.exists()) {
         setUserData(docSnap.data() as UserDocument);
       }
       setLoading(false);
     });
+
     return () => unsub();
   }, [user]);
 
+  // 화제의 재판 기록 확인
   useEffect(() => {
-    const checkCases = async () => {
+    const checkHotCases = async () => {
       if (!user) return;
       try {
         const cases = await getAllCases();
@@ -82,25 +90,30 @@ function PointMissionPage() {
             caseItem.authorId === user.uid
         );
         setHotCases(hotCompletedCases);
-        
-        const myCases = cases.filter(caseItem => caseItem.authorId === user.uid);
-        setMyPostCount(myCases.length);
       } catch (error) {
-        console.error('재판 기록 조회 실패:', error);
+        console.error('화제의 재판 기록 조회 실패:', error);
       }
     };
-    checkCases();
+    checkHotCases();
   }, [user]);
 
-  const handleClaim = (missionType: string, gavel: number) => {
+  const handleClaim = async (missionType: string, gavel: number) => {
     if (!user || !userData || isClaiming) return;
+
     setIsClaiming(true);
+
     showRewardAd(async () => {
       try {
+        // LEVEL_3는 현재 Cloud Function에서 처리하지 않으므로 안내 메시지 표시
+        if (missionType === 'LEVEL_3') {
+          alert('화제의 재판 보상은 자동으로 지급되거나 추후 지원될 예정입니다.');
+          return;
+        }
+
         await claimMissionReward(user.uid, missionType, gavel);
-      } catch (error: any) {
+      } catch (error) {
         console.error('보상 수령 실패:', error);
-        alert(error.message || '보상을 받는 중 오류가 발생했습니다.');
+        alert('보상을 받는 중 오류가 발생했습니다.');
       } finally {
         setIsClaiming(false);
       }
@@ -109,15 +122,17 @@ function PointMissionPage() {
 
   const handleExchange = async () => {
     if (!user || !userData || isExchanging) return;
+    
     const currentGavel = userData.points || 0;
     if (currentGavel < 50) {
       alert('판사봉이 부족합니다. (50개 필요)');
       return;
     }
+
     setIsExchanging(true);
     try {
       await exchangeGavel();
-      alert('판사봉 50개가 토스 포인트 5원으로 교환되었습니다!');
+      alert('5P가 지급되었습니다!');
     } catch (error: any) {
       console.error('교환 실패:', error);
       alert(error.message || '교환 중 오류가 발생했습니다.');
@@ -130,29 +145,23 @@ function PointMissionPage() {
     return <div style={{ padding: '20px', textAlign: 'center' }}>로딩 중...</div>;
   }
 
-  const dailyStats = userData?.dailyStats || { 
-    voteCount: 0, 
-    commentCount: 0, 
-    isLevel1Claimed: false, 
-    isLevel2Claimed: false, 
-    lastActiveDate: '' 
-  };
-
+  const today = getTodayDateString();
+  const dailyStats = userData?.dailyStats || { voteCount: 0, commentCount: 0, lastActiveDate: today, isLevel1Claimed: false, isLevel2Claimed: false };
   const totalStats = userData?.totalStats || { voteCount: 0, commentCount: 0, postCount: 0 };
+  
+  // 내 게시물 수 계산
+  const myPostCount = totalStats.postCount || 0;
 
   const isLevel0Claimed = userData?.isLevel0Claimed || false;
   const isLevel1Claimed = dailyStats.isLevel1Claimed;
   const isLevel2Claimed = dailyStats.isLevel2Claimed;
   const isLevel3Claimed = userData?.missions?.hotCaseMission?.claimed || false; 
 
-  const level0ConditionMet = 
-    (totalStats.voteCount >= 1 || dailyStats.voteCount >= 1) && 
-    (totalStats.commentCount >= 1 || dailyStats.commentCount >= 1) && 
-    (totalStats.postCount >= 1 || myPostCount >= 1);
-
+  // Level 0 조건 확인
+  const level0ConditionMet = totalStats.voteCount >= 1 && totalStats.commentCount >= 1 && totalStats.postCount >= 1;
   const level1ConditionMet = dailyStats.voteCount >= 5;
   const level2ConditionMet = dailyStats.commentCount >= 3;
-  const level3ConditionMet = hotCases.length > 0 || (userData?.stats?.hotCaseCount || 0) > 0;
+  const level3ConditionMet = hotCases.length > 0;
 
   const currentGavel = userData?.points || 0;
   const canExchange = currentGavel >= 50;
@@ -316,7 +325,7 @@ function PointMissionPage() {
                     transformOrigin: 'center',
                   };
 
-                  // 완료 상태 (세 번째 사진처럼)
+                  // 완료 상태
                   if (isClaimed) {
                     return (
                       <button
@@ -325,7 +334,6 @@ function PointMissionPage() {
                           ...baseButtonStyle,
                           backgroundColor: '#8C6B57',
                           color: '#ffffff',
-                          WebkitTextFillColor: '#ffffff',
                           cursor: 'default',
                           opacity: 1,
                           pointerEvents: 'none',
@@ -336,7 +344,7 @@ function PointMissionPage() {
                     );
                   }
 
-                  // 활성 상태 (첫 번째 사진처럼)
+                  // 활성 상태
                   if (canClaim) {
                     return (
                       <button
@@ -346,7 +354,6 @@ function PointMissionPage() {
                           ...baseButtonStyle,
                           background: 'linear-gradient(120deg, #3a2e25 0%, #8c6b57 100%)',
                           color: '#ffffff',
-                          WebkitTextFillColor: '#ffffff',
                           cursor: isClaiming ? 'not-allowed' : 'pointer',
                           opacity: isClaiming ? 0.6 : 1,
                           animation: `${animationName} 2s infinite`,
@@ -357,7 +364,7 @@ function PointMissionPage() {
                     );
                   }
 
-                  // 잠금 상태 (기존 회색 잠금 버튼)
+                  // 잠금 상태
                   return (
                     <button
                       disabled={true}
