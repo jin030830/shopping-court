@@ -167,14 +167,8 @@ export const onVoteCreate = functions.region('asia-northeast3')
       const voteId = context.params.voteId;
       await updateUserStats(voteId, 'vote', 'create');
       
-      const db = getDb();
-      const caseRef = db.collection('cases').doc(context.params.caseId);
-      const voteData = snapshot.data();
-      if (voteData.vote === 'guilty') {
-        await caseRef.update({ guiltyCount: admin.firestore.FieldValue.increment(1) });
-      } else {
-        await caseRef.update({ innocentCount: admin.firestore.FieldValue.increment(1) });
-      }
+      // 카운트 업데이트는 이제 클라이언트(addVote)에서 트랜잭션으로 처리하므로 
+      // 트리거에서는 hotScore 재계산만 수행합니다.
       await recalculateHotScore(context.params.caseId);
     } catch (error) {
       functions.logger.error(`[onVoteCreate] Error`, error);
@@ -193,6 +187,8 @@ export const onVoteDelete = functions.region('asia-northeast3')
 
       const db = getDb();
       const caseRef = db.collection('cases').doc(context.params.caseId);
+      
+      // 삭제 시에는 클라이언트에서 처리하기 어려우므로 트리거에서 차감 유지
       if (data.vote === 'guilty') {
         await caseRef.update({ guiltyCount: admin.firestore.FieldValue.increment(-1) });
       } else {

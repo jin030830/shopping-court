@@ -262,11 +262,16 @@ export const addVote = async (caseId: string, userId: string, vote: VoteType): P
         throw new Error('존재하지 않는 게시물입니다.');
       }
 
-      // 투표 기록 (이제 카운트 업데이트는 Cloud Functions가 처리함)
+      // 투표 기록 및 카운트 업데이트 (즉시 반영을 위해 클라이언트에서 처리)
       transaction.set(voteRef, {
         userId,
         vote,
         createdAt: serverTimestamp(),
+      });
+
+      const countField = vote === 'guilty' ? 'guiltyCount' : 'innocentCount';
+      transaction.update(caseRef, {
+        [countField]: increment(1)
       });
     });
     console.log('✅ 투표가 성공적으로 기록되었습니다.');
