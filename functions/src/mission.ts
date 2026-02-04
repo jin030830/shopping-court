@@ -33,6 +33,7 @@ const checkAndResetDailyStats = (userData: any, today: string): any => {
       lastActiveDate: today,
       voteCount: 0,
       commentCount: 0,
+      postCount: 0,
       isLevel1Claimed: false,
       isLevel2Claimed: false
     };
@@ -80,9 +81,8 @@ export const claimMissionReward = functions.region('asia-northeast3')
         let updateField = '';
 
         if (missionType === 'LEVEL_0') {
-          // Level 0: 누적(totalStats) - 투표 1, 댓글 1, 게시글 1
-          const totalStats = userData?.totalStats || { voteCount: 0, commentCount: 0, postCount: 0 };
-          isConditionMet = totalStats.voteCount >= 1 && totalStats.commentCount >= 1 && totalStats.postCount >= 1;
+          // Level 0: 일일(dailyStats) - 투표 1, 댓글 1, 게시글 1 (v1.7)
+          isConditionMet = currentDailyStats.voteCount >= 1 && currentDailyStats.commentCount >= 1 && currentDailyStats.postCount >= 1;
           isAlreadyClaimed = userData?.isLevel0Claimed === true;
           rewardPoints = 100;
           updateField = 'isLevel0Claimed';

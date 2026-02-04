@@ -1,26 +1,34 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState, useRef } from 'react';
 import { GoogleAdMob } from '@apps-in-toss/web-framework';
 
 export const useTossAd = (adUnitId: string) => {
   const [isLoaded, setIsLoaded] = useState(false);
+  const cleanupLoadRef = useRef<(() => void) | null>(null);
 
   const load = useCallback(() => {
     try {
       console.log(`[AdMob] 광고 로드 시도 (adGroupId): ${adUnitId}`);
-      GoogleAdMob.loadAppsInTossAdMob({
+      
+      // 기존 로드 프로세스 정리
+      if (cleanupLoadRef.current) {
+        cleanupLoadRef.current();
+      }
+
+      const cleanup = GoogleAdMob.loadAppsInTossAdMob({
         options: { adGroupId: adUnitId } as any,
         onEvent: (event: { type: string }) => {
           console.log(`[AdMob] Load Event: ${event.type}`);
           if (event.type === 'loaded') {
-            console.log('[AdMob] 광고 로드 완료 (onAdLoaded)');
             setIsLoaded(true);
           }
         },
         onError: (error: unknown) => {
-          console.error('[AdMob] 광고 로드 실패 (onAdFailedToLoad):', error);
+          console.error('[AdMob] 광고 로드 실패:', error);
           setIsLoaded(false);
         },
       });
+
+      cleanupLoadRef.current = cleanup;
     } catch (e) {
       console.error('[AdMob] loadAppsInTossAdMob 호출 실패:', e);
     }
@@ -28,32 +36,25 @@ export const useTossAd = (adUnitId: string) => {
 
   const show = useCallback((onDismiss: () => void) => {
     if (!isLoaded) {
-      console.warn('[AdMob] 광고가 아직 로드되지 않았습니다. 즉시 콜백을 실행합니다.');
       onDismiss();
       return;
     }
 
     try {
-      console.log(`[AdMob] 광고 노출 시도 (adGroupId): ${adUnitId}`);
-      GoogleAdMob.showAppsInTossAdMob({
-        options: { adGroupId: adUnitId } as any, // show에서도 adGroupId 사용 시도
+      const cleanupShow = GoogleAdMob.showAppsInTossAdMob({
+        options: { adGroupId: adUnitId } as any,
         onEvent: (event: { type: string }) => {
-          console.log(`[AdMob] Show Event: ${event.type}`);
-          if (
-            event.type === 'dismissed' || 
-            event.type === 'closed' || 
-            event.type === 'onAdDismissedFullScreenContent'
-          ) {
-            console.log('[AdMob] 광고 닫힘 (onAdDismissedFullScreenContent)');
+          if (event.type === 'closed' || event.type === 'dismissed') {
             onDismiss();
             setIsLoaded(false);
+            if (cleanupShow) cleanupShow();
             load(); 
           }
         },
-        onError: (error: unknown) => {
-          console.error('[AdMob] 광고 노출 실패 (onAdFailedToShowFullScreenContent):', error);
+        onError: () => {
           onDismiss(); 
           setIsLoaded(false);
+          if (cleanupShow) cleanupShow();
           load();
         },
       });
@@ -64,15 +65,14 @@ export const useTossAd = (adUnitId: string) => {
   }, [adUnitId, isLoaded, load]);
 
   useEffect(() => {
-    if (typeof GoogleAdMob?.loadAppsInTossAdMob?.isSupported === 'function') {
-      if (GoogleAdMob.loadAppsInTossAdMob.isSupported()) {
-        load();
-      } else {
-        console.warn('[AdMob] 현재 환경에서 AdMob을 지원하지 않습니다.');
-      }
-    } else {
+    const isSupported = GoogleAdMob?.loadAppsInTossAdMob?.isSupported?.() ?? true;
+    if (isSupported) {
       load();
     }
+
+    return () => {
+      if (cleanupLoadRef.current) cleanupLoadRef.current();
+    };
   }, [load]);
 
   return { isLoaded, show };

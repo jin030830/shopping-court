@@ -52,6 +52,7 @@ const updateUserStats = async (
         lastActiveDate: today,
         voteCount: 0,
         commentCount: 0,
+        postCount: 0,
         isLevel1Claimed: false,
         isLevel2Claimed: false
       };
@@ -62,28 +63,24 @@ const updateUserStats = async (
           lastActiveDate: today,
           voteCount: 0,
           commentCount: 0,
+          postCount: 0,
           isLevel1Claimed: false,
           isLevel2Claimed: false
         };
       }
 
       // 2. 카운트 업데이트 로직
-      const totalField = `totalStats.${type}Count`;
-      let totalIncrement = 0;
-
       if (action === 'create') {
-        totalIncrement = 1;
-        if (type !== 'post') {
-          if (type === 'vote') dailyStats.voteCount = (dailyStats.voteCount || 0) + 1;
-          if (type === 'comment') dailyStats.commentCount = (dailyStats.commentCount || 0) + 1;
-        }
+        if (type === 'vote') dailyStats.voteCount = (dailyStats.voteCount || 0) + 1;
+        if (type === 'comment') dailyStats.commentCount = (dailyStats.commentCount || 0) + 1;
+        if (type === 'post') dailyStats.postCount = (dailyStats.postCount || 0) + 1;
       } else if (action === 'delete') {
-        totalIncrement = -1;
-        if (createdAt && type !== 'post') {
+        if (createdAt) {
           const createdDate = timestampToDateString(createdAt);
           if (createdDate === today) {
              if (type === 'vote') dailyStats.voteCount = Math.max(0, (dailyStats.voteCount || 0) - 1);
              if (type === 'comment') dailyStats.commentCount = Math.max(0, (dailyStats.commentCount || 0) - 1);
+             if (type === 'post') dailyStats.postCount = Math.max(0, (dailyStats.postCount || 0) - 1);
           }
         }
       }
@@ -93,8 +90,6 @@ const updateUserStats = async (
         dailyStats: dailyStats
       };
       
-      updates[totalField] = admin.firestore.FieldValue.increment(totalIncrement);
-
       transaction.update(userRef, updates);
     });
     functions.logger.log(`Updated user stats for ${userId}, type: ${type}, action: ${action}`);

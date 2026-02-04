@@ -6,7 +6,7 @@ import { useAuth } from '../hooks/useAuth';
 import { doc, onSnapshot } from 'firebase/firestore';
 import { db } from '../api/firebase';
 import { claimMissionReward, exchangeGavel, type UserDocument, getTodayDateString } from '../api/user';
-import { getAllCases, type CaseDocument } from '../api/cases';
+import { getCasesByAuthor, type CaseDocument } from '../api/cases';
 import { useTossRewardAd } from '../hooks/useTossRewardAd';
 
 function PointMissionPage() {
@@ -22,6 +22,7 @@ function PointMissionPage() {
   const infoPopupRef = useRef<HTMLDivElement>(null);
   
   const { show: showRewardAd } = useTossRewardAd('ait-ad-test-rewarded-id');
+  const [today, setToday] = useState(getTodayDateString());
 
   // 페이지 진입 시 sessionStorage에 저장
   useEffect(() => {
@@ -31,6 +32,21 @@ function PointMissionPage() {
       'HOT 게시판';
     sessionStorage.setItem('pointMissionFromTab', fromTab);
   }, [location.state]);
+
+  // 자정 경계 처리: 앱이 포커스될 때 날짜 갱신
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        const newToday = getTodayDateString();
+        if (newToday !== today) {
+          setToday(newToday);
+        }
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, [today]);
 
   // 브라우저/토스 앱의 뒤로가기 버튼 처리
   useEffect(() => {
@@ -82,12 +98,11 @@ function PointMissionPage() {
     const checkHotCases = async () => {
       if (!user) return;
       try {
-        const cases = await getAllCases();
+        const cases = await getCasesByAuthor(user.uid);
         const hotCompletedCases = cases.filter(
-          caseItem => 
+          (caseItem: CaseDocument) => 
             caseItem.status === 'CLOSED' && 
-            caseItem.hotScore > 0 && 
-            caseItem.authorId === user.uid
+            caseItem.hotScore > 0
         );
         setHotCases(hotCompletedCases);
       } catch (error) {
@@ -145,20 +160,18 @@ function PointMissionPage() {
     return <div style={{ padding: '20px', textAlign: 'center' }}>로딩 중...</div>;
   }
 
-  const today = getTodayDateString();
-  const dailyStats = userData?.dailyStats || { voteCount: 0, commentCount: 0, lastActiveDate: today, isLevel1Claimed: false, isLevel2Claimed: false };
-  const totalStats = userData?.totalStats || { voteCount: 0, commentCount: 0, postCount: 0 };
+  const dailyStats = userData?.dailyStats || { voteCount: 0, commentCount: 0, postCount: 0, lastActiveDate: today, isLevel1Claimed: false, isLevel2Claimed: false };
   
-  // 내 게시물 수 계산
-  const myPostCount = totalStats.postCount || 0;
+  // 내 오늘 게시물 수
+  const myPostCount = dailyStats.postCount || 0;
 
   const isLevel0Claimed = userData?.isLevel0Claimed || false;
   const isLevel1Claimed = dailyStats.isLevel1Claimed;
   const isLevel2Claimed = dailyStats.isLevel2Claimed;
   const isLevel3Claimed = userData?.missions?.hotCaseMission?.claimed || false; 
 
-  // Level 0 조건 확인
-  const level0ConditionMet = totalStats.voteCount >= 1 && totalStats.commentCount >= 1 && totalStats.postCount >= 1;
+  // Level 0 조건 확인 (통합명세서 v1.7: 당일 하루 안에 [투표 1 + 댓글 1 + 게시글 1] 달성)
+  const level0ConditionMet = dailyStats.voteCount >= 1 && dailyStats.commentCount >= 1 && dailyStats.postCount >= 1;
   const level1ConditionMet = dailyStats.voteCount >= 5;
   const level2ConditionMet = dailyStats.commentCount >= 3;
   const level3ConditionMet = hotCases.length > 0;

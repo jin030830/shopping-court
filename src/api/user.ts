@@ -16,21 +16,13 @@ import { db, app } from './firebase'
 const functions = getFunctions(app, 'asia-northeast3');
 
 /**
- * 사용자 누적 활동 통계 (Level 0 미션용)
- */
-export interface UserTotalStats {
-  voteCount: number;
-  commentCount: number;
-  postCount: number;
-}
-
-/**
  * 사용자 일일 활동 통계 (Level 1, 2 미션용)
  */
 export interface UserDailyStats {
   lastActiveDate: string; // YYYY-MM-DD
   voteCount: number;
   commentCount: number;
+  postCount: number;
   isLevel1Claimed: boolean;
   isLevel2Claimed: boolean;
 }
@@ -58,7 +50,6 @@ export interface UserDocument {
   nickname: string
   dailyStats: UserDailyStats 
   stats?: any 
-  totalStats: UserTotalStats
   isLevel0Claimed: boolean
   missions: UserMissions
   points: number
@@ -109,18 +100,11 @@ export async function createOrUpdateUser(
       const existingData = userSnap.data() as any;
       const updates: any = { updatedAt: serverTimestamp() };
       
-      if (!existingData.totalStats) {
-        updates.totalStats = {
-          voteCount: existingData.stats?.voteCount || existingData.dailyStats?.voteCount || 0,
-          commentCount: existingData.stats?.commentCount || existingData.dailyStats?.commentCount || 0,
-          postCount: existingData.stats?.postCount || 0
-        };
-      }
-
       if (!existingData.dailyStats || existingData.dailyStats.lastActiveDate !== today) {
         updates.dailyStats = { 
           voteCount: 0, 
           commentCount: 0, 
+          postCount: 0,
           isLevel1Claimed: false,
           isLevel2Claimed: false,
           lastActiveDate: today 
@@ -139,8 +123,7 @@ export async function createOrUpdateUser(
       const newUser: UserDocument = {
         tossUserKey: firebaseUser.uid,
         nickname,
-        dailyStats: { voteCount: 0, commentCount: 0, isLevel1Claimed: false, isLevel2Claimed: false, lastActiveDate: today },
-        totalStats: { voteCount: 0, commentCount: 0, postCount: 0 },
+        dailyStats: { voteCount: 0, commentCount: 0, postCount: 0, isLevel1Claimed: false, isLevel2Claimed: false, lastActiveDate: today },
         isLevel0Claimed: false,
         missions: {
           firstEventMission: { claimed: false },

@@ -134,15 +134,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         // Firestore에서 사용자 데이터 확인
         const userDataFromFirestore = await getUserData(firebaseUser);
         
-        // [마이그레이션] totalStats가 없으면 stats 데이터를 복사 (UI 활성화용)
-        if (userDataFromFirestore && userDataFromFirestore.stats && !userDataFromFirestore.totalStats) {
-          userDataFromFirestore.totalStats = {
-            voteCount: userDataFromFirestore.stats.voteCount || 0,
-            commentCount: userDataFromFirestore.stats.commentCount || 0,
-            postCount: userDataFromFirestore.stats.postCount || 0
-          };
-        }
-        
         if (!userDataFromFirestore) {
           console.log('[Auth] User data not found in Firestore (unlinked), forcing logout');
           try {
@@ -163,22 +154,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           try {
             const parsedData = JSON.parse(localData);
             
-            // [핵심 수정] 로컬 데이터 로드 시 즉시 totalStats 마이그레이션 수행
-            if (parsedData.stats && !parsedData.totalStats) {
-              parsedData.totalStats = {
-                voteCount: parsedData.stats.voteCount || 0,
-                commentCount: parsedData.stats.commentCount || 0,
-                postCount: parsedData.stats.postCount || 0
-              };
-            }
-
             // DB 데이터가 있으면 우선적으로 사용하고 로컬 스토리지 갱신
             if (userDataFromFirestore) {
               setUserData(userDataFromFirestore);
-              // 로컬 스토리지 갱신 (마이그레이션된 데이터 저장)
+              // 로컬 스토리지 갱신
               localStorage.setItem('shopping-court-user', JSON.stringify({
                 ...parsedData,
-                totalStats: userDataFromFirestore.totalStats
               }));
             } else {
               setUserData({

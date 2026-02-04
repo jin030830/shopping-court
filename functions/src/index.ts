@@ -514,6 +514,8 @@ import { claimMissionReward } from './mission';
 // ... (기존 코드 생략)
 
 export { 
+  onCaseCreate,
+  onCaseDelete,
   onVoteCreate, 
   onCommentCreate, 
   onVoteDelete, 
