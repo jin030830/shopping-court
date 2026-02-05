@@ -418,7 +418,7 @@ function PointMissionPage() {
   return (
     <div style={{ backgroundColor: 'white', minHeight: '100vh', width: '100%', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', paddingBottom: '24px', paddingLeft: '0', paddingRight: '0' }}>
       <Spacing size={10} />
-      <div style={{ padding: '10px 10px 5px 10px', backgroundColor: '#FCF8F2', width: '100%', boxSizing: 'border-box' }}>
+      <div style={{ padding: '10px 10px 5px 10px', backgroundColor: 'white', width: '100%', boxSizing: 'border-box' }}>
         <div style={{ padding: '0 10px', marginBottom: '11px', textAlign: 'center' }}>
           <Text color={adaptive.grey800} typography="t4" fontWeight="bold" style={{ fontSize: '20px' }}>
             오늘의 판결 업무

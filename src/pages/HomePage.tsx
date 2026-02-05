@@ -124,18 +124,18 @@ function HomePage() {
       {/* 포인트 미션 배너 */}
       <div style={{
         backgroundColor: 'white',
-        padding: '12px 0',
+        padding: '0px',
         width: '100%',
         boxSizing: 'border-box',
         marginTop: '0px'
       }}>
         <div style={{
-          margin: '0 20px',
-          width: 'calc(100% - 40px)',
-          height: '144px',
+          margin: '0px',
+          width: '100%',
+          height: '147px',
           backgroundColor: '#FAF0E6',
-          borderRadius: '10px',
-          padding: '12px',
+          borderRadius: '0px',
+          padding: '16px 20px',
           boxSizing: 'border-box',
           position: 'relative',
           overflow: 'hidden',
@@ -166,8 +166,8 @@ function HomePage() {
             
             <div style={{ 
               position: 'absolute',
-              bottom: '12px',
-              left: '12px',
+              bottom: '4px',
+              left: '8px',
               cursor: 'pointer',
               zIndex: 2
             }}
@@ -212,10 +212,10 @@ function HomePage() {
           <div style={{
             position: 'absolute',
             bottom: '25px',
-            right: '15px',
+            right: '25px',
             zIndex: 0,
-            width: '140px',
-            height: '140px',
+            width: '150px',
+            height: '150px',
             backgroundImage: `url(${pointMissionImage})`,
             backgroundSize: 'contain',
             backgroundRepeat: 'no-repeat',
@@ -324,21 +324,22 @@ function HomePage() {
       {selectedTab === '재판 중' && (
         <div style={{ 
           padding: '0 20px', 
-          marginBottom: '20px',
-          background: 'linear-gradient(180deg, #e8f3ff 0%, #ffffff 100%)',
+          marginBottom: '0px',
+          background: 'linear-gradient(180deg, #F7F3EEff 0%, #ffffff 100%)',
           paddingTop: '16px',
+          paddingBottom: '0px',
           marginTop: '0px'
         }}>
           <div style={{ 
             display: 'flex', 
             alignItems: 'flex-start', 
             justifyContent: 'space-between',
-            marginBottom: '16px'
+            marginBottom: '12px'
           }}>
             <div style={{ flex: 1, paddingTop: '6px' }}>
               <Text 
                 display="block" 
-                color="#191F28ff" 
+                color="#0D47A1" 
                 typography="t3" 
                 fontWeight="bold"
                 style={{ marginBottom: '8px', fontSize: '22px' }}
@@ -350,7 +351,7 @@ function HomePage() {
                 color="#191F28" 
                 typography="t7" 
                 fontWeight="regular"
-                style={{ marginBottom: '12px' }}
+                style={{ marginBottom: '0px' }}
               >
                 재판에 참여해보세요!
               </Text>
@@ -367,6 +368,15 @@ function HomePage() {
               />
             </div>
           </div>
+          <div style={{ 
+            height: '1px', 
+            borderTop: '1px solid #F0F0F0',
+            marginTop: '0px',
+            marginBottom: '0px',
+            marginLeft: '-20px',
+            marginRight: '-20px',
+            width: 'calc(100% + 40px)'
+          }} />
         </div>
       )}
 
@@ -374,21 +384,22 @@ function HomePage() {
       {selectedTab === 'HOT 게시판' && (
         <div style={{ 
           padding: '0 20px', 
-          marginBottom: '20px',
-          background: 'linear-gradient(180deg, #ffeeee 0%, #ffffff 100%)',
+          marginBottom: '0px',
+          background: 'linear-gradient(180deg, #F7F3EEff 0%, #ffffff 100%)',
           paddingTop: '16px',
+          paddingBottom: '0px',
           marginTop: '0px'
         }}>
           <div style={{ 
             display: 'flex', 
             alignItems: 'flex-start', 
             justifyContent: 'space-between',
-            marginBottom: '16px'
+            marginBottom: '12px'
           }}>
             <div style={{ flex: 1, paddingTop: '6px' }}>
               <Text 
                 display="block" 
-                color="#191F28ff" 
+                color="#B71C1C" 
                 typography="t3" 
                 fontWeight="bold"
                 style={{ marginBottom: '8px', fontSize: '22px' }}
@@ -400,7 +411,7 @@ function HomePage() {
                 color="#191F28" 
                 typography="t7" 
                 fontWeight="regular"
-                style={{ marginBottom: '12px' }}
+                style={{ marginBottom: '0px' }}
               >
                 재판에 참여해보세요!
               </Text>
@@ -417,6 +428,15 @@ function HomePage() {
               />
             </div>
           </div>
+          <div style={{ 
+            height: '1px', 
+            borderTop: '1px solid #F0F0F0',
+            marginTop: '0px',
+            marginBottom: '0px',
+            marginLeft: '-20px',
+            marginRight: '-20px',
+            width: 'calc(100% + 40px)'
+          }} />
         </div>
       )}
 
@@ -424,21 +444,22 @@ function HomePage() {
       {selectedTab === '재판 완료' && (
         <div style={{ 
           padding: '0 20px', 
-          marginBottom: '20px',
-          background: 'linear-gradient(180deg, #fff4e5 0%, #ffffff 100%)',
+          marginBottom: '0px',
+          background: 'linear-gradient(180deg, #F7F3EEff 0%, #ffffff 100%)',
           paddingTop: '16px',
+          paddingBottom: '0px',
           marginTop: '0px'
         }}>
           <div style={{ 
             display: 'flex', 
             alignItems: 'flex-start', 
             justifyContent: 'space-between',
-            marginBottom: '15px'
+            marginBottom: '12px'
           }}>
-            <div style={{ flex: 1 }}>
+            <div style={{ flex: 1, paddingTop: '6px' }}>
               <Text 
                 display="block" 
-                color="#191F28ff" 
+                color="#5e403b" 
                 typography="t3" 
                 fontWeight="bold"
                 style={{ marginBottom: '8px', fontSize: '22px' }}
@@ -450,7 +471,7 @@ function HomePage() {
                 color="#191F28" 
                 typography="t7" 
                 fontWeight="regular"
-                style={{ marginBottom: '12px' }}
+                style={{ marginBottom: '0px' }}
               >
                 어떤 경우가 합리적이었을까요?
               </Text>
@@ -460,9 +481,19 @@ function HomePage() {
                 frameShape={Asset.frameShape.CleanW60}
                 name="icon-gavel"
                 aria-hidden={true}
+                style={{ width: '80px', height: '80px' }}
               />
             </div>
           </div>
+          <div style={{ 
+            height: '1px', 
+            borderTop: '1px solid #F0F0F0',
+            marginTop: '0px',
+            marginBottom: '0px',
+            marginLeft: '-20px',
+            marginRight: '-20px',
+            width: 'calc(100% + 40px)'
+          }} />
         </div>
       )}
 
@@ -475,7 +506,7 @@ function HomePage() {
           error={error}
         />
       ) : (
-        <div style={{ padding: '0 20px', backgroundColor: 'white' }}>
+        <div style={{ backgroundColor: 'white' }}>
           {isPostsLoading ? (
             <div style={{ padding: '40px', textAlign: 'center' }}>
               <Text color="#6B7684">게시물을 불러오는 중...</Text>
@@ -788,7 +819,8 @@ function PostList({ posts, selectedTab, navigate }: PostListProps) {
                   textOverflow: 'ellipsis',
                   display: '-webkit-box',
                   WebkitLineClamp: 2,
-                  WebkitBoxOrient: 'vertical'
+                  WebkitBoxOrient: 'vertical',
+                  textAlign: 'center'
                 }}>
                   {post.title}
                 </div>
@@ -812,10 +844,11 @@ function PostList({ posts, selectedTab, navigate }: PostListProps) {
             onClick={() => navigate(`/case/${post.id}`, { state: { fromTab: selectedTab } })}
             style={{ 
               backgroundColor: 'white', 
-              padding: '16px', 
-              borderTop: index === 0 ? '1px solid #F0F0F0' : 'none',
+              padding: '16px 20px', 
+              borderTop: 'none',
               borderBottom: '1px solid #F0F0F0',
-              cursor: 'pointer'
+              cursor: 'pointer',
+              marginTop: index === 0 ? '0px' : '0px'
             }}
           >
             {selectedTab === 'HOT 게시판' && (
@@ -852,7 +885,8 @@ function PostList({ posts, selectedTab, navigate }: PostListProps) {
                   WebkitLineClamp: 2,
                   WebkitBoxOrient: 'vertical',
                   fontSize: '18px',
-                  lineHeight: '1.4'
+                  lineHeight: '1.4',
+                  textAlign: 'center'
                 }}
               >
                 {post.title}
@@ -869,7 +903,8 @@ function PostList({ posts, selectedTab, navigate }: PostListProps) {
                 lineHeight: '1.5',
                 color: '#191F28ff',
                 fontSize: '14px',
-                wordBreak: 'break-word'
+                wordBreak: 'break-word',
+                textAlign: 'left'
               }}
             >
               {post.content && post.content.length > 50 ? `${post.content.substring(0, 50)}...` : post.content}
@@ -1009,7 +1044,8 @@ function CompletedPostListMain({ posts, navigate, isLoading, error }: CompletedP
         display: 'flex',
         flexDirection: 'column',
         gap: '12px',
-        boxSizing: 'border-box'
+        boxSizing: 'border-box',
+        position: 'relative'
       }}
     >
       {/* 배지 */}
@@ -1023,6 +1059,24 @@ function CompletedPostListMain({ posts, navigate, isLoading, error }: CompletedP
         width: 'fit-content'
       }}>
         {post.verdict || '보류'}
+      </div>
+
+      {/* 화살표 아이콘 - 우측 위 (배지와 같은 선상) */}
+      <div style={{
+        position: 'absolute',
+        top: '22px',
+        right: '16px',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center'
+      }}>
+        <Asset.Icon
+          frameShape={Asset.frameShape.CleanW24}
+          backgroundColor="transparent"
+          name="icon-system-arrow-right-outlined"
+          color="rgba(0, 19, 43, 0.38)"
+          aria-hidden={true}
+        />
       </div>
 
       {/* 제목 */}
@@ -1052,27 +1106,11 @@ function CompletedPostListMain({ posts, navigate, isLoading, error }: CompletedP
           {post.title}
         </Text>
       </div>
-
-      {/* 화살표 아이콘 */}
-      <div style={{
-        display: 'flex',
-        justifyContent: 'flex-end',
-        alignItems: 'center',
-        marginTop: 'auto'
-      }}>
-        <Asset.Icon
-          frameShape={Asset.frameShape.CleanW24}
-          backgroundColor="transparent"
-          name="icon-system-arrow-right-outlined"
-          color="rgba(0, 19, 43, 0.38)"
-          aria-hidden={true}
-        />
-      </div>
     </div>
   );
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '61px', backgroundColor: 'white', paddingBottom: '24px' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '61px', backgroundColor: 'white', paddingBottom: '24px', paddingTop: '16px' }}>
       {/* 화제의 재판 기록 */}
       <div>
         <div style={{

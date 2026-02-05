@@ -77,7 +77,12 @@ function MyPostsPage() {
   }, [allPosts]);
 
   // 재판 중인 글 (status === 'OPEN')
-  const inProgressPosts = postsWithDetails.filter(post => post.status === 'OPEN');
+  const inProgressPosts = postsWithDetails.filter(post => {
+    if (post.status !== 'OPEN') return false;
+    // 제목이 "0"이거나 공백만 있거나 빈 문자열인 경우 제외
+    const title = (post.title && typeof post.title === 'string') ? post.title.trim() : '';
+    return title !== '' && title !== '0';
+  });
   
   // 이전 재판 기록 (status === 'CLOSED')
   const completedPosts = postsWithDetails.filter(post => post.status === 'CLOSED');
@@ -92,89 +97,128 @@ function MyPostsPage() {
     return `${month.toString().padStart(2, '0')}/${day.toString().padStart(2, '0')} ${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
   };
 
-  const renderPostItem = (post: any) => (
-    <div
-      key={post.id}
-      onClick={() => navigate(`/case/${post.id}`, { state: { fromTab: '내가 쓴 글' } })}
-      style={{
-        padding: '16px',
-        borderBottom: '1px solid #F0F0F0',
-        cursor: 'pointer',
-        backgroundColor: 'white'
-      }}
-    >
-      {/* 제목과 날짜 */}
-      <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', marginBottom: '4px' }}>
-        <Text 
-          display="block" 
-          color="#191F28" 
-          typography="t4" 
-          fontWeight="bold"
-          style={{ 
-            flex: 1,
-            minWidth: 0,
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-            display: '-webkit-box',
-            WebkitLineClamp: 2,
-            WebkitBoxOrient: 'vertical',
-            fontSize: '18px',
-            lineHeight: '1.4'
-          }}
-        >
-          {post.title}
-        </Text>
-        {post.createdAt && (
-          <Text color="#9E9E9E" typography="st13" fontWeight="regular" style={{ flexShrink: 0, whiteSpace: 'nowrap' }}>
-            {formatDate(post.createdAt)}
-          </Text>
-        )}
-      </div>
+  const renderPostItem = (post: any, showVerdict: boolean = false) => {
+    // 재판 완료된 글의 경우 verdict 계산
+    let verdict: '무죄' | '유죄' | '보류' = '보류';
+    if (showVerdict && post.status === 'CLOSED') {
+      const innocentCount = post.innocentCount || 0;
+      const guiltyCount = post.guiltyCount || 0;
+      if (innocentCount > guiltyCount) {
+        verdict = '무죄';
+      } else if (guiltyCount > innocentCount) {
+        verdict = '유죄';
+      } else {
+        verdict = '보류';
+      }
+    }
+    
+    const badgeBgColor = verdict === '무죄' ? '#E3F2FD' : verdict === '유죄' ? '#FFEBEE' : '#F2F4F6';
+    const badgeTextColor = verdict === '무죄' ? '#1976D2' : verdict === '유죄' ? '#D32F2F' : '#6B7684';
 
-      {/* 내용 미리보기 */}
+    return (
       <div
-        style={{ 
-          marginBottom: '8px',
-          lineHeight: '1.5',
-          color: '#191F28ff',
-          fontSize: '14px',
-          wordBreak: 'break-word'
+        key={post.id}
+        onClick={() => navigate(`/case/${post.id}`, { state: { fromTab: '내가 쓴 글' } })}
+        style={{
+          padding: '16px 20px',
+          borderBottom: '1px solid #F0F0F0',
+          cursor: 'pointer',
+          backgroundColor: 'white'
         }}
       >
-        {post.content && post.content.length > 50 ? `${post.content.substring(0, 50)}...` : post.content}
-      </div>
+        {/* Verdict Badge - 재판 완료된 글에만 표시 */}
+        {showVerdict && post.status === 'CLOSED' && (
+          <div style={{
+            padding: '4px 10px',
+            backgroundColor: badgeBgColor,
+            color: badgeTextColor,
+            fontSize: '12px',
+            fontWeight: '600',
+            borderRadius: '4px',
+            whiteSpace: 'nowrap',
+            minWidth: 'fit-content',
+            display: 'inline-block',
+            marginBottom: '8px'
+          }}>
+            {verdict}
+          </div>
+        )}
 
-      {/* 통계 */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-          <Asset.Icon
-            frameShape={{ width: 13, height: 13 }}
-            backgroundColor="transparent"
-            name="icon-user-two-mono"
-            color="#5e403b"
-            aria-hidden={true}
-            ratio="1/1"
-          />
-          <Text color="#5e403b" typography="st13" fontWeight="medium">
-            {post.voteCount || 0}
+        {/* 제목과 날짜 */}
+        <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', marginBottom: '4px' }}>
+          <Text 
+            display="block" 
+            color="#191F28" 
+            typography="t4" 
+            fontWeight="bold"
+            style={{ 
+              flex: 1,
+              minWidth: 0,
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              display: '-webkit-box',
+              WebkitLineClamp: 2,
+              WebkitBoxOrient: 'vertical',
+              fontSize: '18px',
+              lineHeight: '1.4',
+              textAlign: 'center'
+            }}
+          >
+            {post.title}
           </Text>
+          {post.createdAt && (
+            <Text color="#9E9E9E" typography="st13" fontWeight="regular" style={{ flexShrink: 0, whiteSpace: 'nowrap' }}>
+              {formatDate(post.createdAt)}
+            </Text>
+          )}
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-          <Asset.Icon
-            frameShape={{ width: 13, height: 13 }}
-            backgroundColor="transparent"
-            name="icon-chat-bubble-mono"
-            color="#5E403Bff"
-            aria-hidden={true}
-            ratio="1/1"
-          />
-          <Text color="#5e403b" typography="st13" fontWeight="medium">
-            {post.commentCount ?? 0}
-          </Text>
+
+        {/* 내용 미리보기 */}
+        <div
+          style={{ 
+            marginBottom: '8px',
+            lineHeight: '1.5',
+            color: '#191F28ff',
+            fontSize: '14px',
+            wordBreak: 'break-word',
+            textAlign: 'left'
+          }}
+        >
+          {post.content && post.content.length > 50 ? `${post.content.substring(0, 50)}...` : post.content}
+        </div>
+
+        {/* 통계 */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+            <Asset.Icon
+              frameShape={{ width: 13, height: 13 }}
+              backgroundColor="transparent"
+              name="icon-user-two-mono"
+              color="#5e403b"
+              aria-hidden={true}
+              ratio="1/1"
+            />
+            <Text color="#5e403b" typography="st13" fontWeight="medium">
+              {post.voteCount || 0}
+            </Text>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+            <Asset.Icon
+              frameShape={{ width: 13, height: 13 }}
+              backgroundColor="transparent"
+              name="icon-chat-bubble-mono"
+              color="#5E403Bff"
+              aria-hidden={true}
+              ratio="1/1"
+            />
+            <Text color="#5e403b" typography="st13" fontWeight="medium">
+              {post.commentCount ?? 0}
+            </Text>
+          </div>
         </div>
       </div>
-    </div>
-  );
+    );
+  };
 
   return (
     <div style={{ 
@@ -183,54 +227,25 @@ function MyPostsPage() {
       width: '100%',
       boxSizing: 'border-box'
     }}>
-      {/* Header */}
-      <div style={{ 
-        display: 'flex', 
-        alignItems: 'center', 
-        padding: '12px 20px',
-        borderBottom: '1px solid #E5E5E5'
-      }}>
-        <button
-          onClick={() => navigate(-1)}
-          style={{
-            background: 'none',
-            border: 'none',
-            cursor: 'pointer',
-            padding: '4px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center'
-          }}
-        >
-          <Asset.Icon
-            frameShape={Asset.frameShape.CleanW24}
-            backgroundColor="transparent"
-            name="icon-arrow-back-ios-mono"
-            color={adaptive.grey900}
-            aria-hidden={true}
-            ratio="1/1"
-          />
-        </button>
-      </div>
-
-      {/* Subtitle with gradient background */}
+      {/* Header with gradient background */}
       <div style={{ 
         padding: '0 20px', 
-        marginBottom: '20px',
-        background: 'linear-gradient(180deg, #fff4e5 0%, #ffffff 100%)',
+        marginBottom: '0px',
+        background: 'linear-gradient(180deg, #F7F3EEff 0%, #ffffff 100%)',
         paddingTop: '16px',
-        marginTop: '-44px'
+        paddingBottom: '0px',
+        marginTop: '0px'
       }}>
         <div style={{ 
           display: 'flex', 
           alignItems: 'flex-start', 
           justifyContent: 'space-between',
-          marginBottom: '15px'
+          marginBottom: '12px'
         }}>
-          <div style={{ flex: 1 }}>
+          <div style={{ flex: 1, paddingTop: '6px' }}>
             <Text 
               display="block" 
-              color="#191F28ff" 
+              color="#191F28" 
               typography="t3" 
               fontWeight="bold"
               style={{ marginBottom: '8px', fontSize: '22px' }}
@@ -242,13 +257,15 @@ function MyPostsPage() {
               color="#191F28" 
               typography="t7" 
               fontWeight="regular"
-              style={{ marginBottom: '12px' }}
+              style={{ marginBottom: '0px' }}
             >
               내가 참여한 재판 현황을 한눈에 확인하세요
             </Text>
           </div>
         </div>
       </div>
+
+      <Spacing size={24} />
 
       {/* 재판 중인 글 */}
       <div>
@@ -265,15 +282,6 @@ function MyPostsPage() {
           </Text>
         </div>
 
-        {/* 구분선 */}
-        <div style={{ 
-          height: '1px', 
-          backgroundColor: '#F0F0F0', 
-          marginBottom: '0px',
-          marginLeft: '20px',
-          marginRight: '20px'
-        }} />
-
         {isLoading || isLoadingDetails ? (
           <div style={{ padding: '40px', textAlign: 'center' }}>
             <Text color="#6B7684">게시물을 불러오는 중...</Text>
@@ -283,7 +291,17 @@ function MyPostsPage() {
             <Text color="#6B7684">재판 중인 글이 없습니다.</Text>
           </div>
         ) : (
-          inProgressPosts.map(renderPostItem)
+          <>
+            {!isLoading && !isLoadingDetails && inProgressPosts.length > 0 && (
+              <div style={{ 
+                height: '1px', 
+                backgroundColor: '#F0F0F0', 
+                marginBottom: '0px',
+                width: '100%'
+              }} />
+            )}
+            {inProgressPosts.map(post => renderPostItem(post, false))}
+          </>
         )}
       </div>
 
@@ -305,15 +323,6 @@ function MyPostsPage() {
           </Text>
         </div>
 
-        {/* 구분선 */}
-        <div style={{ 
-          height: '1px', 
-          backgroundColor: '#F0F0F0', 
-          marginBottom: '0px',
-          marginLeft: '20px',
-          marginRight: '20px'
-        }} />
-
         {isLoading || isLoadingDetails ? (
           <div style={{ padding: '40px', textAlign: 'center' }}>
             <Text color="#6B7684">게시물을 불러오는 중...</Text>
@@ -323,7 +332,17 @@ function MyPostsPage() {
             <Text color="#6B7684">이전 재판 기록이 없습니다.</Text>
           </div>
         ) : (
-          completedPosts.map(renderPostItem)
+          <>
+            {!isLoading && !isLoadingDetails && completedPosts.length > 0 && (
+              <div style={{ 
+                height: '1px', 
+                backgroundColor: '#F0F0F0', 
+                marginBottom: '0px',
+                width: '100%'
+              }} />
+            )}
+            {completedPosts.map(post => renderPostItem(post, true))}
+          </>
         )}
       </div>
 

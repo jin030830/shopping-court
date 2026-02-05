@@ -780,7 +780,7 @@ function CaseDetailPage() {
             margin: '0 0 20px 0',
             wordBreak: 'break-word',
             overflowWrap: 'break-word',
-            textAlign: 'center'
+            textAlign: 'left'
           }}>
             {post.content}
           </p>
