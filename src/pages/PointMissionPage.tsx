@@ -120,6 +120,16 @@ function PointMissionPage() {
     showRewardAd(async () => {
       try {
         await claimMissionReward(user.uid, missionType, gavel);
+        // LEVEL_3 미션의 경우 보상 수령 후 hotCases를 다시 로드
+        if (missionType === 'LEVEL_3') {
+          const cases = await getCasesByAuthor(user.uid);
+          const hotCompletedCases = cases.filter(
+            (caseItem: CaseDocument) => 
+              caseItem.status === 'CLOSED' && 
+              caseItem.hotScore > 0
+          );
+          setHotCases(hotCompletedCases);
+        }
       } catch (error) {
         console.error('보상 수령 실패:', error);
         alert('보상을 받는 중 오류가 발생했습니다.');
@@ -172,8 +182,8 @@ function PointMissionPage() {
   const unclaimedHotCases = hotCases.filter(caseItem => !caseItem.isHotListed);
   const level3ConditionMet = unclaimedHotCases.length > 0;
   
-  // 모든 화제 글의 보상을 다 받았다면 '완료' 표시 (최소 하나 이상의 화제 글이 있었을 때)
-  const isLevel3Claimed = hotCases.length > 0 && unclaimedHotCases.length === 0;
+  // LEVEL_3는 항상 false로 처리 (수령 후에도 다시 잠금 상태로 돌아가야 함)
+  const isLevel3Claimed = false;
 
   const currentGavel = userData?.points || 0;
   const canExchange = currentGavel >= 50;
@@ -334,8 +344,8 @@ function PointMissionPage() {
                     transformOrigin: 'center',
                   };
 
-                  // 완료 상태
-                  if (isClaimed) {
+                  // 완료 상태 (LEVEL_3는 제외 - 수령 후에도 다시 잠금 상태로 돌아가야 함)
+                  if (isClaimed && missionType !== 'LEVEL_3') {
                     return (
                       <button
                         aria-disabled={true}
@@ -517,7 +527,7 @@ function PointMissionPage() {
         <MissionCard level={0} title="첫 이벤트" description="첫 사건에 참여해 배심원으로 공식 등록해보세요" reward={100} limitation="투표 1회 + 댓글 1개 + 게시물 1개" conditionMet={level0ConditionMet} isClaimed={isLevel0Claimed} missionType="LEVEL_0" buttonText="배심원 등록" />
         <MissionCard level={1} title="일반 사건 심리" description="소비 사건을 살펴보고 당신의 판단을 투표로 남겨주세요" reward={30} limitation="투표 5회" conditionMet={level1ConditionMet} isClaimed={isLevel1Claimed} missionType="LEVEL_1" buttonText="판결 제출하기" />
         <MissionCard level={2} title="판결 사유 제출" description="판결 이유를 댓글로 남겨 사건 해결을 도와주세요" reward={60} limitation="댓글 3회" conditionMet={level2ConditionMet} isClaimed={isLevel2Claimed} missionType="LEVEL_2" buttonText="의견 제출하기" />
-        <MissionCard level={3} title="핵심 기여 사건" description="많은 시민이 주목하는 재판 기록의 주인공이 되어보세요" reward={100} limitation="'화제의 재판 기록'에 등재" conditionMet={level3ConditionMet} isClaimed={isLevel3Claimed} missionType="LEVEL_3" buttonText="화제의 주인공" />
+        <MissionCard level={3} title="핵심 기여 사건" description="많은 시민이 주목하는 재판 기록의 주인공이 되어보세요" reward={100} limitation="'화제의 재판 기록'에 등재" conditionMet={level3ConditionMet} isClaimed={isLevel3Claimed} missionType="LEVEL_3" buttonText={`화제의 주인공${unclaimedHotCases.length > 0 ? ` [${unclaimedHotCases.length}]` : ''}`} />
       </div>
     </div>
   );
