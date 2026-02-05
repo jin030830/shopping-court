@@ -34,14 +34,14 @@ export const useTossRewardAd = (adUnitId: string) => {
   }, [adUnitId]);
 
   const show = useCallback((onRewardEarned: () => void, onDismiss?: () => void) => {
+    // 광고가 로드되지 않았어도 표시 시도
     if (!isLoaded) {
-      console.warn('[AdMob-Reward] 광고가 아직 로드되지 않았습니다.');
-      // 광고 실패 시 보상 지급 여부는 정책에 따라 결정
-      onRewardEarned();
-      if (onDismiss) onDismiss();
-      return;
+      console.warn('[AdMob-Reward] 광고가 아직 로드되지 않았습니다. 광고를 로드한 후 표시합니다.');
+      // 광고를 먼저 로드
+      load();
     }
 
+    // 광고가 로드되지 않았어도 표시 시도 (광고가 로드되면 자동으로 표시됨)
     try {
       const cleanupShow = GoogleAdMob.showAppsInTossAdMob({
         options: { adGroupId: adUnitId } as any,
@@ -57,7 +57,10 @@ export const useTossRewardAd = (adUnitId: string) => {
             load(); 
           }
         },
-        onError: () => {
+        onError: (error: unknown) => {
+          console.error('[AdMob-Reward] 광고 표시 실패:', error);
+          // 광고 표시 실패 시에도 보상 지급 (정책에 따라)
+          onRewardEarned();
           if (onDismiss) onDismiss();
           setIsLoaded(false);
           if (cleanupShow) cleanupShow();
@@ -65,6 +68,9 @@ export const useTossRewardAd = (adUnitId: string) => {
         },
       });
     } catch (e) {
+      console.error('[AdMob-Reward] showAppsInTossAdMob 호출 실패:', e);
+      // 예외 발생 시에도 보상 지급 (정책에 따라)
+      onRewardEarned();
       if (onDismiss) onDismiss();
     }
   }, [adUnitId, isLoaded, load]);
