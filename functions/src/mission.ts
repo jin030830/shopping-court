@@ -100,26 +100,29 @@ export const claimMissionReward = functions.region('asia-northeast3')
           updateField = 'dailyStats.isLevel2Claimed';
         } else if (missionType === 'LEVEL_3') {
           // Level 3: 화제의 재판 등재 (게시물당 1회 보상)
-          // 보상을 받지 않은(isHotListed: false) 화제의 게시글 하나를 찾아서 처리
-          const hotCasesSnapshot = await db.collection('cases')
+          // 1. 해당 유저의 모든 종료된 화제 게시글을 가져옴 (최대 20개)
+          // 참고: isHotListed 필드가 없는 옛날 글도 찾아야 하므로 쿼리에서 제외하고 메모리에서 필터링
+          const potentialCases = await db.collection('cases')
             .where('authorId', '==', userId)
             .where('status', '==', 'CLOSED')
-            .where('hotScore', '>', 0)
-            .where('isHotListed', '==', false)
-            .limit(1)
             .get();
 
-          if (hotCasesSnapshot.empty) {
+          // 2. hotScore > 0 이고, 아직 보상을 받지 않은(isHotListed !== true) 글을 찾음
+          const targetCase = potentialCases.docs.find(doc => {
+            const data = doc.data();
+            return (data.hotScore > 0) && (data.isHotListed !== true);
+          });
+
+          if (!targetCase) {
             throw new functions.https.HttpsError('failed-precondition', '보상 받을 수 있는 화제의 재판 기록이 없습니다.');
           }
 
-          const targetCase = hotCasesSnapshot.docs[0];
           rewardPoints = 100;
           
           // 해당 게시물에 보상 완료 표시 (트랜잭션 내에서 처리)
           transaction.update(targetCase.ref, { isHotListed: true });
           
-          // 유저 업데이트용 필드 (여기서는 points만 올리면 됨)
+          // 유저 업데이트용 필드
           updateField = ''; 
         }
 
