@@ -78,7 +78,7 @@ function PointMissionPage() {
 
   // 사용자 데이터 실시간 구독
   useEffect(() => {
-    if (!user || !db) {
+    if (!user || !db) { 
       setLoading(false);
       return;
     }
@@ -510,11 +510,11 @@ function PointMissionPage() {
             </Text>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', alignItems: 'center' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                <Text color={adaptive.grey800} typography="t6" fontWeight="bold">✓ 투표 </Text>
+                <Text color="#6B7684" typography="t6" fontWeight="bold">✓ 투표 </Text>
                 <Text color="#3182F6" typography="t6" fontWeight="bold">{dailyStats.voteCount}</Text>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                <Text color={adaptive.grey800} typography="t6" fontWeight="bold">✓ 댓글 </Text>
+                <Text color="#6B7684" typography="t6" fontWeight="bold">✓ 댓글 </Text>
                 <Text color="#3182F6" typography="t6" fontWeight="bold">{dailyStats.commentCount}</Text>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
