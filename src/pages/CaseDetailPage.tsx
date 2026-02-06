@@ -1,11 +1,11 @@
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useEffect, useState, useCallback } from 'react';
 import { useAuth } from '../hooks/useAuth';
-import { useTossAd } from '../hooks/useTossAd';
+// import { useTossAd } from '../hooks/useTossAd';
 import { Asset, Text } from '@toss/tds-mobile';
 import { adaptive } from '@toss/tds-colors';
 import { Timestamp } from 'firebase/firestore';
-import replyArrowIcon from '../assets/답글화살표-다음에서-변환-png.svg';
+import replyArrowIcon from '../assets/arrow.svg';
 import smileIcon from '../assets/smile.png';
 import { 
   getCase, 
@@ -48,7 +48,7 @@ function CaseDetailPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const { user, userData, login, isVerified } = useAuth();
-  const { show: showAd } = useTossAd('ait-ad-test-interstitial-id');
+  // const { show: showAd } = useTossAd('ait-ad-test-interstitial-id');
   
   // ❌ 자동 로그인 시도 useEffect 제거됨
   
@@ -306,9 +306,10 @@ function CaseDetailPage() {
       // 서버에 투표 기록 (카운트 업데이트는 addVote 내부 트랜잭션으로 처리됨)
       await addVote(id, user.uid, firebaseVote);
 
-      showAd(() => {
-        setIsVoteSubmitting(false); // 완료 후 해제
-      });
+      // showAd(() => {
+      //   setIsVoteSubmitting(false); // 완료 후 해제
+      // });
+      setIsVoteSubmitting(false); // 완료 후 해제 (광고 없이 바로 해제)
       
       // 약간의 지연 후 서버 데이터와 최종 동기화
       setTimeout(async () => {

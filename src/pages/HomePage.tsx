@@ -4,8 +4,8 @@ import { useState, useEffect } from 'react';
 import { getAllCases, type CaseDocument } from '../api/cases';
 import { Timestamp } from 'firebase/firestore';
 import { adaptive } from '@toss/tds-colors';
-import scaleIcon from '../assets/저울모양-다음에서-변환-png.svg';
-import hotFlameIcon from '../assets/핫게시판불모양.png';
+import scaleIcon from '../assets/scale.svg';
+import hotFlameIcon from '../assets/fire.png';
 import pointMissionImage from '../assets/missionbanner.png';
 
 // 날짜 포맷팅 함수 (M/d HH:mm 형식)
