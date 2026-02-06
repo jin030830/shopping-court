@@ -93,7 +93,7 @@ function PointMissionPage() {
     return () => unsub();
   }, [user]);
 
-  // 화제의 재판 기록 확인 함수 (재사용을 위해 추출)
+  // 화제의 재판 기록 확인 함수 (재사용 가능하게 추출)
   const checkHotCases = useCallback(async () => {
     if (!user) return;
     try {
@@ -118,12 +118,12 @@ function PointMissionPage() {
 
     setIsClaiming(true);
 
-    // 공식 문서 가이드: 리워드 광고 표시 및 시청 완료 시 보상 지급
+    // 공식 가이드: 리워드 광고 표시 및 시청 완료 시 보상 지급
     showRewardAd(async () => {
       try {
         await claimMissionReward(user.uid, missionType, gavel);
         
-        // 보상 수령 성공 후 화제의 재판 데이터 갱신 (UI 즉시 업데이트)
+        // 보상 수령 성공 후 데이터 갱신 (특히 LEVEL_3 버튼 즉시 업데이트용)
         if (missionType === 'LEVEL_3') {
           await checkHotCases();
         }
@@ -161,7 +161,7 @@ function PointMissionPage() {
     return <div style={{ padding: '20px', textAlign: 'center' }}>로딩 중...</div>;
   }
 
-  // 데이터 구조 추출 및 가상 초기화 (날짜가 지난 경우 화면에 즉시 0으로 표시)
+  // 데이터 구조 추출 및 가상 초기화 (날짜가 지난 경우 화면에 즉시 0으로 표시하여 Lag 제거)
   const rawDailyStats = userData?.dailyStats || { voteCount: 0, commentCount: 0, postCount: 0, lastActiveDate: today, isLevel1Claimed: false, isLevel2Claimed: false };
   const isDateMismatched = rawDailyStats.lastActiveDate !== today;
 
@@ -190,7 +190,7 @@ function PointMissionPage() {
   const unclaimedHotCases = hotCases.filter(caseItem => !caseItem.isHotListed);
   const level3ConditionMet = unclaimedHotCases.length > 0;
   
-  // LEVEL_3는 항상 false로 처리하여 수령 후 다시 잠금 상태로 돌아가도록 함 (사용자 요청 사항)
+  // LEVEL_3는 보상 후 다시 잠금 상태로 돌아가는 요청 사항에 따라 처리
   const isLevel3Claimed = false;
 
   const currentGavel = userData?.points || 0;
@@ -516,11 +516,11 @@ function PointMissionPage() {
             <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', alignItems: 'center' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                 <Text color="#6B7684" typography="t6" fontWeight="bold">✓ 투표 </Text>
-                <Text color="#3182F6" typography="t6" fontWeight="bold">{dailyStats.voteCount}</Text>
+                <Text color="#3182F6" typography="t6" fontWeight="bold">{displayDailyStats.voteCount}</Text>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                 <Text color="#6B7684" typography="t6" fontWeight="bold">✓ 댓글 </Text>
-                <Text color="#3182F6" typography="t6" fontWeight="bold">{dailyStats.commentCount}</Text>
+                <Text color="#3182F6" typography="t6" fontWeight="bold">{displayDailyStats.commentCount}</Text>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                 <Text color="#6B7684" typography="t6" fontWeight="bold">✓ 게시물 </Text>

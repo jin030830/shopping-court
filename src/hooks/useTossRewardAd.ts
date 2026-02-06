@@ -34,7 +34,7 @@ export const useTossRewardAd = (adUnitId: string) => {
   }, [adUnitId]);
 
   const show = useCallback((onRewardEarned: () => void, onDismiss?: () => void) => {
-    // 문서 가이드: 광고가 로드되지 않았으면 실행하지 않음
+    // 가이드 준수: 광고가 로드되지 않았으면 실행하지 않음
     if (!isLoaded) {
       console.warn('[AdMob-Reward] 광고가 아직 로드되지 않았습니다.');
       alert('광고를 준비 중입니다. 잠시 후 다시 시도해 주세요.');
@@ -49,7 +49,7 @@ export const useTossRewardAd = (adUnitId: string) => {
         onEvent: (event: { type: string; data?: any }) => {
           console.log(`[AdMob-Reward] Show Event: ${event.type}`, event.data);
           
-          // 공식 문서: 오직 userEarnedReward 시점에만 보상 지급
+          // 공식 가이드: 오직 userEarnedReward 시점에만 보상 지급
           if (event.type === 'userEarnedReward') {
             console.log('[AdMob-Reward] 보상 획득 조건 달성');
             onRewardEarned();
@@ -65,7 +65,7 @@ export const useTossRewardAd = (adUnitId: string) => {
         },
         onError: (error: unknown) => {
           console.error('[AdMob-Reward] 광고 표시 실패:', error);
-          // 실패 시 보상 지급 로직 삭제 (문서 준수)
+          // 실패 시 보상 지급 절대 안 함 (가이드 준수)
           if (onDismiss) onDismiss();
           setIsLoaded(false);
           if (cleanupShow) cleanupShow();
