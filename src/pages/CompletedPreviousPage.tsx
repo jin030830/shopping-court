@@ -229,13 +229,20 @@ function CompletedPreviousPage() {
             <Text color="#6B7684">표시할 게시물이 없습니다.</Text>
           </div>
         ) : (
-          filteredPosts.map((post) => {
+          filteredPosts.map((post, index) => {
             const verdict = post.verdict || '보류';
             const badgeBgColor = verdict === '무죄' ? '#E3F2FD' : verdict === '유죄' ? '#FFEBEE' : '#F2F4F6';
             const badgeTextColor = verdict === '무죄' ? '#1976D2' : verdict === '유죄' ? '#D32F2F' : '#6B7684';
             
             return (
               <div key={post.id}>
+                {index === 0 && (
+                  <div style={{ 
+                    height: '1px', 
+                    backgroundColor: '#F0F0F0', 
+                    width: '100%'
+                  }} />
+                )}
                 <div
                   onClick={() => navigate(`/case/${post.id}`, { state: { fromTab: '재판 완료' } })}
                   style={{
