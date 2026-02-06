@@ -215,7 +215,7 @@ function CompletedTrendingPage() {
       <Spacing size={17} />
 
       {/* Post List */}
-      <div style={{ padding: '0 20px', backgroundColor: 'white' }}>
+      <div style={{ backgroundColor: 'white' }}>
         {isLoading || isLoadingDetails ? (
           <div style={{ padding: '40px', textAlign: 'center' }}>
             <Text color="#6B7684">게시물을 불러오는 중...</Text>
@@ -225,7 +225,7 @@ function CompletedTrendingPage() {
             <Text color="#6B7684">표시할 게시물이 없습니다.</Text>
           </div>
         ) : (
-          filteredPosts.map((post, index) => {
+          filteredPosts.map((post) => {
             const verdict = post.verdict || '보류';
             const badgeBgColor = verdict === '무죄' ? '#E3F2FD' : verdict === '유죄' ? '#FFEBEE' : '#F2F4F6';
             const badgeTextColor = verdict === '무죄' ? '#1976D2' : verdict === '유죄' ? '#D32F2F' : '#6B7684';
@@ -236,8 +236,8 @@ function CompletedTrendingPage() {
                   onClick={() => navigate(`/case/${post.id}`, { state: { fromTab: '재판 완료' } })}
                   style={{
                     backgroundColor: 'white',
-                    padding: '16px',
-                    borderTop: index === 0 ? '1px solid #F0F0F0' : 'none',
+                    padding: '16px 20px',
+                    borderTop: 'none',
                     borderBottom: '1px solid #F0F0F0',
                     cursor: 'pointer'
                   }}
@@ -274,7 +274,8 @@ function CompletedTrendingPage() {
                         WebkitLineClamp: 2,
                         WebkitBoxOrient: 'vertical',
                         fontSize: '18px',
-                        lineHeight: '1.4'
+                        lineHeight: '1.4',
+                        textAlign: 'center'
                       }}
                     >
                       {post.title}
@@ -293,7 +294,8 @@ function CompletedTrendingPage() {
                       lineHeight: '1.5',
                       color: '#191F28ff',
                       fontSize: '14px',
-                      wordBreak: 'break-word'
+                      wordBreak: 'break-word',
+                      textAlign: 'left'
                     }}
                   >
                     {post.content && post.content.length > 50 ? `${post.content.substring(0, 50)}...` : post.content}
