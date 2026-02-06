@@ -737,7 +737,16 @@ function PostList({ posts, selectedTab, navigate }: PostListProps) {
     // HOT 점수가 0보다 큰 게시물만 표시 (투표나 댓글이 있는 게시물만)
     displayPosts = postsWithDetails
       .filter(post => post.status === 'OPEN' && post.hotScore > 0)
-      .sort((a, b) => b.hotScore - a.hotScore)
+      .sort((a, b) => {
+        // HOT 점수 내림차순
+        if (b.hotScore !== a.hotScore) {
+          return b.hotScore - a.hotScore;
+        }
+        // 동률일 때는 작성일 오름차순 (먼저 쓴 사람 우선)
+        const dateA = a.createdAt?.toMillis() || 0;
+        const dateB = b.createdAt?.toMillis() || 0;
+        return dateA - dateB;
+      })
       .slice(0, 3);
   } else if (selectedTab === '재판 완료') {
     // status가 'CLOSED'인 게시물만 필터링하고 완료일 최신순으로 정렬
@@ -1012,7 +1021,16 @@ function CompletedPostListMain({ posts, navigate, isLoading, error }: CompletedP
   // 화제의 재판 기록 (hotScore > 0)
   const hotCompletedPosts = postsWithDetails
     .filter(post => post.status === 'CLOSED' && post.hotScore > 0)
-    .sort((a, b) => b.hotScore - a.hotScore)
+    .sort((a, b) => {
+      // HOT 점수 내림차순
+      if (b.hotScore !== a.hotScore) {
+        return b.hotScore - a.hotScore;
+      }
+      // 동률일 때는 작성일 오름차순 (먼저 쓴 사람 우선)
+      const dateA = a.createdAt?.toMillis() || 0;
+      const dateB = b.createdAt?.toMillis() || 0;
+      return dateA - dateB;
+    })
     .slice(0, 5); // 최대 5개만 표시
 
   // 이전 재판 기록 (모든 CLOSED 상태의 글 포함)

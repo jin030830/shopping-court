@@ -1,6 +1,6 @@
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useState, useEffect } from 'react';
-import { Text } from '@toss/tds-mobile';
+import { Text, Modal } from '@toss/tds-mobile';
 import { useAuth } from '../hooks/useAuth';
 import { createCase, type CaseData } from '../api/cases';
 
@@ -34,6 +34,49 @@ function CreatePostPage() {
       setHasShownGuide(true);
     }
   }, [hasShownGuide]);
+
+  // TDS Modal 배경색 강제 설정
+  useEffect(() => {
+    if (showGuideModal || showSuccessModal) {
+      const applyOverlayStyle = () => {
+        // 모든 가능한 오버레이 요소 찾기
+        const selectors = [
+          '[data-radix-dialog-overlay]',
+          '[data-radix-portal] > div',
+          '.custom-modal-overlay'
+        ];
+        
+        selectors.forEach(selector => {
+          const elements = document.querySelectorAll(selector);
+          elements.forEach((element: any) => {
+            if (element && element.style) {
+              const computedStyle = window.getComputedStyle(element);
+              // 오버레이 요소인지 확인 (position fixed이고 z-index가 높은 경우)
+              if (computedStyle.position === 'fixed' && 
+                  parseInt(computedStyle.zIndex) > 1000) {
+                element.style.backgroundColor = 'rgba(0, 0, 0, 0.6)';
+              }
+            }
+          });
+        });
+      };
+
+      // 즉시 실행
+      setTimeout(applyOverlayStyle, 0);
+      
+      // 주기적으로 체크
+      const interval = setInterval(applyOverlayStyle, 100);
+      
+      // MutationObserver로 DOM 변경 감지
+      const observer = new MutationObserver(applyOverlayStyle);
+      observer.observe(document.body, { childList: true, subtree: true });
+      
+      return () => {
+        clearInterval(interval);
+        observer.disconnect();
+      };
+    }
+  }, [showGuideModal, showSuccessModal]);
 
   useEffect(() => {
     // state로 전달된 fromTab이 있으면 sessionStorage에도 저장 (새로고침/뒤로가기 대비)
@@ -220,35 +263,21 @@ function CreatePostPage() {
         </button>
       </div>
 
-      {/* 가이드 팝업 */}
-      {showGuideModal && (
-        <div
-          style={{
-            position: 'fixed',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            backgroundColor: 'rgba(0, 0, 0, 0.5)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 1000,
-            padding: '20px'
-          }}
+      {/* 가이드 팝업 - TDS Modal 사용 */}
+      <Modal
+        open={showGuideModal}
+        onOpenChange={(open) => {
+          if (!open) {
+            handleGuideConfirm();
+          }
+        }}
+      >
+        <Modal.Overlay 
           onClick={handleGuideConfirm}
-        >
-          <div
-            style={{
-              backgroundColor: 'white',
-              borderRadius: '16px',
-              padding: '24px',
-              width: '100%',
-              maxWidth: '400px',
-              boxSizing: 'border-box'
-            }}
-            onClick={(e) => e.stopPropagation()}
-          >
+          className="custom-modal-overlay"
+        />
+        <Modal.Content>
+          <div style={{ padding: '24px', backgroundColor: 'white', borderRadius: '16px' }}>
             <Text
               display="block"
               color="#191F28ff"
@@ -315,42 +344,39 @@ function CreatePostPage() {
               </button>
             </div>
           </div>
-        </div>
-      )}
+        </Modal.Content>
+      </Modal>
+      
+      {/* TDS Modal 배경색 오버라이드 CSS */}
+      <style>{`
+        .custom-modal-overlay,
+        [data-radix-dialog-overlay],
+        [data-radix-portal] > div[data-radix-dialog-overlay] {
+          background-color: rgba(0, 0, 0, 0.6) !important;
+        }
+      `}</style>
 
-      {/* 성공 팝업 */}
-      {showSuccessModal && (
-        <div
-          style={{
-            position: 'fixed',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            backgroundColor: 'rgba(0, 0, 0, 0.5)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 1000,
-            padding: '20px'
-          }}
+      {/* 성공 팝업 - TDS Modal 사용 */}
+      <Modal
+        open={showSuccessModal}
+        onOpenChange={(open) => {
+          if (!open) {
+            setShowSuccessModal(false);
+            sessionStorage.removeItem('createPostFromTab');
+            navigate('/', { state: { selectedTab: returnTab }, replace: true });
+          }
+        }}
+      >
+        <Modal.Overlay 
           onClick={() => {
             setShowSuccessModal(false);
             sessionStorage.removeItem('createPostFromTab');
             navigate('/', { state: { selectedTab: returnTab }, replace: true });
           }}
-        >
-          <div
-            style={{
-              backgroundColor: 'white',
-              borderRadius: '16px',
-              padding: '24px',
-              width: '100%',
-              maxWidth: '400px',
-              boxSizing: 'border-box'
-            }}
-            onClick={(e) => e.stopPropagation()}
-          >
+          className="custom-modal-overlay"
+        />
+        <Modal.Content>
+          <div style={{ padding: '24px', backgroundColor: 'white', borderRadius: '16px' }}>
             <Text
               display="block"
               color="#191F28ff"
@@ -392,8 +418,8 @@ function CreatePostPage() {
               </button>
             </div>
           </div>
-        </div>
-      )}
+        </Modal.Content>
+      </Modal>
     </div>
   );
 }
