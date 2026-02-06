@@ -1,5 +1,5 @@
 import { useNavigate, useLocation } from 'react-router-dom';
-import { useEffect, useState, useRef, type CSSProperties } from 'react';
+import { useEffect, useState, useRef, useCallback, type CSSProperties } from 'react';
 import { Asset, Text, Spacing } from '@toss/tds-mobile';
 import { adaptive } from '@toss/tds-colors';
 import { useAuth } from '../hooks/useAuth';
@@ -93,42 +93,39 @@ function PointMissionPage() {
     return () => unsub();
   }, [user]);
 
-  // 화제의 재판 기록 확인
-  useEffect(() => {
-    const checkHotCases = async () => {
-      if (!user) return;
-      try {
-        const cases = await getCasesByAuthor(user.uid);
-        const hotCompletedCases = cases.filter(
-          (caseItem: CaseDocument) => 
-            caseItem.status === 'CLOSED' && 
-            caseItem.hotScore > 0
-        );
-        setHotCases(hotCompletedCases);
-      } catch (error) {
-        console.error('화제의 재판 기록 조회 실패:', error);
-      }
-    };
-    checkHotCases();
+  // 화제의 재판 기록 확인 함수 (재사용 가능하게 추출)
+  const checkHotCases = useCallback(async () => {
+    if (!user) return;
+    try {
+      const cases = await getCasesByAuthor(user.uid);
+      const hotCompletedCases = cases.filter(
+        (caseItem: CaseDocument) => 
+          caseItem.status === 'CLOSED' && 
+          caseItem.hotScore > 0
+      );
+      setHotCases(hotCompletedCases);
+    } catch (error) {
+      console.error('화제의 재판 기록 조회 실패:', error);
+    }
   }, [user]);
+
+  useEffect(() => {
+    checkHotCases();
+  }, [checkHotCases]);
 
   const handleClaim = async (missionType: string, gavel: number) => {
     if (!user || !userData || isClaiming) return;
 
     setIsClaiming(true);
 
+    // 공식 가이드: 리워드 광고 표시 및 시청 완료 시 보상 지급
     showRewardAd(async () => {
       try {
         await claimMissionReward(user.uid, missionType, gavel);
-        // LEVEL_3 미션의 경우 보상 수령 후 hotCases를 다시 로드
+        
+        // 보상 수령 성공 후 데이터 갱신 (특히 LEVEL_3 버튼 즉시 업데이트용)
         if (missionType === 'LEVEL_3') {
-          const cases = await getCasesByAuthor(user.uid);
-          const hotCompletedCases = cases.filter(
-            (caseItem: CaseDocument) => 
-              caseItem.status === 'CLOSED' && 
-              caseItem.hotScore > 0
-          );
-          setHotCases(hotCompletedCases);
+          await checkHotCases();
         }
       } catch (error) {
         console.error('보상 수령 실패:', error);
@@ -164,25 +161,36 @@ function PointMissionPage() {
     return <div style={{ padding: '20px', textAlign: 'center' }}>로딩 중...</div>;
   }
 
-  const dailyStats = userData?.dailyStats || { voteCount: 0, commentCount: 0, postCount: 0, lastActiveDate: today, isLevel1Claimed: false, isLevel2Claimed: false };
+  // 데이터 구조 추출 및 가상 초기화 (날짜가 지난 경우 화면에 즉시 0으로 표시하여 Lag 제거)
+  const rawDailyStats = userData?.dailyStats || { voteCount: 0, commentCount: 0, postCount: 0, lastActiveDate: today, isLevel1Claimed: false, isLevel2Claimed: false };
+  const isDateMismatched = rawDailyStats.lastActiveDate !== today;
+
+  const displayDailyStats = isDateMismatched ? {
+    voteCount: 0,
+    commentCount: 0,
+    postCount: 0,
+    isLevel1Claimed: false,
+    isLevel2Claimed: false,
+    lastActiveDate: today
+  } : rawDailyStats;
   
   // 내 오늘 게시물 수
-  const myPostCount = dailyStats.postCount || 0;
+  const myPostCount = displayDailyStats.postCount || 0;
 
   const isLevel0Claimed = userData?.isLevel0Claimed || false;
-  const isLevel1Claimed = dailyStats.isLevel1Claimed;
-  const isLevel2Claimed = dailyStats.isLevel2Claimed;
+  const isLevel1Claimed = displayDailyStats.isLevel1Claimed;
+  const isLevel2Claimed = displayDailyStats.isLevel2Claimed;
 
   // Level 0 조건 확인 (통합명세서 v1.7: 당일 하루 안에 [투표 1 + 댓글 1 + 게시글 1] 달성)
-  const level0ConditionMet = dailyStats.voteCount >= 1 && dailyStats.commentCount >= 1 && dailyStats.postCount >= 1;
-  const level1ConditionMet = dailyStats.voteCount >= 5;
-  const level2ConditionMet = dailyStats.commentCount >= 3;
+  const level0ConditionMet = displayDailyStats.voteCount >= 1 && displayDailyStats.commentCount >= 1 && displayDailyStats.postCount >= 1;
+  const level1ConditionMet = displayDailyStats.voteCount >= 5;
+  const level2ConditionMet = displayDailyStats.commentCount >= 3;
   
   // Level 3 조건 확인 (화제의 재판 등재된 글 중 아직 보상을 받지 않은 글이 있는지 확인)
   const unclaimedHotCases = hotCases.filter(caseItem => !caseItem.isHotListed);
   const level3ConditionMet = unclaimedHotCases.length > 0;
   
-  // LEVEL_3는 항상 false로 처리 (수령 후에도 다시 잠금 상태로 돌아가야 함)
+  // LEVEL_3는 보상 후 다시 잠금 상태로 돌아가는 요청 사항에 따라 처리
   const isLevel3Claimed = false;
 
   const currentGavel = userData?.points || 0;
@@ -508,11 +516,11 @@ function PointMissionPage() {
             <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', alignItems: 'center' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                 <Text color="#6B7684" typography="t6" fontWeight="bold">✓ 투표 </Text>
-                <Text color="#3182F6" typography="t6" fontWeight="bold">{dailyStats.voteCount}</Text>
+                <Text color="#3182F6" typography="t6" fontWeight="bold">{displayDailyStats.voteCount}</Text>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                 <Text color="#6B7684" typography="t6" fontWeight="bold">✓ 댓글 </Text>
-                <Text color="#3182F6" typography="t6" fontWeight="bold">{dailyStats.commentCount}</Text>
+                <Text color="#3182F6" typography="t6" fontWeight="bold">{displayDailyStats.commentCount}</Text>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                 <Text color="#6B7684" typography="t6" fontWeight="bold">✓ 게시물 </Text>
