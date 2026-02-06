@@ -80,21 +80,18 @@ function HomePage() {
   // 탭이 변경될 때마다 상단으로 스크롤
   useEffect(() => {
     // localStorage 저장 제거 - 항상 HOT 게시판으로 시작
-    // 탭 변경 시 상단으로 스크롤 (재판 완료 탭의 경우 렌더링 후 스크롤)
+    // 탭 변경 시 상단으로 스크롤
     const scrollToTop = () => {
+      // 재판 완료 탭에서 다른 탭으로 전환할 때도 부드럽게 스크롤
       window.scrollTo({ top: 0, behavior: 'smooth' });
     };
     
-    if (selectedTab === '재판 완료') {
-      // 재판 완료 탭은 컴포넌트 렌더링 후 스크롤
-      requestAnimationFrame(() => {
-        requestAnimationFrame(() => {
-          scrollToTop();
-        });
-      });
-    } else {
+    // 약간의 지연을 두어 DOM 업데이트 후 스크롤
+    const timer = setTimeout(() => {
       scrollToTop();
-    }
+    }, 10);
+    
+    return () => clearTimeout(timer);
   }, [selectedTab]);
 
   useEffect(() => {
@@ -325,7 +322,7 @@ function HomePage() {
         <div style={{ 
           padding: '0 20px', 
           marginBottom: '0px',
-          background: 'linear-gradient(180deg, #F7F3EEff 0%, #ffffff 100%)',
+          background: 'linear-gradient(180deg, #FAF0E6 0%, #ffffff 100%)',
           paddingTop: '16px',
           paddingBottom: '0px',
           marginTop: '0px'
@@ -385,7 +382,7 @@ function HomePage() {
         <div style={{ 
           padding: '0 20px', 
           marginBottom: '0px',
-          background: 'linear-gradient(180deg, #F7F3EEff 0%, #ffffff 100%)',
+          background: 'linear-gradient(180deg, #FAF0E6 0%, #ffffff 100%)',
           paddingTop: '16px',
           paddingBottom: '0px',
           marginTop: '0px'
@@ -445,7 +442,7 @@ function HomePage() {
         <div style={{ 
           padding: '0 20px', 
           marginBottom: '0px',
-          background: 'linear-gradient(180deg, #F7F3EEff 0%, #ffffff 100%)',
+          background: 'linear-gradient(180deg, #FAF0E6 0%, #ffffff 100%)',
           paddingTop: '16px',
           paddingBottom: '0px',
           marginTop: '0px'
@@ -454,7 +451,7 @@ function HomePage() {
             display: 'flex', 
             alignItems: 'flex-start', 
             justifyContent: 'space-between',
-            marginBottom: '12px'
+            marginBottom: '18px'
           }}>
             <div style={{ flex: 1, paddingTop: '6px' }}>
               <Text 
