@@ -65,19 +65,15 @@ function CaseDetailPage() {
   
   // 뒤로가기 처리 함수
   const handleBack = () => {
-    navigate('/', { state: { selectedTab: fromTab } });
+    if (window.history.length > 1) {
+      navigate(-1);
+    } else {
+      navigate('/', { state: { selectedTab: fromTab }, replace: true });
+    }
   };
 
   // 브라우저/토스 앱의 뒤로가기 버튼 처리
-  useEffect(() => {
-    const handlePopState = () => {
-      const savedFromTab = sessionStorage.getItem('caseDetailFromTab') || fromTab;
-      navigate('/', { state: { selectedTab: savedFromTab }, replace: true });
-    };
-
-    window.addEventListener('popstate', handlePopState);
-    return () => window.removeEventListener('popstate', handlePopState);
-  }, [fromTab, navigate]);
+  // (HomePage에서 sessionStorage를 통해 탭 상태를 복원하므로 별도의 처리가 필요 없음)
 
   const [selectedVote, setSelectedVote] = useState<'agree' | 'disagree' | null>(null);
   const [hasVoted, setHasVoted] = useState(false);

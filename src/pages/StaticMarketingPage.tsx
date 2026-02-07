@@ -22,7 +22,13 @@ function StaticMarketingPage() {
         boxSizing: 'border-box'
       }}>
         <button
-          onClick={() => navigate('/')}
+          onClick={() => {
+            if (window.history.length > 1) {
+              navigate(-1);
+            } else {
+              navigate('/', { replace: true });
+            }
+          }}
           style={{
             background: 'none',
             border: 'none',

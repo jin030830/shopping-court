@@ -1,4 +1,4 @@
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate, useLocation, useNavigationType } from 'react-router-dom';
 import { Asset, Text, Spacing } from '@toss/tds-mobile';
 import { useState, useEffect } from 'react';
 import { getAllCases, type CaseDocument } from '../api/cases';
@@ -7,6 +7,9 @@ import { adaptive } from '@toss/tds-colors';
 import scaleIcon from '../assets/scale.svg';
 import hotFlameIcon from '../assets/fire.png';
 import pointMissionImage from '../assets/missionbanner.png';
+
+// 단순 메모리 캐시 (전역 변수)
+let postsCache: CaseDocument[] | null = null;
 
 // 날짜 포맷팅 함수 (M/d HH:mm 형식)
 const formatDate = (timestamp: Timestamp): string => {
@@ -21,6 +24,7 @@ const formatDate = (timestamp: Timestamp): string => {
 function HomePage() {
   const location = useLocation();
   const navigate = useNavigate();
+  const navigationType = useNavigationType();
   
   // 푸시 알림에서 온 경우 URL parameter 확인하고 리다이렉트
   useEffect(() => {
@@ -34,72 +38,63 @@ function HomePage() {
     }
   }, [location.search, navigate]);
 
-  // 초기값: location.state > 기본값 'HOT 게시판' (localStorage 무시)
+  // 초기값: location.state 또는 sessionStorage에서 즉시 복원
   const [selectedTab, setSelectedTab] = useState(() => {
+    // 1. location.state 확인
     const stateTab = (location.state as any)?.selectedTab;
-    return stateTab || 'HOT 게시판';
+    if (stateTab) return stateTab;
+
+    // 2. sessionStorage 확인 (상세 페이지나 다른 페이지에서 돌아온 경우)
+    const detailTab = sessionStorage.getItem('caseDetailFromTab');
+    if (detailTab) return detailTab;
+
+    const completedTab = sessionStorage.getItem('completedListFromTab');
+    if (completedTab) return completedTab;
+
+    const missionTab = sessionStorage.getItem('pointMissionFromTab');
+    if (missionTab) return missionTab;
+
+    const createTab = sessionStorage.getItem('createPostFromTab');
+    if (createTab) return createTab;
+
+    return 'HOT 게시판';
   });
-  const [allPosts, setAllPosts] = useState<CaseDocument[]>([]);
-  const [isPostsLoading, setIsPostsLoading] = useState(true);
+
+  const [allPosts, setAllPosts] = useState<CaseDocument[]>(postsCache || []);
+  const [isPostsLoading, setIsPostsLoading] = useState(!postsCache);
   const [isFabExpanded, setIsFabExpanded] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // location.state에서 탭 정보를 받아오면 탭 변경
-  // 또는 sessionStorage에서 가져오기 (토스 앱의 뒤로가기 버튼 대응)
+  // 뒤로가기 시 사용한 세션 데이터 정리 (한 번 사용 후 삭제)
   useEffect(() => {
-    let newTab: string | null = null;
+    const keys = ['caseDetailFromTab', 'completedListFromTab', 'pointMissionFromTab', 'createPostFromTab'];
+    keys.forEach(key => {
+      if (sessionStorage.getItem(key)) {
+        sessionStorage.removeItem(key);
+      }
+    });
     
-    // location.state에서 먼저 확인
-    if ((location.state as any)?.selectedTab) {
-      newTab = (location.state as any).selectedTab;
-    } 
-    // sessionStorage에서 확인 (토스 앱의 뒤로가기 버튼 대응)
-    else if (sessionStorage.getItem('caseDetailFromTab')) {
-      newTab = sessionStorage.getItem('caseDetailFromTab');
-      sessionStorage.removeItem('caseDetailFromTab'); // 사용 후 삭제
-    }
-    // 재판 완료 리스트 페이지에서 돌아온 경우
-    else if (sessionStorage.getItem('completedListFromTab')) {
-      newTab = sessionStorage.getItem('completedListFromTab');
-      sessionStorage.removeItem('completedListFromTab'); // 사용 후 삭제
-    }
-    // 포인트 미션 페이지에서 돌아온 경우
-    else if (sessionStorage.getItem('pointMissionFromTab')) {
-      newTab = sessionStorage.getItem('pointMissionFromTab');
-      sessionStorage.removeItem('pointMissionFromTab'); // 사용 후 삭제
-    }
-    
-    if (newTab) {
-      setSelectedTab(newTab);
-      // localStorage 저장 제거 - 항상 HOT 게시판으로 시작
-      // state를 초기화하여 다시 뒤로가기 해도 계속 같은 탭이 선택되지 않도록
-      window.history.replaceState({}, document.title);
-    }
-  }, [location.state]);
+    // state를 초기화하여 다시 뒤로가기 해도 계속 같은 탭이 선택되지 않도록
+    window.history.replaceState({}, document.title);
+  }, []);
 
   // 탭이 변경될 때마다 상단으로 스크롤
   useEffect(() => {
-    // localStorage 저장 제거 - 항상 HOT 게시판으로 시작
-    // 탭 변경 시 상단으로 스크롤
-    const scrollToTop = () => {
-      // 재판 완료 탭에서 다른 탭으로 전환할 때도 부드럽게 스크롤
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    };
-    
-    // 약간의 지연을 두어 DOM 업데이트 후 스크롤
-    const timer = setTimeout(() => {
-      scrollToTop();
-    }, 10);
-    
-    return () => clearTimeout(timer);
-  }, [selectedTab]);
+    // POP(뒤로가기 등)인 경우에는 스크롤 복원을 위해 상단 이동을 건너뜀
+    if (navigationType === 'POP') return;
+
+    // 탭 변경 시 상단으로 즉시 스크롤
+    window.scrollTo(0, 0);
+  }, [selectedTab, navigationType]);
 
   useEffect(() => {
     const fetchCases = async () => {
       try {
-        setIsPostsLoading(true);
+        // 캐시가 없을 때만 명시적 로딩 표시
+        if (!postsCache) setIsPostsLoading(true);
         const cases = await getAllCases();
         setAllPosts(cases);
+        postsCache = cases; // 전역 캐시 업데이트
       } catch (err) {
         setError('게시물을 불러오는 중 오류가 발생했습니다.');
         console.error(err);
@@ -505,7 +500,7 @@ function HomePage() {
       ) : (
         <div style={{ backgroundColor: 'white' }}>
           {isPostsLoading ? (
-            <div style={{ padding: '40px', textAlign: 'center' }}>
+            <div style={{ padding: '40px', textAlign: 'center', minHeight: '80vh' }}>
               <Text color="#6B7684">게시물을 불러오는 중...</Text>
             </div>
           ) : error ? (
@@ -669,60 +664,44 @@ interface PostListProps {
 }
 
 function PostList({ posts, selectedTab, navigate }: PostListProps) {
-  const [postsWithDetails, setPostsWithDetails] = useState<any[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  // 초기 데이터 가공 (마운트 시 즉시 실행하여 로딩 지연 제거)
+  const processPosts = (rawPosts: CaseDocument[]) => {
+    return rawPosts.map((post) => {
+      const actualCommentCount = post.commentCount || 0;
+      const voteCount = (post.guiltyCount || 0) + (post.innocentCount || 0);
+      const hotScore = voteCount + (2 * actualCommentCount);
+      
+      let verdict: '무죄' | '유죄' | '보류' = '보류';
+      if (voteCount > 0) {
+        if (post.innocentCount > post.guiltyCount) {
+          verdict = '무죄';
+        } else if (post.guiltyCount > post.innocentCount) {
+          verdict = '유죄';
+        } else {
+          verdict = '보류';
+        }
+      }
+      return { ...post, commentCount: actualCommentCount, voteCount, hotScore, verdict };
+    });
+  };
+
+  const [postsWithDetails, setPostsWithDetails] = useState<any[]>(() => processPosts(posts));
+  const [isLoading, setIsLoading] = useState(posts.length === 0);
 
   useEffect(() => {
-    const loadPostDetails = () => {
-      setIsLoading(true);
-      try {
-        const postsWithData = posts.map((post) => {
-          // 이미 트리거로 업데이트되고 있는 commentCount 사용 (엄청난 성능 향상)
-          const actualCommentCount = post.commentCount || 0;
-          const voteCount = (post.guiltyCount || 0) + (post.innocentCount || 0);
-          
-          // HOT 점수 계산: 투표수 + 2*댓글수
-          const hotScore = voteCount + (2 * actualCommentCount);
-          
-          // 재판 결과 결정
-          let verdict: '무죄' | '유죄' | '보류' = '보류';
-          if (voteCount > 0) {
-            if (post.innocentCount > post.guiltyCount) {
-              verdict = '무죄';
-            } else if (post.guiltyCount > post.innocentCount) {
-              verdict = '유죄';
-            } else {
-              verdict = '보류';
-            }
-          }
-
-          return {
-            ...post,
-            commentCount: actualCommentCount,
-            voteCount,
-            hotScore,
-            verdict
-          };
-        });
-
-        setPostsWithDetails(postsWithData);
-      } catch (error) {
-        console.error('게시물 상세 정보 처리 실패:', error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    loadPostDetails();
+    if (posts.length > 0) {
+      setPostsWithDetails(processPosts(posts));
+      setIsLoading(false);
+    }
   }, [posts]);
 
-  if (isLoading) {
+  if (isLoading && postsWithDetails.length === 0) {
     return (
       <div style={{ 
         padding: '40px', 
         textAlign: 'center',
         backgroundColor: 'white',
-        minHeight: '100vh'
+        minHeight: '80vh'
       }}>
         <Text color="#6B7684">게시물 정보를 불러오는 중...</Text>
       </div>
@@ -959,51 +938,42 @@ interface CompletedPostListMainProps {
 }
 
 function CompletedPostListMain({ posts, navigate, isLoading, error }: CompletedPostListMainProps) {
-  const [postsWithDetails, setPostsWithDetails] = useState<any[]>([]);
-  const [isLoadingDetails, setIsLoadingDetails] = useState(true);
+  // 초기 데이터 가공 (마운트 시 즉시 실행하여 로딩 지연 제거)
+  const processPosts = (rawPosts: CaseDocument[]) => {
+    return rawPosts.map((post) => {
+      const voteCount = post.guiltyCount + post.innocentCount;
+      const hotScore = voteCount + (2 * (post.commentCount || 0));
+      let verdict: '무죄' | '유죄' | '보류' = '보류';
+      if (voteCount > 0) {
+        if (post.innocentCount > post.guiltyCount) {
+          verdict = '무죄';
+        } else if (post.guiltyCount > post.innocentCount) {
+          verdict = '유죄';
+        } else {
+          verdict = '보류';
+        }
+      }
+      return { ...post, voteCount, hotScore, verdict };
+    });
+  };
+
+  const [postsWithDetails, setPostsWithDetails] = useState<any[]>(() => processPosts(posts));
+  const [isLoadingDetails, setIsLoadingDetails] = useState(posts.length === 0);
 
   useEffect(() => {
-    const loadPostDetails = () => {
-      setIsLoadingDetails(true);
-      try {
-        const postsWithData = posts.map((post) => {
-          const voteCount = post.guiltyCount + post.innocentCount;
-          const hotScore = voteCount + (2 * (post.commentCount || 0));
-          let verdict: '무죄' | '유죄' | '보류' = '보류';
-          if (voteCount > 0) {
-            if (post.innocentCount > post.guiltyCount) {
-              verdict = '무죄';
-            } else if (post.guiltyCount > post.innocentCount) {
-              verdict = '유죄';
-            } else {
-              verdict = '보류';
-            }
-          }
-          return {
-            ...post,
-            voteCount,
-            hotScore,
-            verdict
-          };
-        });
-        setPostsWithDetails(postsWithData);
-      } catch (error) {
-        console.error('게시물 상세 정보 로드 실패:', error);
-      } finally {
-        setIsLoadingDetails(false);
-      }
-    };
-
-    loadPostDetails();
+    if (posts.length > 0) {
+      setPostsWithDetails(processPosts(posts));
+      setIsLoadingDetails(false);
+    }
   }, [posts]);
 
-  if (isLoading || isLoadingDetails) {
+  if ((isLoading || isLoadingDetails) && postsWithDetails.length === 0) {
     return (
       <div style={{ 
         padding: '40px', 
         textAlign: 'center',
         backgroundColor: 'white',
-        minHeight: '100vh'
+        minHeight: '80vh'
       }}>
         <Text color="#6B7684">게시물 정보를 불러오는 중...</Text>
       </div>
