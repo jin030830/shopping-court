@@ -3,6 +3,7 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
 import ErrorBoundary from './components/ErrorBoundary';
+import { ThemeProvider } from '@toss/tds-mobile';
 import './index.css';
 import './api/firebase'; // 에뮬레이터 연결 로직을 포함하므로 import 유지
 
@@ -26,11 +27,13 @@ async function renderApp() {
     root.render(
       <React.StrictMode>
         <ErrorBoundary>
-          <BrowserRouter>
-            <AuthProvider>
-              <App />
-            </AuthProvider>
-          </BrowserRouter>
+          <ThemeProvider>
+            <BrowserRouter>
+              <AuthProvider>
+                <App />
+              </AuthProvider>
+            </BrowserRouter>
+          </ThemeProvider>
         </ErrorBoundary>
       </React.StrictMode>
     );

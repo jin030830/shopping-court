@@ -1,6 +1,6 @@
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useEffect, useState, useRef, useCallback, type CSSProperties } from 'react';
-import { Asset, Text, Spacing } from '@toss/tds-mobile';
+import { Asset, Text, Spacing, Button } from '@toss/tds-mobile';
 import { adaptive } from '@toss/tds-colors';
 import { useAuth } from '../hooks/useAuth';
 import { doc, onSnapshot } from 'firebase/firestore';
@@ -8,6 +8,7 @@ import { db } from '../api/firebase';
 import { claimMissionReward, exchangeGavel, type UserDocument, getTodayDateString } from '../api/user';
 import { getCasesByAuthor, type CaseDocument } from '../api/cases';
 import { useTossRewardAd } from '../hooks/useTossRewardAd';
+import missionBannerImage from '../assets/missionbanner.png';
 
 function PointMissionPage() {
   const navigate = useNavigate();
@@ -20,6 +21,8 @@ function PointMissionPage() {
   const [showInfoPopup, setShowInfoPopup] = useState(false);
   const [hotCases, setHotCases] = useState<CaseDocument[]>([]);
   const infoPopupRef = useRef<HTMLDivElement>(null);
+  const [showRewardPopup, setShowRewardPopup] = useState(false);
+  const [pendingMission, setPendingMission] = useState<{ missionType: string; gavel: number } | null>(null);
   
   const { show: showRewardAd } = useTossRewardAd('ait-ad-test-rewarded-id');
   const [today, setToday] = useState(getTodayDateString());
@@ -116,15 +119,24 @@ function PointMissionPage() {
   const handleClaim = async (missionType: string, gavel: number) => {
     if (!user || !userData || isClaiming) return;
 
+    // 팝업 표시
+    setPendingMission({ missionType, gavel });
+    setShowRewardPopup(true);
+  };
+
+  const handleRewardConfirm = async () => {
+    if (!user || !userData || !pendingMission || isClaiming) return;
+
     setIsClaiming(true);
+    setShowRewardPopup(false);
 
     // 공식 가이드: 리워드 광고 표시 및 시청 완료 시 보상 지급
     showRewardAd(async () => {
       try {
-        await claimMissionReward(user.uid, missionType, gavel);
+        await claimMissionReward(user.uid, pendingMission.missionType, pendingMission.gavel);
         
         // 보상 수령 성공 후 데이터 갱신 (특히 LEVEL_3 버튼 즉시 업데이트용)
-        if (missionType === 'LEVEL_3') {
+        if (pendingMission.missionType === 'LEVEL_3') {
           await checkHotCases();
         }
       } catch (error) {
@@ -132,8 +144,14 @@ function PointMissionPage() {
         alert('보상을 받는 중 오류가 발생했습니다.');
       } finally {
         setIsClaiming(false);
+        setPendingMission(null);
       }
     });
+  };
+
+  const handleRewardCancel = () => {
+    setShowRewardPopup(false);
+    setPendingMission(null);
   };
 
   const handleExchange = async () => {
@@ -518,11 +536,11 @@ function PointMissionPage() {
             </Text>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', alignItems: 'center' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                <Text color="#6B7684" typography="t6" fontWeight="bold">✓ 투표 </Text>
+                <Text color={adaptive.grey800} typography="t6" fontWeight="bold">✓ 투표 </Text>
                 <Text color="#3182F6" typography="t6" fontWeight="bold">{displayDailyStats.voteCount}</Text>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                <Text color="#6B7684" typography="t6" fontWeight="bold">✓ 댓글 </Text>
+                <Text color={adaptive.grey800} typography="t6" fontWeight="bold">✓ 댓글 </Text>
                 <Text color="#3182F6" typography="t6" fontWeight="bold">{displayDailyStats.commentCount}</Text>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
@@ -540,6 +558,101 @@ function PointMissionPage() {
         <MissionCard level={2} title="판결 사유 제출" description="판결 이유를 댓글로 남겨 사건 해결을 도와주세요" reward={60} limitation="댓글 3회" conditionMet={level2ConditionMet} isClaimed={isLevel2Claimed} missionType="LEVEL_2" buttonText="의견 제출하기" />
         <MissionCard level={3} title="핵심 기여 사건" description="많은 시민이 주목하는 재판 기록의 주인공이 되어보세요" reward={100} limitation="'화제의 재판 기록'에 등재" conditionMet={level3ConditionMet} isClaimed={isLevel3Claimed} missionType="LEVEL_3" buttonText={`화제의 주인공${unclaimedHotCases.length > 0 ? ` [${unclaimedHotCases.length}]` : ''}`} />
       </div>
+
+      {/* 리워드 팝업 */}
+      {showRewardPopup && (
+        <div
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(188, 188, 188, 0.8)',
+            display: 'flex',
+            alignItems: 'flex-end',
+            justifyContent: 'center',
+            zIndex: 10000,
+            padding: '20px',
+            paddingBottom: '40px'
+          }}
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              handleRewardCancel();
+            }
+          }}
+        >
+          <div
+            style={{
+              width: '352px',
+              maxWidth: '90%',
+              backgroundColor: 'white',
+              borderRadius: '20px',
+              padding: '24px',
+              paddingTop: '12px',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              position: 'relative'
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* 드래그 핸들 */}
+            <div
+              style={{
+                width: '40px',
+                height: '4px',
+                backgroundColor: '#E5E5E5',
+                borderRadius: '2px',
+                marginBottom: '24px',
+                marginTop: '0px'
+              }}
+            />
+
+            {/* 제목 */}
+            <Text color={adaptive.grey800} typography="st5" fontWeight="bold" style={{ marginBottom: '24px', textAlign: 'center' }}>
+              광고 보고 포인트 받기!
+            </Text>
+
+            {/* 이미지 */}
+            <div
+              style={{
+                width: '282px',
+                height: '246px',
+                backgroundImage: `url(${missionBannerImage})`,
+                backgroundSize: 'contain',
+                backgroundRepeat: 'no-repeat',
+                backgroundPosition: 'center',
+                marginBottom: '24px'
+              }}
+            />
+
+            <Spacing size={8} />
+
+            {/* 포인트 받기 버튼 */}
+            <Button
+              size="large"
+              display="block"
+              onClick={handleRewardConfirm}
+              disabled={isClaiming}
+              style={{ width: '100%', marginBottom: '8px' }}
+            >
+              포인트 받기
+            </Button>
+
+            {/* 돌아가기 버튼 */}
+            <Button
+              size="large"
+              color="light"
+              display="block"
+              onClick={handleRewardCancel}
+              style={{ width: '100%' }}
+            >
+              돌아가기
+            </Button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
