@@ -135,7 +135,7 @@ function CompletedTrendingPage() {
       boxSizing: 'border-box'
     }}>
       {/* Title */}
-      <div style={{ padding: '0 20px', display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
+      <div style={{ padding: '0 20px', paddingTop: '16px', display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
         <Asset.Image
           frameShape={Asset.frameShape.CleanW24}
           backgroundColor="transparent"
@@ -191,7 +191,7 @@ function CompletedTrendingPage() {
       </div>
 
       {/* Filter Buttons */}
-      <div style={{ padding: '0 20px', marginBottom: '17px', display: 'flex', gap: '8px' }}>
+      <div style={{ padding: '0 20px', marginBottom: '8px', display: 'flex', gap: '8px' }}>
         {(['전체', '무죄', '유죄', '보류'] as const).map((filterOption) => (
           <button
             key={filterOption}
@@ -212,7 +212,7 @@ function CompletedTrendingPage() {
         ))}
       </div>
 
-      <Spacing size={17} />
+      <Spacing size={8} />
 
       {/* Post List */}
       <div style={{ backgroundColor: 'white' }}>
@@ -249,32 +249,36 @@ function CompletedTrendingPage() {
                     cursor: 'pointer'
                   }}
                 >
-                  {/* Verdict Badge */}
-                  <div style={{
-                    padding: '4px 10px',
-                    backgroundColor: badgeBgColor,
-                    color: badgeTextColor,
-                    fontSize: '12px',
-                    fontWeight: '600',
-                    borderRadius: '4px',
-                    whiteSpace: 'nowrap',
-                    minWidth: 'fit-content',
-                    display: 'inline-block',
-                    marginBottom: '8px'
-                  }}>
-                    {verdict}
+                  {/* Verdict Badge와 날짜 */}
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+                    <div style={{
+                      padding: '4px 10px',
+                      backgroundColor: badgeBgColor,
+                      color: badgeTextColor,
+                      fontSize: '12px',
+                      fontWeight: '600',
+                      borderRadius: '4px',
+                      whiteSpace: 'nowrap',
+                      minWidth: 'fit-content',
+                      display: 'inline-block'
+                    }}>
+                      {verdict}
+                    </div>
+                    {post.createdAt && (
+                      <Text color="#9E9E9E" typography="st13" fontWeight="regular" style={{ flexShrink: 0, whiteSpace: 'nowrap', fontSize: '14px' }}>
+                        {formatDate(post.createdAt)}
+                      </Text>
+                    )}
                   </div>
 
-                  {/* Title and Date */}
-                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', marginBottom: '4px' }}>
+                  {/* Title */}
+                  <div style={{ marginBottom: '4px' }}>
                     <Text 
                       display="block" 
                       color="#191F28" 
                       typography="t4" 
                       fontWeight="bold"
                       style={{ 
-                        flex: 1,
-                        minWidth: 0,
                         overflow: 'hidden', 
                         textOverflow: 'ellipsis',
                         display: '-webkit-box',
@@ -287,11 +291,6 @@ function CompletedTrendingPage() {
                     >
                       {post.title}
                     </Text>
-                    {post.createdAt && (
-                      <Text color="#9E9E9E" typography="st13" fontWeight="regular" style={{ flexShrink: 0, whiteSpace: 'nowrap' }}>
-                        {formatDate(post.createdAt)}
-                      </Text>
-                    )}
                   </div>
 
                   {/* Content Preview */}
@@ -312,27 +311,27 @@ function CompletedTrendingPage() {
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                       <Asset.Icon
-                        frameShape={{ width: 13, height: 13 }}
+                        frameShape={{ width: 15, height: 15 }}
                         backgroundColor="transparent"
                         name="icon-user-two-mono"
                         color="#5e403b"
                         aria-hidden={true}
                         ratio="1/1"
                       />
-                      <Text color="#5e403b" typography="st13" fontWeight="medium">
+                      <Text color="#5e403b" typography="st13" fontWeight="medium" style={{ fontSize: '14px' }}>
                         {(post.guiltyCount || 0) + (post.innocentCount || 0)}
                       </Text>
                     </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
                       <Asset.Icon
-                        frameShape={{ width: 13, height: 13 }}
+                        frameShape={{ width: 15, height: 15 }}
                         backgroundColor="transparent"
                         name="icon-chat-bubble-mono"
                         color="#5E403Bff"
                         aria-hidden={true}
                         ratio="1/1"
                       />
-                      <Text color="#5e403b" typography="st13" fontWeight="medium">
+                      <Text color="#5e403b" typography="st13" fontWeight="medium" style={{ fontSize: '14px' }}>
                         {post.commentCount ?? 0}
                       </Text>
                     </div>

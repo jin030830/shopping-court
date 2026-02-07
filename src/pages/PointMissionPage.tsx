@@ -1,6 +1,6 @@
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useEffect, useState, useRef, useCallback, type CSSProperties } from 'react';
-import { Asset, Text, Spacing, Button } from '@toss/tds-mobile';
+import { Asset, Text, Spacing, Button, TextButton } from '@toss/tds-mobile';
 import { adaptive } from '@toss/tds-colors';
 import { useAuth } from '../hooks/useAuth';
 import { doc, onSnapshot } from 'firebase/firestore';
@@ -8,7 +8,7 @@ import { db } from '../api/firebase';
 import { claimMissionReward, exchangeGavel, type UserDocument, getTodayDateString } from '../api/user';
 import { getCasesByAuthor, type CaseDocument } from '../api/cases';
 import { useTossRewardAd } from '../hooks/useTossRewardAd';
-import missionBannerImage from '../assets/missionbanner.png';
+import missionBannerImage from '../assets/pansabong.png';
 
 function PointMissionPage() {
   const navigate = useNavigate();
@@ -166,7 +166,6 @@ function PointMissionPage() {
     setIsExchanging(true);
     try {
       await exchangeGavel();
-      alert('5P가 지급되었습니다!');
     } catch (error: any) {
       console.error('교환 실패:', error);
       alert(error.message || '교환 중 오류가 발생했습니다.');
@@ -462,9 +461,6 @@ function PointMissionPage() {
               <Text display="inline" color={adaptive.grey800} typography="t5" fontWeight="bold">
                 판사봉 {currentGavel}
               </Text>
-              <Text display="inline" color={adaptive.grey600} typography="t5" fontWeight="bold">
-                / 50
-              </Text>
               <div ref={infoPopupRef} style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
                 <div 
                   onClick={() => setShowInfoPopup(!showInfoPopup)} 
@@ -509,24 +505,15 @@ function PointMissionPage() {
                 )}
               </div>
             </div>
-            <button 
-              onClick={handleExchange} 
-              disabled={!canExchange || isExchanging} 
-              style={{ 
-                padding: '0', 
-                backgroundColor: 'transparent', 
-                color: canExchange ? '#3182F6' : adaptive.grey600, 
-                border: 'none', 
-                fontSize: '14px', 
-                fontWeight: '700', 
-                cursor: (canExchange && !isExchanging) ? 'pointer' : 'not-allowed', 
-                whiteSpace: 'nowrap', 
-                textAlign: 'center',
-                opacity: (canExchange && !isExchanging) ? 1 : 0.5 
-              }}
+            <TextButton
+              variant="arrow"
+              color={canExchange ? adaptive.blue500 : adaptive.grey600}
+              size="small"
+              onClick={handleExchange}
+              disabled={!canExchange || isExchanging}
             >
-              {isExchanging ? '교환 중...' : '교환하기 >'}
-            </button>
+              {isExchanging ? '교환 중...' : '교환하기'}
+            </TextButton>
           </div>
           
           {/* 오른쪽: 진행 현황 */}
@@ -610,7 +597,7 @@ function PointMissionPage() {
             />
 
             {/* 제목 */}
-            <Text color={adaptive.grey800} typography="st5" fontWeight="bold" style={{ marginBottom: '24px', textAlign: 'center' }}>
+            <Text color={adaptive.grey800} typography="st5" fontWeight="bold" style={{ marginBottom: '16px', textAlign: 'center', fontSize: '24px' }}>
               광고 보고 포인트 받기!
             </Text>
 
