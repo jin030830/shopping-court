@@ -6,7 +6,7 @@ import { Timestamp } from 'firebase/firestore';
 import { adaptive } from '@toss/tds-colors';
 import scaleIcon from '../assets/scale.svg';
 import hotFlameIcon from '../assets/fire.png';
-import pointMissionImage from '../assets/missionbanner.png';
+import pointMissionImage from '../assets/missionbanner.jpeg';
 
 // 단순 메모리 캐시 (전역 변수)
 let postsCache: CaseDocument[] | null = null;

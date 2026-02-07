@@ -8,7 +8,7 @@ import { db } from '../api/firebase';
 import { claimMissionReward, exchangeGavel, type UserDocument, getTodayDateString } from '../api/user';
 import { getCasesByAuthor, type CaseDocument } from '../api/cases';
 import { useTossRewardAd } from '../hooks/useTossRewardAd';
-import missionBannerImage from '../assets/missionbanner.png';
+import missionBannerImage from '../assets/missionbanner.jpeg';
 
 function PointMissionPage() {
   const location = useLocation();
