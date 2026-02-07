@@ -57,6 +57,9 @@ function HomePage() {
     const createTab = sessionStorage.getItem('createPostFromTab');
     if (createTab) return createTab;
 
+    const myPostsTab = sessionStorage.getItem('myPostsFromTab');
+    if (myPostsTab) return myPostsTab;
+
     return 'HOT 게시판';
   });
 
@@ -67,7 +70,13 @@ function HomePage() {
 
   // 뒤로가기 시 사용한 세션 데이터 정리 (한 번 사용 후 삭제)
   useEffect(() => {
-    const keys = ['caseDetailFromTab', 'completedListFromTab', 'pointMissionFromTab', 'createPostFromTab'];
+    const keys = [
+      'caseDetailFromTab', 
+      'completedListFromTab', 
+      'pointMissionFromTab', 
+      'createPostFromTab',
+      'myPostsFromTab'
+    ];
     keys.forEach(key => {
       if (sessionStorage.getItem(key)) {
         sessionStorage.removeItem(key);
@@ -143,7 +152,7 @@ function HomePage() {
             width: '100%'
           }}>
             <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
-              <div style={{ flex: 1, paddingLeft: '8px', paddingTop: '4px' }}>
+              <div style={{ flex: 1, paddingLeft: '14px', paddingTop: '4px' }}>
                 <Text
                   display="block"
                   color="#191F28"
@@ -159,7 +168,7 @@ function HomePage() {
             <div style={{ 
               position: 'absolute',
               bottom: '4px',
-              left: '8px',
+              left: '14px',
               cursor: 'pointer',
               zIndex: 2
             }}
@@ -174,7 +183,7 @@ function HomePage() {
                 alignItems: 'center',
                 justifyContent: 'center',
                 gap: '4px',
-                padding: '8px 16px',
+                padding: '8px 12px 8px 18px',
                 backgroundColor: '#5E403B',
                 borderRadius: '10px',
                 boxShadow: '0px 0px 4px 0px rgba(255, 255, 255, 1)',
@@ -326,15 +335,15 @@ function HomePage() {
             display: 'flex', 
             alignItems: 'flex-start', 
             justifyContent: 'space-between',
-            marginBottom: '12px'
+            marginBottom: '16px'
           }}>
-            <div style={{ flex: 1, paddingTop: '6px' }}>
+            <div style={{ flex: 1, paddingTop: '13px' }}>
               <Text 
                 display="block" 
                 color="#0D47A1" 
                 typography="t3" 
                 fontWeight="bold"
-                style={{ marginBottom: '8px', fontSize: '22px' }}
+                style={{ marginBottom: '1px', fontSize: '22px' }}
               >
                 재판 중인 글
               </Text>
@@ -386,15 +395,15 @@ function HomePage() {
             display: 'flex', 
             alignItems: 'flex-start', 
             justifyContent: 'space-between',
-            marginBottom: '12px'
+            marginBottom: '16px'
           }}>
-            <div style={{ flex: 1, paddingTop: '6px' }}>
+            <div style={{ flex: 1, paddingTop: '13px' }}>
               <Text 
                 display="block" 
                 color="#B71C1C" 
                 typography="t3" 
                 fontWeight="bold"
-                style={{ marginBottom: '8px', fontSize: '22px' }}
+                style={{ marginBottom: '1px', fontSize: '22px' }}
               >
                 실시간 HOT한 글
               </Text>
@@ -446,15 +455,15 @@ function HomePage() {
             display: 'flex', 
             alignItems: 'flex-start', 
             justifyContent: 'space-between',
-            marginBottom: '18px'
+            marginBottom: '22px'
           }}>
-            <div style={{ flex: 1, paddingTop: '6px' }}>
+            <div style={{ flex: 1, paddingTop: '13px' }}>
               <Text 
                 display="block" 
                 color="#5e403b" 
                 typography="t3" 
                 fontWeight="bold"
-                style={{ marginBottom: '8px', fontSize: '22px' }}
+                style={{ marginBottom: '1px', fontSize: '22px' }}
               >
                 재판 완료된 글
               </Text>
@@ -531,70 +540,100 @@ function HomePage() {
       }}>
         {/* 사용자 아이콘 (위) */}
         {isFabExpanded && (
-          <button
-            onClick={() => {
-              navigate('/my-posts');
-              setIsFabExpanded(false);
-            }}
-            style={{
-              width: '56px',
-              height: '56px',
-              borderRadius: '50%',
-              backgroundColor: 'transparent',
-              border: 'none',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              padding: 0,
-              animation: 'slideUp 0.3s ease-out 0.1s both',
-              transformOrigin: 'bottom'
-            }}
-          >
-            <Asset.Icon
-              frameShape={Asset.frameShape.CircleXLarge}
-              backgroundColor="#fef6f0"
-              name="icon-user-mono"
-              color="#5e403b"
-              scale={0.66}
-              aria-hidden={true}
-            />
-          </button>
+          <div style={{ 
+            display: 'flex', 
+            flexDirection: 'column', 
+            alignItems: 'center',
+            animation: 'slideUp 0.3s ease-out 0.1s both',
+            transformOrigin: 'bottom'
+          }}>
+            <button
+              onClick={() => {
+                // 현재 탭 정보를 sessionStorage에 저장
+                sessionStorage.setItem('myPostsFromTab', selectedTab);
+                navigate('/my-posts');
+                setIsFabExpanded(false);
+              }}
+              style={{
+                width: '56px',
+                height: '56px',
+                borderRadius: '50%',
+                backgroundColor: 'transparent',
+                border: 'none',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                padding: 0
+              }}
+            >
+              <Asset.Icon
+                frameShape={Asset.frameShape.CircleXLarge}
+                backgroundColor="#fef6f0"
+                name="icon-user-mono"
+                color="#5e403b"
+                scale={0.66}
+                aria-hidden={true}
+              />
+            </button>
+            <Text 
+              color="#5e403b" 
+              typography="st13" 
+              fontWeight="bold"
+              style={{ marginTop: '2px', fontSize: '12px' }}
+            >
+              내가 쓴 글
+            </Text>
+          </div>
         )}
         
         {/* 연필 아이콘 (아래) */}
         {isFabExpanded && (
-          <button
-            onClick={() => {
-              setIsFabExpanded(false);
-              // 글작성 후 원래 보던 탭으로 복귀
-              sessionStorage.setItem('createPostFromTab', selectedTab);
-              navigate('/create-post', { state: { fromTab: selectedTab } });
-            }}
-            style={{
-              width: '56px',
-              height: '56px',
-              borderRadius: '50%',
-              backgroundColor: 'transparent',
-              border: 'none',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              padding: 0,
-              animation: 'slideUp 0.3s ease-out',
-              transformOrigin: 'bottom'
-            }}
-          >
-            <Asset.Icon
-              frameShape={Asset.frameShape.CircleXLarge}
-              backgroundColor="#fdf6f0"
-              name="icon-pencil-line-mono"
-              color="#5e403b"
-              scale={0.66}
-              aria-hidden={true}
-            />
-          </button>
+          <div style={{ 
+            display: 'flex', 
+            flexDirection: 'column', 
+            alignItems: 'center',
+            animation: 'slideUp 0.3s ease-out',
+            transformOrigin: 'bottom'
+          }}>
+            <button
+              onClick={() => {
+                setIsFabExpanded(false);
+                // 글작성 후 원래 보던 탭으로 복귀
+                sessionStorage.setItem('createPostFromTab', selectedTab);
+                navigate('/create-post', { state: { fromTab: selectedTab } });
+              }}
+              style={{
+                width: '56px',
+                height: '56px',
+                borderRadius: '50%',
+                backgroundColor: 'transparent',
+                border: 'none',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                padding: 0
+              }}
+            >
+              <Asset.Icon
+                frameShape={Asset.frameShape.CircleXLarge}
+                backgroundColor="#fdf6f0"
+                name="icon-pencil-line-mono"
+                color="#5e403b"
+                scale={0.66}
+                aria-hidden={true}
+              />
+            </button>
+            <Text 
+              color="#5e403b" 
+              typography="st13" 
+              fontWeight="bold"
+              style={{ marginTop: '2px', fontSize: '12px' }}
+            >
+              글쓰기
+            </Text>
+          </div>
         )}
         
         {/* 메인 버튼 (+ 또는 X) */}
@@ -620,7 +659,7 @@ function HomePage() {
               backgroundColor="#5e403b"
               name="icon-x-mono"
               color="#fef6f1"
-              scale={0.66}
+              scale={0.5}
               aria-hidden={true}
             />
           ) : (
@@ -837,22 +876,29 @@ function PostList({ posts, selectedTab, navigate }: PostListProps) {
             }}
           >
             {selectedTab === 'HOT 게시판' && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginBottom: '4px' }}>
-                <Asset.Icon
-                  frameShape={Asset.frameShape.CleanW20}
-                  backgroundColor="transparent"
-                  name="icon-emoji-fire"
-                  aria-hidden={true}
-                  ratio="1/1"
-                />
-                <Text
-                  display="block"
-                  color="#FF6B6B"
-                  typography="t6"
-                  fontWeight="bold"
-                >
-                  TOP {index + 1}
-                </Text>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '4px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  <Asset.Icon
+                    frameShape={Asset.frameShape.CleanW20}
+                    backgroundColor="transparent"
+                    name="icon-emoji-fire"
+                    aria-hidden={true}
+                    ratio="1/1"
+                  />
+                  <Text
+                    display="block"
+                    color="#FF6B6B"
+                    typography="t6"
+                    fontWeight="bold"
+                  >
+                    TOP {index + 1}
+                  </Text>
+                </div>
+                {post.createdAt && (
+                  <Text color="#9E9E9E" typography="st13" fontWeight="regular" style={{ flexShrink: 0, whiteSpace: 'nowrap', fontSize: '14px' }}>
+                    {formatDate(post.createdAt)}
+                  </Text>
+                )}
               </div>
             )}
             <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', marginBottom: '4px' }}>
@@ -876,8 +922,8 @@ function PostList({ posts, selectedTab, navigate }: PostListProps) {
               >
                 {post.title}
               </Text>
-              {post.createdAt && (
-                <Text color="#9E9E9E" typography="st13" fontWeight="regular" style={{ flexShrink: 0, whiteSpace: 'nowrap' }}>
+              {selectedTab === '재판 중' && post.createdAt && (
+                <Text color="#9E9E9E" typography="st13" fontWeight="regular" style={{ flexShrink: 0, whiteSpace: 'nowrap', fontSize: '14px' }}>
                   {formatDate(post.createdAt)}
                 </Text>
               )}
@@ -897,27 +943,27 @@ function PostList({ posts, selectedTab, navigate }: PostListProps) {
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                 <Asset.Icon
-                  frameShape={{ width: 13, height: 13 }}
+                  frameShape={{ width: 15, height: 15 }}
                   backgroundColor="transparent"
                   name="icon-user-two-mono"
                   color="#5e403b"
                   aria-hidden={true}
                   ratio="1/1"
                 />
-                <Text color="#5e403b" typography="st13" fontWeight="medium">
+                <Text color="#5e403b" typography="st13" fontWeight="medium" style={{ fontSize: '14px' }}>
                   {(post.guiltyCount || 0) + (post.innocentCount || 0)}
                 </Text>
               </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
                 <Asset.Icon
-                  frameShape={{ width: 13, height: 13 }}
+                  frameShape={{ width: 15, height: 15 }}
                   backgroundColor="transparent"
                   name="icon-chat-bubble-mono"
                   color="#5E403Bff"
                   aria-hidden={true}
                   ratio="1/1"
                 />
-                <Text color="#5e403b" typography="st13" fontWeight="medium">
+                <Text color="#5e403b" typography="st13" fontWeight="medium" style={{ fontSize: '14px' }}>
                   {post.commentCount ?? 0}
                 </Text>
               </div>
@@ -1095,7 +1141,7 @@ function CompletedPostListMain({ posts, navigate, isLoading, error }: CompletedP
   );
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '61px', backgroundColor: 'white', paddingBottom: '24px', paddingTop: '16px' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '40px', backgroundColor: 'white', paddingBottom: '24px', paddingTop: '16px' }}>
       {/* 화제의 재판 기록 */}
       <div>
         <div style={{
@@ -1116,9 +1162,9 @@ function CompletedPostListMain({ posts, navigate, isLoading, error }: CompletedP
             <Text
               display="block"
               color={adaptive.grey900}
-              typography="t4"
+              typography="t3"
               fontWeight="bold"
-              style={{ fontSize: '18px' }}
+              style={{ fontSize: '22px' }}
             >
               화제의 재판 기록
             </Text>
@@ -1195,9 +1241,9 @@ function CompletedPostListMain({ posts, navigate, isLoading, error }: CompletedP
             <Text
               display="block"
               color={adaptive.grey900}
-              typography="t4"
+              typography="t3"
               fontWeight="bold"
-              style={{ fontSize: '18px' }}
+              style={{ fontSize: '22px' }}
             >
               이전 재판 기록
             </Text>
