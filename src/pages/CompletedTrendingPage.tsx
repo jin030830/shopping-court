@@ -5,6 +5,9 @@ import { getAllCases, type CaseDocument } from '../api/cases';
 import { Timestamp } from 'firebase/firestore';
 import { adaptive } from '@toss/tds-colors';
 
+// 단순 메모리 캐시
+let trendingCache: CaseDocument[] | null = null;
+
 function CompletedTrendingPage() {
   const navigate = useNavigate();
   
@@ -14,26 +17,19 @@ function CompletedTrendingPage() {
   }, []);
 
   // 브라우저/토스 앱의 뒤로가기 버튼 처리
-  useEffect(() => {
-    const handlePopState = () => {
-      const savedFromTab = sessionStorage.getItem('completedListFromTab') || '재판 완료';
-      navigate('/', { state: { selectedTab: savedFromTab }, replace: true });
-    };
-
-    window.addEventListener('popstate', handlePopState);
-    return () => window.removeEventListener('popstate', handlePopState);
-  }, [navigate]);
-  const [allPosts, setAllPosts] = useState<CaseDocument[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  // (HomePage에서 sessionStorage를 통해 탭 상태를 복원하므로 별도의 처리가 필요 없음)
+  const [allPosts, setAllPosts] = useState<CaseDocument[]>(trendingCache || []);
+  const [isLoading, setIsLoading] = useState(!trendingCache);
   const [filter, setFilter] = useState<'전체' | '무죄' | '유죄' | '보류'>('전체');
   const [searchKeyword, setSearchKeyword] = useState('');
 
   useEffect(() => {
     const fetchCases = async () => {
       try {
-        setIsLoading(true);
+        if (!trendingCache) setIsLoading(true);
         const cases = await getAllCases();
         setAllPosts(cases);
+        trendingCache = cases;
       } catch (err) {
         console.error('게시물 로드 실패:', err);
       } finally {
@@ -45,55 +41,39 @@ function CompletedTrendingPage() {
   }, []);
 
   // 게시물 상세 정보 계산
-  const [postsWithDetails, setPostsWithDetails] = useState<any[]>([]);
-  const [isLoadingDetails, setIsLoadingDetails] = useState(true);
+  const processPosts = (rawPosts: CaseDocument[]) => {
+    const postsWithData = rawPosts
+      .filter(post => post.status === 'CLOSED')
+      .map((post) => {
+        const voteCount = (post.guiltyCount || 0) + (post.innocentCount || 0);
+        const actualCommentCount = post.commentCount || 0;
+        const hotScore = voteCount + (2 * actualCommentCount);
+        
+        let verdict: '무죄' | '유죄' | '보류' = '보류';
+        if (voteCount > 0) {
+          if (post.innocentCount > post.guiltyCount) {
+            verdict = '무죄';
+          } else if (post.guiltyCount > post.innocentCount) {
+            verdict = '유죄';
+          } else {
+            verdict = '보류';
+          }
+        }
+        return { ...post, commentCount: actualCommentCount, voteCount, hotScore, verdict };
+      });
+    
+    return postsWithData
+      .filter(post => post.hotScore > 0)
+      .sort((a, b) => b.hotScore - a.hotScore);
+  };
+
+  const [postsWithDetails, setPostsWithDetails] = useState<any[]>(() => processPosts(allPosts));
+  const [isLoadingDetails, setIsLoadingDetails] = useState(allPosts.length === 0);
 
   useEffect(() => {
-    const loadPostDetails = () => {
-      setIsLoadingDetails(true);
-      try {
-        const postsWithData = allPosts
-          .filter(post => post.status === 'CLOSED')
-          .map((post) => {
-            const voteCount = (post.guiltyCount || 0) + (post.innocentCount || 0);
-            
-            // 트리거로 관리되는 commentCount 사용
-            const actualCommentCount = post.commentCount || 0;
-            const hotScore = voteCount + (2 * actualCommentCount);
-            
-            let verdict: '무죄' | '유죄' | '보류' = '보류';
-            if (voteCount > 0) {
-              if (post.innocentCount > post.guiltyCount) {
-                verdict = '무죄';
-              } else if (post.guiltyCount > post.innocentCount) {
-                verdict = '유죄';
-              } else {
-                verdict = '보류';
-              }
-            }
-            return {
-              ...post,
-              commentCount: actualCommentCount,
-              voteCount,
-              hotScore,
-              verdict
-            };
-          });
-        
-        const sortedPosts = postsWithData
-          .filter(post => post.hotScore > 0)
-          .sort((a, b) => b.hotScore - a.hotScore);
-        
-        setPostsWithDetails(sortedPosts);
-      } catch (error) {
-        console.error('게시물 상세 정보 처리 실패:', error);
-      } finally {
-        setIsLoadingDetails(false);
-      }
-    };
-
     if (allPosts.length > 0) {
-      loadPostDetails();
+      setPostsWithDetails(processPosts(allPosts));
+      setIsLoadingDetails(false);
     }
   }, [allPosts]);
 
@@ -217,7 +197,7 @@ function CompletedTrendingPage() {
       {/* Post List */}
       <div style={{ backgroundColor: 'white' }}>
         {isLoading || isLoadingDetails ? (
-          <div style={{ padding: '40px', textAlign: 'center' }}>
+          <div style={{ padding: '40px', textAlign: 'center', minHeight: '80vh' }}>
             <Text color="#6B7684">게시물을 불러오는 중...</Text>
           </div>
         ) : filteredPosts.length === 0 ? (

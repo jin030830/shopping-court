@@ -65,31 +65,19 @@ function CaseDetailPage() {
   
   // 뒤로가기 처리 함수
   const handleBack = () => {
-    if (fromTab === '내가 쓴 글') {
-      // 내가 쓴 글에서 온 경우 MyPostsPage로 돌아가기
-      navigate('/my-posts');
+    if (window.history.length > 1) {
+      navigate(-1);
     } else {
-      // 그 외의 경우 HomePage로 돌아가기
-      navigate('/', { state: { selectedTab: fromTab } });
+      if (fromTab === '내가 쓴 글') {
+        navigate('/my-posts', { replace: true });
+      } else {
+        navigate('/', { state: { selectedTab: fromTab }, replace: true });
+      }
     }
   };
 
   // 브라우저/토스 앱의 뒤로가기 버튼 처리
-  useEffect(() => {
-    const handlePopState = () => {
-      const savedFromTab = sessionStorage.getItem('caseDetailFromTab') || fromTab;
-      if (savedFromTab === '내가 쓴 글') {
-        // 내가 쓴 글에서 온 경우 MyPostsPage로 돌아가기
-        navigate('/my-posts', { replace: true });
-      } else {
-        // 그 외의 경우 HomePage로 돌아가기
-        navigate('/', { state: { selectedTab: savedFromTab }, replace: true });
-      }
-    };
-
-    window.addEventListener('popstate', handlePopState);
-    return () => window.removeEventListener('popstate', handlePopState);
-  }, [fromTab, navigate]);
+  // (HomePage에서 sessionStorage를 통해 탭 상태를 복원하므로 별도의 처리가 필요 없음)
 
   const [selectedVote, setSelectedVote] = useState<'agree' | 'disagree' | null>(null);
   const [hasVoted, setHasVoted] = useState(false);

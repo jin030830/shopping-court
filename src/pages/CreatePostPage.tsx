@@ -1,6 +1,6 @@
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useState, useEffect } from 'react';
-import { Text, Modal } from '@toss/tds-mobile';
+import { Asset, Text, Spacing, Modal } from '@toss/tds-mobile';
 import { useAuth } from '../hooks/useAuth';
 import { createCase, type CaseData } from '../api/cases';
 
@@ -8,6 +8,15 @@ function CreatePostPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const { user, userData, isLoading, login } = useAuth();
+
+  // 뒤로가기 핸들러
+  const handleBack = () => {
+    if (window.history.length > 1) {
+      navigate(-1);
+    } else {
+      navigate('/', { state: { selectedTab: returnTab }, replace: true });
+    }
+  };
 
   // 글쓰기 진입 전 보고 있던 탭 (작성 완료 후 복귀용)
   const returnTab =
@@ -135,6 +144,40 @@ function CreatePostPage() {
       width: '100%',
       boxSizing: 'border-box'
     }}>
+      {/* Header */}
+      <div style={{ 
+        display: 'flex', 
+        alignItems: 'center',
+        padding: '14px 20px',
+        backgroundColor: 'white',
+        width: '100%',
+        boxSizing: 'border-box',
+        borderBottom: '1px solid #F2F4F6'
+      }}>
+        <button
+          onClick={handleBack}
+          style={{
+            background: 'none',
+            border: 'none',
+            cursor: 'pointer',
+            padding: '4px',
+            display: 'flex',
+            alignItems: 'center'
+          }}
+        >
+          <Asset.Icon
+            frameShape={Asset.frameShape.CleanW20}
+            name="icon-arrow-left-mono"
+            color="#191F28"
+            aria-label="뒤로가기"
+          />
+        </button>
+        <Spacing size={8} />
+        <Text color="#191F28" typography="t6" fontWeight="semibold">
+          글쓰기
+        </Text>
+      </div>
+
       {/* Content Area */}
       <div style={{ 
         flex: 1, 

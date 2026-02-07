@@ -10,6 +10,7 @@ import CompletedTrendingPage from '../pages/CompletedTrendingPage';
 import CompletedPreviousPage from '../pages/CompletedPreviousPage';
 import MyPostsPage from '../pages/MyPostsPage';
 import ProtectedRoute from './ProtectedRoute';
+import ScrollRestoration from '../components/ScrollRestoration';
 
 // 경로를 소문자로 강제 변환하고, 필요한 경우 리다이렉트하는 컴포넌트
 function LowercaseRedirectWrapper({ children }: { children: React.ReactElement }) {
@@ -27,8 +28,10 @@ function LowercaseRedirectWrapper({ children }: { children: React.ReactElement }
 
 function AppRoutes() {
   return (
-    <Routes>
-      <Route path="/" element={<HomePage />} />
+    <>
+      <ScrollRestoration />
+      <Routes>
+        <Route path="/" element={<HomePage />} />
       <Route path="/case/:id" element={<CaseDetailPage />} />
       <Route 
         path="/create-post" 
@@ -76,6 +79,7 @@ function AppRoutes() {
         } 
       />
     </Routes>
+    </>
   );
 }
 

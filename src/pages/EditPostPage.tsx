@@ -1,6 +1,6 @@
 import { useNavigate, useParams } from 'react-router-dom';
 import { useState, useEffect } from 'react';
-import { Text } from '@toss/tds-mobile';
+import { Asset, Text, Spacing } from '@toss/tds-mobile';
 import { useAuth } from '../hooks/useAuth';
 import { getCase, updateCase } from '../api/cases';
 
@@ -8,6 +8,15 @@ function EditPostPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { user, isLoading: isAuthLoading, login } = useAuth();
+
+  // 뒤로가기 핸들러
+  const handleBack = () => {
+    if (window.history.length > 1) {
+      navigate(-1);
+    } else {
+      navigate('/', { replace: true });
+    }
+  };
   
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
@@ -61,14 +70,7 @@ function EditPostPage() {
   }, [id, user, isAuthLoading, navigate, login]);
 
   // 브라우저/토스 앱의 뒤로가기 버튼 처리 - 홈으로 이동
-  useEffect(() => {
-    const handlePopState = () => {
-      navigate('/', { replace: true });
-    };
-
-    window.addEventListener('popstate', handlePopState);
-    return () => window.removeEventListener('popstate', handlePopState);
-  }, [navigate]);
+  // (브라우저 기본 뒤로가기 동작을 따르도록 변경)
 
   const handleSubmit = async () => {
     if (isSubmitting) return; // 중복 클릭 방지
@@ -110,7 +112,7 @@ function EditPostPage() {
       <div style={{ padding: '20px', textAlign: 'center' }}>
         <div style={{ color: '#D32F2F', marginBottom: '20px', fontSize: '15px' }}>{error}</div>
         <button 
-          onClick={() => navigate('/')} 
+          onClick={handleBack} 
           style={{
             padding: '12px 24px',
             backgroundColor: '#3182F6',
@@ -122,7 +124,7 @@ function EditPostPage() {
             cursor: 'pointer'
           }}
         >
-          홈으로 돌아가기
+          돌아가기
         </button>
       </div>
     );
@@ -137,6 +139,39 @@ function EditPostPage() {
       width: '100%',
       boxSizing: 'border-box'
     }}>
+      {/* Header */}
+      <div style={{ 
+        display: 'flex', 
+        alignItems: 'center',
+        padding: '14px 20px',
+        backgroundColor: 'white',
+        width: '100%',
+        boxSizing: 'border-box',
+        borderBottom: '1px solid #F2F4F6'
+      }}>
+        <button
+          onClick={handleBack}
+          style={{
+            background: 'none',
+            border: 'none',
+            cursor: 'pointer',
+            padding: '4px',
+            display: 'flex',
+            alignItems: 'center'
+          }}
+        >
+          <Asset.Icon
+            frameShape={Asset.frameShape.CleanW20}
+            name="icon-arrow-left-mono"
+            color="#191F28"
+            aria-label="뒤로가기"
+          />
+        </button>
+        <Spacing size={8} />
+        <Text color="#191F28" typography="t6" fontWeight="semibold">
+          수정하기
+        </Text>
+      </div>
 
       {/* Content Area */}
       <div style={{ 

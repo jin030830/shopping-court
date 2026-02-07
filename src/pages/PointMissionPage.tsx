@@ -1,4 +1,4 @@
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useLocation } from 'react-router-dom';
 import { useEffect, useState, useRef, useCallback, type CSSProperties } from 'react';
 import { Asset, Text, Spacing, Button, TextButton } from '@toss/tds-mobile';
 import { adaptive } from '@toss/tds-colors';
@@ -8,10 +8,9 @@ import { db } from '../api/firebase';
 import { claimMissionReward, exchangeGavel, type UserDocument, getTodayDateString } from '../api/user';
 import { getCasesByAuthor, type CaseDocument } from '../api/cases';
 import { useTossRewardAd } from '../hooks/useTossRewardAd';
-import missionBannerImage from '../assets/pansabong.png';
+import missionBannerImage from '../assets/missionbanner.jpeg';
 
 function PointMissionPage() {
-  const navigate = useNavigate();
   const location = useLocation();
   const { user } = useAuth();
   const [userData, setUserData] = useState<UserDocument | null>(null);
@@ -52,15 +51,7 @@ function PointMissionPage() {
   }, [today]);
 
   // 브라우저/토스 앱의 뒤로가기 버튼 처리
-  useEffect(() => {
-    const handlePopState = () => {
-      const savedFromTab = sessionStorage.getItem('pointMissionFromTab') || 'HOT 게시판';
-      navigate('/', { state: { selectedTab: savedFromTab }, replace: true });
-    };
-
-    window.addEventListener('popstate', handlePopState);
-    return () => window.removeEventListener('popstate', handlePopState);
-  }, [navigate]);
+  // (HomePage에서 sessionStorage를 통해 탭 상태를 복원하므로 별도의 처리가 필요 없음)
 
   // 정보 팝업 외부 클릭 시 닫기
   useEffect(() => {
@@ -166,6 +157,7 @@ function PointMissionPage() {
     setIsExchanging(true);
     try {
       await exchangeGavel();
+      alert('5P가 지급되었습니다!');
     } catch (error: any) {
       console.error('교환 실패:', error);
       alert(error.message || '교환 중 오류가 발생했습니다.');

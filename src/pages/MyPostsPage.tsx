@@ -1,27 +1,41 @@
 import { useNavigate } from 'react-router-dom';
 import { Asset, Text, Spacing } from '@toss/tds-mobile';
 import { useState, useEffect } from 'react';
-import { getAllCases, getComments, getReplies, type CaseDocument } from '../api/cases';
+import { getAllCases, type CaseDocument } from '../api/cases';
 import { Timestamp } from 'firebase/firestore';
 import { adaptive } from '@toss/tds-colors';
 import { useAuth } from '../hooks/useAuth';
 
+// 단순 메모리 캐시
+let myPostsCache: CaseDocument[] | null = null;
+
 function MyPostsPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const [allPosts, setAllPosts] = useState<CaseDocument[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [postsWithDetails, setPostsWithDetails] = useState<any[]>([]);
-  const [isLoadingDetails, setIsLoadingDetails] = useState(true);
+  
+  // 데이터 가공 함수 (재사용)
+  const processPosts = (rawPosts: CaseDocument[]) => {
+    return rawPosts.map((post) => {
+      const actualCommentCount = post.commentCount || 0;
+      const voteCount = (post.guiltyCount || 0) + (post.innocentCount || 0);
+      return { ...post, commentCount: actualCommentCount, voteCount };
+    });
+  };
+
+  const [allPosts, setAllPosts] = useState<CaseDocument[]>(myPostsCache || []);
+  const [isLoading, setIsLoading] = useState(!myPostsCache);
+  // 캐시가 있으면 즉시 가공된 데이터로 시작하여 로딩 화면을 건너뜀
+  const [postsWithDetails, setPostsWithDetails] = useState<any[]>(() => processPosts(myPostsCache || []));
+  const [isLoadingDetails, setIsLoadingDetails] = useState(myPostsCache === null);
 
   useEffect(() => {
     const fetchCases = async () => {
       try {
-        setIsLoading(true);
+        if (!myPostsCache) setIsLoading(true);
         const cases = await getAllCases();
-        // 현재 사용자가 작성한 게시물만 필터링
         const myPosts = cases.filter(post => post.authorId === user?.uid);
         setAllPosts(myPosts);
+        myPostsCache = myPosts;
       } catch (err) {
         console.error('게시물 로드 실패:', err);
       } finally {
@@ -35,45 +49,19 @@ function MyPostsPage() {
   }, [user?.uid]);
 
   useEffect(() => {
-    const loadPostDetails = async () => {
-      setIsLoadingDetails(true);
-      try {
-        const postsWithData = await Promise.all(
-          allPosts.map(async (post) => {
-            // 실제 댓글 수 조회
-            let actualCommentCount = 0;
-            try {
-              const comments = await getComments(post.id);
-              const repliesPromises = comments.map(comment => getReplies(post.id, comment.id));
-              const repliesArrays = await Promise.all(repliesPromises);
-              actualCommentCount = comments.length + repliesArrays.reduce((sum, replies) => sum + replies.length, 0);
-            } catch (error) {
-              console.error(`게시글 ${post.id}의 댓글 수 조회 실패:`, error);
-            }
-            
-            const voteCount = (post.guiltyCount || 0) + (post.innocentCount || 0);
-            
-            return {
-              ...post,
-              commentCount: actualCommentCount,
-              voteCount
-            };
-          })
-        );
-        
-        setPostsWithDetails(postsWithData);
-      } catch (error) {
-        console.error('게시물 상세 정보 처리 실패:', error);
-      } finally {
+    const loadPostDetails = () => {
+      if (allPosts.length === 0) {
         setIsLoadingDetails(false);
+        return;
       }
+      
+      // 이미 위에서 초기화했거나 background에서 업데이트
+      const processed = processPosts(allPosts);
+      setPostsWithDetails(processed);
+      setIsLoadingDetails(false);
     };
 
-    if (allPosts.length > 0) {
-      loadPostDetails();
-    } else {
-      setIsLoadingDetails(false);
-    }
+    loadPostDetails();
   }, [allPosts]);
 
   // 재판 중인 글 (status === 'OPEN')
