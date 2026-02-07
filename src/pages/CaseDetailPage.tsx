@@ -724,11 +724,11 @@ function CaseDetailPage() {
       <div style={{ height: '12px', backgroundColor: '#F8F9FA' }} />
 
       {/* 게시글 내용 */}
-      <div style={{ padding: '0 20px', width: '100%', boxSizing: 'border-box' }}>
-        <div style={{ backgroundColor: 'white', padding: '20px', borderRadius: '12px', width: '100%', boxSizing: 'border-box', maxWidth: '100%', overflow: 'hidden' }}>
+      <div style={{ padding: '0 13px', width: '100%', boxSizing: 'border-box' }}>
+        <div style={{ backgroundColor: 'white', padding: '2px 13px 16px 13px', borderRadius: '12px', width: '100%', boxSizing: 'border-box', maxWidth: '100%', overflow: 'hidden' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-              <img src={smileIcon} alt="smile" style={{ width: '40px', height: '40px', objectFit: 'contain' }} />
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0px', marginLeft: '-8px', marginTop: '4px' }}>
+              <img src={smileIcon} alt="smile" style={{ width: '36px', height: '36px', objectFit: 'contain' }} />
               <span style={{ color: '#666', fontSize: '13px' }}>피고인 {post.authorNickname.replace(/^배심원/, '')}님</span>
             </div>
             {/* 메뉴 버튼은 로그인 + 검증 완료 시에만 노출 */}
@@ -745,7 +745,9 @@ function CaseDetailPage() {
                   <div data-post-menu style={{ position: 'absolute', top: '100%', right: '0', marginTop: '8px', backgroundColor: 'white', border: '1px solid #ddd', borderRadius: '8px', boxShadow: '0 2px 8px rgba(0,0,0,0.1)', zIndex: 1000, minWidth: '120px' }}>
                     {user?.uid === post?.authorId ? (
                       <>
-                        <button onClick={() => { handleEditPost(); setShowPostMenu(false); }} style={{ width: '100%', padding: '12px 16px', border: 'none', background: 'none', textAlign: 'left', cursor: 'pointer', fontSize: '14px', color: '#191F28' }}>수정</button>
+                        {post?.status === 'OPEN' && (
+                          <button onClick={() => { handleEditPost(); setShowPostMenu(false); }} style={{ width: '100%', padding: '12px 16px', border: 'none', background: 'none', textAlign: 'left', cursor: 'pointer', fontSize: '14px', color: '#191F28' }}>수정</button>
+                        )}
                         <button onClick={() => { handleDeletePost(); setShowPostMenu(false); }} style={{ width: '100%', padding: '12px 16px', border: 'none', background: 'none', textAlign: 'left', cursor: 'pointer', fontSize: '14px', color: '#D32F2F' }}>삭제</button>
                       </>
                     ) : (
@@ -762,8 +764,8 @@ function CaseDetailPage() {
             color: '#191F28', 
             fontSize: '20px', 
             fontWeight: '700', 
-            marginBottom: '12px',
-            margin: '0 0 12px 0',
+            marginBottom: '6px',
+            margin: '0 0 6px 0',
             wordBreak: 'break-word',
             overflowWrap: 'break-word',
             textAlign: 'center'
@@ -779,6 +781,7 @@ function CaseDetailPage() {
             marginBottom: '20px',
             lineHeight: '1.6',
             margin: '0 0 20px 0',
+            paddingLeft: '4px',
             wordBreak: 'break-word',
             overflowWrap: 'break-word',
             textAlign: 'left'
@@ -789,15 +792,15 @@ function CaseDetailPage() {
           {/* 투표 버튼들 - 재판 완료된 글에서는 표시하지 않음 */}
           {post.status === 'OPEN' && (
             <>
-              <div style={{ display: 'flex', gap: '12px', marginBottom: '16px', position: 'relative' }}>
+              <div style={{ display: 'flex', gap: '12px', marginBottom: '26px', position: 'relative' }}>
                 <button onClick={() => handleVoteSelect('agree')} disabled={hasVoted} style={{ flex: 1, padding: '12px', backgroundColor: '#E3F2FD', color: '#1976D2', border: selectedVote === 'agree' ? '3px solid #1976D2' : 'none', borderRadius: '8px', fontSize: '15px', fontWeight: '600', cursor: hasVoted ? 'not-allowed' : 'pointer', opacity: hasVoted && selectedVote !== 'agree' ? 0.5 : 1 }}>무죄</button>
                 <button onClick={() => handleVoteSelect('disagree')} disabled={hasVoted} style={{ flex: 1, padding: '12px', backgroundColor: '#FFEBEE', color: '#D32F2F', border: selectedVote === 'disagree' ? '3px solid #D32F2F' : 'none', borderRadius: '8px', fontSize: '15px', fontWeight: '600', cursor: hasVoted ? 'not-allowed' : 'pointer', opacity: hasVoted && selectedVote !== 'disagree' ? 0.5 : 1 }}>유죄</button>
                 {timeRemaining && (
                   <div style={{ 
                     position: 'absolute', 
-                    bottom: '-30px', 
+                    bottom: '-25px', 
                     right: '0', 
-                    fontSize: '14px', 
+                    fontSize: '13px', 
                     color: '#9E9E9E', 
                     fontWeight: '400',
                     whiteSpace: 'nowrap'
@@ -815,17 +818,17 @@ function CaseDetailPage() {
             </>
           )}
           {post.status === 'CLOSED' && (
-            <button disabled style={{ width: '100%', padding: '16px', backgroundColor: '#F2F4F6', color: '#6B7684', border: 'none', borderRadius: '8px', fontSize: '16px', fontWeight: '600', cursor: 'not-allowed', marginTop: '12px' }}>재판 완료</button>
+            <button disabled style={{ width: '100%', padding: '16px', backgroundColor: '#F2F4F6', color: '#6B7684', border: 'none', borderRadius: '8px', fontSize: '16px', fontWeight: '600', cursor: 'not-allowed', marginTop: '8px' }}>재판 완료</button>
           )}
         </div>
       </div>
 
       {((post.status === 'CLOSED' && totalVotes > 0) || (hasVoted && totalVotes > 0)) && (
         <>
-          <div style={{ height: '16px' }} />
-          <div style={{ padding: '0 20px', width: '100%', boxSizing: 'border-box' }}>
-            <div style={{ backgroundColor: 'white', padding: '20px', borderRadius: '12px', width: '100%', boxSizing: 'border-box', maxWidth: '100%', overflow: 'hidden' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px' }}>
+          <div style={{ height: '12px' }} />
+          <div style={{ padding: '0 13px', width: '100%', boxSizing: 'border-box' }}>
+            <div style={{ backgroundColor: 'white', padding: '20px 15px', borderRadius: '12px', width: '100%', boxSizing: 'border-box', maxWidth: '100%', overflow: 'hidden' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
                 <span style={{ color: '#1976D2', fontSize: '18px', fontWeight: '700' }}>{agreePercent}%</span>
                 <span style={{ color: '#666', fontSize: '14px' }}>{post.status === 'CLOSED' ? `${totalVotes}명 재판 완료` : `${totalVotes}명 투표 중`}</span>
                 <span style={{ color: '#D32F2F', fontSize: '18px', fontWeight: '700' }}>{disagreePercent}%</span>
@@ -843,10 +846,10 @@ function CaseDetailPage() {
         </>
       )}
 
-      <div style={{ height: '16px' }} />
+      <div style={{ height: '12px' }} />
 
-      <div style={{ padding: '0 20px', width: '100%', boxSizing: 'border-box' }}>
-        <div style={{ backgroundColor: 'white', padding: '20px', borderRadius: '12px', width: '100%', boxSizing: 'border-box', maxWidth: '100%', overflow: 'hidden' }}>
+      <div style={{ padding: '0 13px', width: '100%', boxSizing: 'border-box' }}>
+        <div style={{ backgroundColor: 'white', padding: '20px 13px', borderRadius: '12px', width: '100%', boxSizing: 'border-box', maxWidth: '100%', overflow: 'hidden' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
             <h4 style={{ color: '#191F28', fontSize: '17px', fontWeight: '600', margin: 0 }}>전체 댓글 {comments.length + comments.reduce((sum, comment) => sum + comment.replies.length, 0)}</h4>
             <div style={{ display: 'flex', gap: '8px' }}>
@@ -855,8 +858,8 @@ function CaseDetailPage() {
             </div>
           </div>
 
-          {/* 댓글 작성 폼 (검증 완료된 상태에서만 노출) */}
-          {user && userData && isVerified && hasVoted ? (
+          {/* 댓글 작성 폼 (검증 완료된 상태에서만 노출, 재판 완료된 글에서는 불가) */}
+          {user && userData && isVerified && hasVoted && post?.status === 'OPEN' ? (
             <div style={{ marginBottom: '20px' }}>
               <textarea value={newComment} onChange={(e) => setNewComment(e.target.value)} placeholder="의견을 남겨주세요..." style={{ width: '100%', minHeight: '80px', padding: '12px', border: '1px solid #E5E5E5', borderRadius: '8px', fontSize: '14px', resize: 'vertical', boxSizing: 'border-box', backgroundColor: 'white', color: '#191F28' }} />
               <button onClick={handleCommentSubmit} style={{ marginTop: '8px', padding: '10px 20px', backgroundColor: '#3182F6', color: 'white', border: 'none', borderRadius: '8px', fontSize: '14px', fontWeight: '600', cursor: 'pointer', float: 'right' }}>댓글 작성</button>
@@ -891,27 +894,44 @@ function CaseDetailPage() {
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '6px' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                         {comment.authorId === post?.authorId ? (
-                          <div style={{ padding: '4px 8px', backgroundColor: '#FFB33128', borderRadius: '4px', height: 'fit-content', whiteSpace: 'nowrap', fontSize: '11px', fontWeight: '600' }}>
+                          <div style={{ padding: '3px 6px', backgroundColor: '#FFB33128', borderRadius: '4px', height: 'fit-content', whiteSpace: 'nowrap', fontSize: '11px', fontWeight: '600' }}>
                             <span style={{ color: '#B45309', fontSize: '11px', fontWeight: '600' }}>작성자</span>
                           </div>
                         ) : (
-                          <div style={{ padding: '4px 8px', backgroundColor: comment.vote === 'innocent' ? '#E3F2FD' : '#FFEBEE', color: comment.vote === 'innocent' ? '#1976D2' : '#D32F2F', fontSize: '11px', fontWeight: '600', borderRadius: '4px', height: 'fit-content', whiteSpace: 'nowrap' }}>{comment.vote === 'innocent' ? '무죄' : '유죄'}</div>
+                          <div style={{ padding: '3px 6px', backgroundColor: comment.vote === 'innocent' ? '#E3F2FD' : '#FFEBEE', color: comment.vote === 'innocent' ? '#1976D2' : '#D32F2F', fontSize: '11px', fontWeight: '600', borderRadius: '4px', height: 'fit-content', whiteSpace: 'nowrap' }}>{comment.vote === 'innocent' ? '무죄' : '유죄'}</div>
                         )}
-                        <Text color="#6B7684" typography="t7" fontWeight="medium">{comment.authorId === post?.authorId ? '피고인' : '배심원'} {comment.authorNickname.replace(/^배심원/, '')}님</Text>
+                        <Text color="#6B7684" typography="t7" fontWeight="medium" style={{ fontSize: '13px' }}>{comment.authorId === post?.authorId ? '피고인' : '배심원'} {comment.authorNickname.replace(/^배심원/, '')}님</Text>
                       </div>
                       
                       {/* 댓글 우측 버튼들 (좋아요, 답글, 더보기) */}
                       <div style={{ display: 'flex', alignItems: 'center', backgroundColor: '#f2f4f6', borderRadius: '20px', padding: '4px 8px', gap: '0' }}>
                         <button onClick={() => handleLikeComment(comment.id)} disabled={post?.status === 'CLOSED'} style={{ background: 'none', border: 'none', cursor: post?.status === 'CLOSED' ? 'not-allowed' : 'pointer', padding: '4px 8px', display: 'flex', alignItems: 'center', gap: '4px', opacity: post?.status === 'CLOSED' ? 0.5 : 1 }}>
-                          <Asset.Icon frameShape={{ width: 12, height: 12 }} backgroundColor="transparent" name="icon-thumb-up-mono" color="#9E9E9E" aria-hidden={true} />
+                          <Asset.Icon frameShape={{ width: 14, height: 14 }} backgroundColor="transparent" name="icon-thumb-up-mono" color="#9E9E9E" aria-hidden={true} />
                         </button>
                         <div style={{ width: '1px', height: '16px', backgroundColor: '#9E9E9E', opacity: 0.3 }} />
                         <button onClick={() => { if (post?.status === 'CLOSED') return; if (!hasVoted) { alert('투표 후 댓글을 작성할 수 있습니다!'); return; } setReplyingTo(comment.id); }} disabled={post?.status === 'CLOSED'} style={{ background: 'none', border: 'none', cursor: post?.status === 'CLOSED' ? 'not-allowed' : 'pointer', padding: '4px 8px', display: 'flex', alignItems: 'center', opacity: post?.status === 'CLOSED' ? 0.5 : 1 }}>
-                          <Asset.Icon frameShape={{ width: 12, height: 12 }} backgroundColor="transparent" name="icon-chat-square-two-mono" color="#9E9E9E" aria-hidden={true} />
+                          <Asset.Icon frameShape={{ width: 14, height: 14 }} backgroundColor="transparent" name="icon-chat-square-two-mono" color="#9E9E9E" aria-hidden={true} />
                         </button>
                         <div style={{ width: '1px', height: '16px', backgroundColor: '#9E9E9E', opacity: 0.3 }} />
-                        <button data-comment-menu-button onClick={() => setShowMenuFor(showMenuFor === comment.id ? null : comment.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px 8px', display: 'flex', alignItems: 'center' }}>
-                          <Asset.Icon frameShape={{ width: 12, height: 12 }} backgroundColor="transparent" name="icon-dots-vertical-1-mono" color="#9E9E9E" aria-hidden={true} />
+                        <button 
+                          data-comment-menu-button 
+                          onClick={() => {
+                            if (!(post?.status === 'CLOSED' && user?.uid === comment.authorId)) {
+                              setShowMenuFor(showMenuFor === comment.id ? null : comment.id);
+                            }
+                          }} 
+                          disabled={post?.status === 'CLOSED' && user?.uid === comment.authorId}
+                          style={{ 
+                            background: 'none', 
+                            border: 'none', 
+                            cursor: (post?.status === 'CLOSED' && user?.uid === comment.authorId) ? 'not-allowed' : 'pointer', 
+                            padding: '4px 8px', 
+                            display: 'flex', 
+                            alignItems: 'center',
+                            opacity: (post?.status === 'CLOSED' && user?.uid === comment.authorId) ? 0.3 : 1
+                          }}
+                        >
+                          <Asset.Icon frameShape={{ width: 14, height: 14 }} backgroundColor="transparent" name="icon-dots-vertical-1-mono" color="#9E9E9E" aria-hidden={true} />
                         </button>
                       </div>
                     </div>
@@ -928,10 +948,10 @@ function CaseDetailPage() {
                       <>
                         <Text display="block" color="#191F28" typography="t6" fontWeight="regular" style={{ marginBottom: '4px' }}>{comment.content}</Text>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                          <Text display="block" color="#9E9E9E" typography="t7" fontWeight="regular">{formatDate(comment.createdAt)}</Text>
+                          <Text display="block" color="#9E9E9E" typography="t7" fontWeight="regular" style={{ fontSize: '13px' }}>{formatDate(comment.createdAt)}</Text>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                             <Asset.Icon frameShape={{ width: 15, height: 15 }} backgroundColor="transparent" name="icon-thumb-up-line-mono" color="#D32F2F" aria-hidden={true} />
-                            <Text color="#D32F2F" typography="st13" fontWeight="medium">{comment.likes || 0}</Text>
+                            <Text color="#D32F2F" typography="st13" fontWeight="medium" style={{ fontSize: '13px' }}>{comment.likes || 0}</Text>
                           </div>
                         </div>
                       </>
@@ -952,8 +972,12 @@ function CaseDetailPage() {
                       <div data-comment-menu style={{ position: 'absolute', top: '50px', right: '16px', backgroundColor: 'white', border: '1px solid #ddd', borderRadius: '8px', boxShadow: '0 2px 8px rgba(0,0,0,0.1)', zIndex: 10, minWidth: '100px' }}>
                         {user?.uid === comment.authorId ? (
                           <>
-                            <button onClick={() => { setEditingComment(comment.id); setEditContent(comment.content); setShowMenuFor(null); }} style={{ width: '100%', padding: '12px', border: 'none', background: 'none', textAlign: 'left', cursor: 'pointer', fontSize: '14px' }}>수정</button>
-                            <button onClick={() => { handleDeleteComment(comment.id); setShowMenuFor(null); }} style={{ width: '100%', padding: '12px', border: 'none', background: 'none', textAlign: 'left', cursor: 'pointer', fontSize: '14px', color: '#D32F2F' }}>삭제</button>
+                            {post?.status === 'OPEN' && (
+                              <button onClick={() => { setEditingComment(comment.id); setEditContent(comment.content); setShowMenuFor(null); }} style={{ width: '100%', padding: '12px', border: 'none', background: 'none', textAlign: 'left', cursor: 'pointer', fontSize: '14px' }}>수정</button>
+                            )}
+                            {post?.status === 'OPEN' && (
+                              <button onClick={() => { handleDeleteComment(comment.id); setShowMenuFor(null); }} style={{ width: '100%', padding: '12px', border: 'none', background: 'none', textAlign: 'left', cursor: 'pointer', fontSize: '14px', color: '#D32F2F' }}>삭제</button>
+                            )}
                           </>
                         ) : (
                           <button onClick={handleReportComment} style={{ width: '100%', padding: '12px', border: 'none', background: 'none', textAlign: 'left', cursor: 'pointer', fontSize: '14px', color: '#D32F2F' }}>신고하기</button>
@@ -973,21 +997,38 @@ function CaseDetailPage() {
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '6px' }}>
                               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                                 {reply.authorId === post?.authorId ? (
-                                  <div style={{ padding: '4px 8px', backgroundColor: '#FFB33128', borderRadius: '4px', height: 'fit-content', whiteSpace: 'nowrap', fontSize: '11px', fontWeight: '600' }}>
+                                  <div style={{ padding: '3px 6px', backgroundColor: '#FFB33128', borderRadius: '4px', height: 'fit-content', whiteSpace: 'nowrap', fontSize: '11px', fontWeight: '600' }}>
                                     <span style={{ color: '#B45309', fontSize: '11px', fontWeight: '600' }}>작성자</span>
                                   </div>
                                 ) : (
-                                  <div style={{ padding: '4px 8px', backgroundColor: reply.vote === 'innocent' ? '#E3F2FD' : '#FFEBEE', color: reply.vote === 'innocent' ? '#1976D2' : '#D32F2F', fontSize: '11px', fontWeight: '600', borderRadius: '4px', height: 'fit-content', whiteSpace: 'nowrap' }}>{reply.vote === 'innocent' ? '무죄' : '유죄'}</div>
+                                  <div style={{ padding: '3px 6px', backgroundColor: reply.vote === 'innocent' ? '#E3F2FD' : '#FFEBEE', color: reply.vote === 'innocent' ? '#1976D2' : '#D32F2F', fontSize: '11px', fontWeight: '600', borderRadius: '4px', height: 'fit-content', whiteSpace: 'nowrap' }}>{reply.vote === 'innocent' ? '무죄' : '유죄'}</div>
                                 )}
-                                <Text color="#6B7684" typography="t7" fontWeight="medium">{reply.authorId === post?.authorId ? '피고인' : '배심원'} {reply.authorNickname.replace(/^배심원/, '')}님</Text>
+                                <Text color="#6B7684" typography="t7" fontWeight="medium" style={{ fontSize: '13px' }}>{reply.authorId === post?.authorId ? '피고인' : '배심원'} {reply.authorNickname.replace(/^배심원/, '')}님</Text>
                               </div>
                               <div style={{ display: 'flex', alignItems: 'center', backgroundColor: '#f2f4f6', borderRadius: '20px', padding: '4px 8px', gap: '0' }}>
                                 <button onClick={() => handleLikeReply(comment.id, reply.id)} disabled={post?.status === 'CLOSED'} style={{ background: 'none', border: 'none', cursor: post?.status === 'CLOSED' ? 'not-allowed' : 'pointer', padding: '4px 8px', display: 'flex', alignItems: 'center', gap: '4px', opacity: post?.status === 'CLOSED' ? 0.5 : 1 }}>
-                                  <Asset.Icon frameShape={{ width: 12, height: 12 }} backgroundColor="transparent" name="icon-thumb-up-mono" color="#9E9E9E" aria-hidden={true} />
+                                  <Asset.Icon frameShape={{ width: 14, height: 14 }} backgroundColor="transparent" name="icon-thumb-up-mono" color="#9E9E9E" aria-hidden={true} />
                                 </button>
                                 <div style={{ width: '1px', height: '16px', backgroundColor: '#9E9E9E', opacity: 0.3 }} />
-                                <button data-reply-menu-button onClick={() => setShowMenuForReply(showMenuForReply === `${comment.id}_${reply.id}` ? null : `${comment.id}_${reply.id}`)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px 8px', display: 'flex', alignItems: 'center' }}>
-                                  <Asset.Icon frameShape={{ width: 12, height: 12 }} backgroundColor="transparent" name="icon-dots-vertical-1-mono" color="#9E9E9E" aria-hidden={true} />
+                                <button 
+                                  data-reply-menu-button 
+                                  onClick={() => {
+                                    if (!(post?.status === 'CLOSED' && user?.uid === reply.authorId)) {
+                                      setShowMenuForReply(showMenuForReply === `${comment.id}_${reply.id}` ? null : `${comment.id}_${reply.id}`);
+                                    }
+                                  }} 
+                                  disabled={post?.status === 'CLOSED' && user?.uid === reply.authorId}
+                                  style={{ 
+                                    background: 'none', 
+                                    border: 'none', 
+                                    cursor: (post?.status === 'CLOSED' && user?.uid === reply.authorId) ? 'not-allowed' : 'pointer', 
+                                    padding: '4px 8px', 
+                                    display: 'flex', 
+                                    alignItems: 'center',
+                                    opacity: (post?.status === 'CLOSED' && user?.uid === reply.authorId) ? 0.3 : 1
+                                  }}
+                                >
+                                  <Asset.Icon frameShape={{ width: 14, height: 14 }} backgroundColor="transparent" name="icon-dots-vertical-1-mono" color="#9E9E9E" aria-hidden={true} />
                                 </button>
                               </div>
                             </div>
@@ -1004,10 +1045,10 @@ function CaseDetailPage() {
                               <>
                                 <Text display="block" color="#191F28" typography="t6" fontWeight="regular" style={{ marginBottom: '4px' }}>{reply.content}</Text>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                  <Text display="block" color="#9E9E9E" typography="t7" fontWeight="regular">{formatDate(reply.createdAt)}</Text>
+                                  <Text display="block" color="#9E9E9E" typography="t7" fontWeight="regular" style={{ fontSize: '13px' }}>{formatDate(reply.createdAt)}</Text>
                                   <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                                     <Asset.Icon frameShape={{ width: 15, height: 15 }} backgroundColor="transparent" name="icon-thumb-up-line-mono" color="#D32F2F" aria-hidden={true} />
-                                    <Text color="#D32F2F" typography="st13" fontWeight="medium">{reply.likes || 0}</Text>
+                                    <Text color="#D32F2F" typography="st13" fontWeight="medium" style={{ fontSize: '13px' }}>{reply.likes || 0}</Text>
                                   </div>
                                 </div>
                               </>
@@ -1017,8 +1058,12 @@ function CaseDetailPage() {
                               <div data-reply-menu style={{ position: 'absolute', top: '40px', right: '12px', backgroundColor: 'white', border: '1px solid #ddd', borderRadius: '8px', boxShadow: '0 2px 8px rgba(0,0,0,0.1)', zIndex: 10, minWidth: '100px' }}>
                                 {user?.uid === reply.authorId ? (
                                   <>
-                                    <button onClick={() => { setEditingReply(`${comment.id}_${reply.id}`); setEditReplyContent(reply.content); setShowMenuForReply(null); }} style={{ width: '100%', padding: '12px', border: 'none', background: 'none', textAlign: 'left', cursor: 'pointer', fontSize: '14px' }}>수정</button>
-                                    <button onClick={() => { handleDeleteReply(comment.id, reply.id); setShowMenuForReply(null); }} style={{ width: '100%', padding: '12px', border: 'none', background: 'none', textAlign: 'left', cursor: 'pointer', fontSize: '14px', color: '#D32F2F' }}>삭제</button>
+                                    {post?.status === 'OPEN' && (
+                                      <button onClick={() => { setEditingReply(`${comment.id}_${reply.id}`); setEditReplyContent(reply.content); setShowMenuForReply(null); }} style={{ width: '100%', padding: '12px', border: 'none', background: 'none', textAlign: 'left', cursor: 'pointer', fontSize: '14px' }}>수정</button>
+                                    )}
+                                    {post?.status === 'OPEN' && (
+                                      <button onClick={() => { handleDeleteReply(comment.id, reply.id); setShowMenuForReply(null); }} style={{ width: '100%', padding: '12px', border: 'none', background: 'none', textAlign: 'left', cursor: 'pointer', fontSize: '14px', color: '#D32F2F' }}>삭제</button>
+                                    )}
                                   </>
                                 ) : (
                                   <button onClick={() => { handleReportComment(); setShowMenuForReply(null); }} style={{ width: '100%', padding: '12px', border: 'none', background: 'none', textAlign: 'left', cursor: 'pointer', fontSize: '14px', color: '#D32F2F' }}>신고하기</button>

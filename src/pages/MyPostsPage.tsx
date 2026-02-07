@@ -126,52 +126,81 @@ function MyPostsPage() {
           backgroundColor: 'white'
         }}
       >
-        {/* Verdict Badge - 재판 완료된 글에만 표시 */}
+        {/* Verdict Badge와 날짜 - 재판 완료된 글 */}
         {showVerdict && post.status === 'CLOSED' && (
-          <div style={{
-            padding: '4px 10px',
-            backgroundColor: badgeBgColor,
-            color: badgeTextColor,
-            fontSize: '12px',
-            fontWeight: '600',
-            borderRadius: '4px',
-            whiteSpace: 'nowrap',
-            minWidth: 'fit-content',
-            display: 'inline-block',
-            marginBottom: '8px'
-          }}>
-            {verdict}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+            <div style={{
+              padding: '4px 10px',
+              backgroundColor: badgeBgColor,
+              color: badgeTextColor,
+              fontSize: '12px',
+              fontWeight: '600',
+              borderRadius: '4px',
+              whiteSpace: 'nowrap',
+              minWidth: 'fit-content',
+              display: 'inline-block'
+            }}>
+              {verdict}
+            </div>
+            {post.createdAt && (
+              <Text color="#9E9E9E" typography="st13" fontWeight="regular" style={{ flexShrink: 0, whiteSpace: 'nowrap', fontSize: '14px' }}>
+                {formatDate(post.createdAt)}
+              </Text>
+            )}
           </div>
         )}
 
-        {/* 제목과 날짜 */}
-        <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', marginBottom: '4px' }}>
-          <Text 
-            display="block" 
-            color="#191F28" 
-            typography="t4" 
-            fontWeight="bold"
-            style={{ 
-              flex: 1,
-              minWidth: 0,
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-              display: '-webkit-box',
-              WebkitLineClamp: 2,
-              WebkitBoxOrient: 'vertical',
-              fontSize: '18px',
-              lineHeight: '1.4',
-              textAlign: 'center'
-            }}
-          >
-            {post.title}
-          </Text>
-          {post.createdAt && (
-            <Text color="#9E9E9E" typography="st13" fontWeight="regular" style={{ flexShrink: 0, whiteSpace: 'nowrap' }}>
-              {formatDate(post.createdAt)}
+        {/* 제목과 날짜 - 재판 중인 글 */}
+        {!showVerdict && post.status === 'OPEN' ? (
+          <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', marginBottom: '4px' }}>
+            <Text 
+              display="block" 
+              color="#191F28" 
+              typography="t4" 
+              fontWeight="bold"
+              style={{ 
+                flex: 1,
+                minWidth: 0,
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                display: '-webkit-box',
+                WebkitLineClamp: 2,
+                WebkitBoxOrient: 'vertical',
+                fontSize: '18px',
+                lineHeight: '1.4',
+                textAlign: 'center'
+              }}
+            >
+              {post.title}
             </Text>
-          )}
-        </div>
+            {post.createdAt && (
+              <Text color="#9E9E9E" typography="st13" fontWeight="regular" style={{ flexShrink: 0, whiteSpace: 'nowrap', fontSize: '14px' }}>
+                {formatDate(post.createdAt)}
+              </Text>
+            )}
+          </div>
+        ) : (
+          <div style={{ marginBottom: '4px' }}>
+            <Text 
+              display="block" 
+              color="#191F28" 
+              typography="t4" 
+              fontWeight="bold"
+              style={{ 
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                display: '-webkit-box',
+                WebkitLineClamp: 2,
+                WebkitBoxOrient: 'vertical',
+                fontSize: '18px',
+                lineHeight: '1.4',
+                textAlign: 'center'
+              }}
+            >
+              {post.title}
+            </Text>
+          </div>
+        )}
 
         {/* 내용 미리보기 */}
         <div
@@ -191,27 +220,27 @@ function MyPostsPage() {
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
             <Asset.Icon
-              frameShape={{ width: 13, height: 13 }}
+              frameShape={{ width: 15, height: 15 }}
               backgroundColor="transparent"
               name="icon-user-two-mono"
               color="#5e403b"
               aria-hidden={true}
               ratio="1/1"
             />
-            <Text color="#5e403b" typography="st13" fontWeight="medium">
+            <Text color="#5e403b" typography="st13" fontWeight="medium" style={{ fontSize: '14px' }}>
               {post.voteCount || 0}
             </Text>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
             <Asset.Icon
-              frameShape={{ width: 13, height: 13 }}
+              frameShape={{ width: 15, height: 15 }}
               backgroundColor="transparent"
               name="icon-chat-bubble-mono"
               color="#5E403Bff"
               aria-hidden={true}
               ratio="1/1"
             />
-            <Text color="#5e403b" typography="st13" fontWeight="medium">
+            <Text color="#5e403b" typography="st13" fontWeight="medium" style={{ fontSize: '14px' }}>
               {post.commentCount ?? 0}
             </Text>
           </div>

@@ -8,7 +8,7 @@ import { db } from '../api/firebase';
 import { claimMissionReward, exchangeGavel, type UserDocument, getTodayDateString } from '../api/user';
 import { getCasesByAuthor, type CaseDocument } from '../api/cases';
 import { useTossRewardAd } from '../hooks/useTossRewardAd';
-import missionBannerImage from '../assets/missionbanner.png';
+import missionBannerImage from '../assets/pansabong.png';
 
 function PointMissionPage() {
   const navigate = useNavigate();
@@ -166,7 +166,6 @@ function PointMissionPage() {
     setIsExchanging(true);
     try {
       await exchangeGavel();
-      alert('5P가 지급되었습니다!');
     } catch (error: any) {
       console.error('교환 실패:', error);
       alert(error.message || '교환 중 오류가 발생했습니다.');
