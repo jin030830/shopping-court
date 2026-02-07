@@ -65,14 +65,26 @@ function CaseDetailPage() {
   
   // 뒤로가기 처리 함수
   const handleBack = () => {
-    navigate('/', { state: { selectedTab: fromTab } });
+    if (fromTab === '내가 쓴 글') {
+      // 내가 쓴 글에서 온 경우 MyPostsPage로 돌아가기
+      navigate('/my-posts');
+    } else {
+      // 그 외의 경우 HomePage로 돌아가기
+      navigate('/', { state: { selectedTab: fromTab } });
+    }
   };
 
   // 브라우저/토스 앱의 뒤로가기 버튼 처리
   useEffect(() => {
     const handlePopState = () => {
       const savedFromTab = sessionStorage.getItem('caseDetailFromTab') || fromTab;
-      navigate('/', { state: { selectedTab: savedFromTab }, replace: true });
+      if (savedFromTab === '내가 쓴 글') {
+        // 내가 쓴 글에서 온 경우 MyPostsPage로 돌아가기
+        navigate('/my-posts', { replace: true });
+      } else {
+        // 그 외의 경우 HomePage로 돌아가기
+        navigate('/', { state: { selectedTab: savedFromTab }, replace: true });
+      }
     };
 
     window.addEventListener('popstate', handlePopState);
@@ -635,7 +647,13 @@ function CaseDetailPage() {
   const handleDeletePost = () => { setShowDeleteConfirm(true); };
   const handleDeleteCancel = () => { setShowDeleteConfirm(false); };
   const handleEditPost = () => { navigate(`/edit-post/${id}`); };
-  const handleGoHome = () => { navigate('/', { state: { selectedTab: fromTab } }); };
+  const handleGoHome = () => {
+    if (fromTab === '내가 쓴 글') {
+      navigate('/my-posts');
+    } else {
+      navigate('/', { state: { selectedTab: fromTab } });
+    }
+  };
   
   const handleDeleteConfirm = async () => {
     setShowDeleteConfirm(false);
@@ -866,7 +884,7 @@ function CaseDetailPage() {
               <div style={{ clear: 'both' }} />
             </div>
           ) : user && userData && isVerified && !hasVoted && post?.status === 'OPEN' ? (
-            <div style={{ marginBottom: '20px', padding: '16px', backgroundColor: '#FFF4E5', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+            <div style={{ marginBottom: '20px', padding: '16px', backgroundColor: '#F7F3EE', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
               <Asset.Image
                 frameShape={{ width: 22, height: 22 }}
                 backgroundColor="transparent"

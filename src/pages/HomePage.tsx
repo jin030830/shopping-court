@@ -68,6 +68,11 @@ function HomePage() {
       newTab = sessionStorage.getItem('pointMissionFromTab');
       sessionStorage.removeItem('pointMissionFromTab'); // 사용 후 삭제
     }
+    // 내가 쓴 글 페이지에서 돌아온 경우
+    else if (sessionStorage.getItem('myPostsFromTab')) {
+      newTab = sessionStorage.getItem('myPostsFromTab');
+      sessionStorage.removeItem('myPostsFromTab'); // 사용 후 삭제
+    }
     
     if (newTab) {
       setSelectedTab(newTab);
@@ -148,7 +153,7 @@ function HomePage() {
             width: '100%'
           }}>
             <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
-              <div style={{ flex: 1, paddingLeft: '8px', paddingTop: '4px' }}>
+              <div style={{ flex: 1, paddingLeft: '14px', paddingTop: '4px' }}>
                 <Text
                   display="block"
                   color="#191F28"
@@ -164,7 +169,7 @@ function HomePage() {
             <div style={{ 
               position: 'absolute',
               bottom: '4px',
-              left: '8px',
+              left: '14px',
               cursor: 'pointer',
               zIndex: 2
             }}
@@ -179,7 +184,7 @@ function HomePage() {
                 alignItems: 'center',
                 justifyContent: 'center',
                 gap: '4px',
-                padding: '8px 16px',
+                padding: '8px 12px 8px 18px',
                 backgroundColor: '#5E403B',
                 borderRadius: '10px',
                 boxShadow: '0px 0px 4px 0px rgba(255, 255, 255, 1)',
@@ -536,70 +541,100 @@ function HomePage() {
       }}>
         {/* 사용자 아이콘 (위) */}
         {isFabExpanded && (
-          <button
-            onClick={() => {
-              navigate('/my-posts');
-              setIsFabExpanded(false);
-            }}
-            style={{
-              width: '56px',
-              height: '56px',
-              borderRadius: '50%',
-              backgroundColor: 'transparent',
-              border: 'none',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              padding: 0,
-              animation: 'slideUp 0.3s ease-out 0.1s both',
-              transformOrigin: 'bottom'
-            }}
-          >
-            <Asset.Icon
-              frameShape={Asset.frameShape.CircleXLarge}
-              backgroundColor="#fef6f0"
-              name="icon-user-mono"
-              color="#5e403b"
-              scale={0.66}
-              aria-hidden={true}
-            />
-          </button>
+          <div style={{ 
+            display: 'flex', 
+            flexDirection: 'column', 
+            alignItems: 'center',
+            animation: 'slideUp 0.3s ease-out 0.1s both',
+            transformOrigin: 'bottom'
+          }}>
+            <button
+              onClick={() => {
+                // 현재 탭 정보를 sessionStorage에 저장
+                sessionStorage.setItem('myPostsFromTab', selectedTab);
+                navigate('/my-posts');
+                setIsFabExpanded(false);
+              }}
+              style={{
+                width: '56px',
+                height: '56px',
+                borderRadius: '50%',
+                backgroundColor: 'transparent',
+                border: 'none',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                padding: 0
+              }}
+            >
+              <Asset.Icon
+                frameShape={Asset.frameShape.CircleXLarge}
+                backgroundColor="#fef6f0"
+                name="icon-user-mono"
+                color="#5e403b"
+                scale={0.66}
+                aria-hidden={true}
+              />
+            </button>
+            <Text 
+              color="#5e403b" 
+              typography="st13" 
+              fontWeight="bold"
+              style={{ marginTop: '2px', fontSize: '12px' }}
+            >
+              내가 쓴 글
+            </Text>
+          </div>
         )}
         
         {/* 연필 아이콘 (아래) */}
         {isFabExpanded && (
-          <button
-            onClick={() => {
-              setIsFabExpanded(false);
-              // 글작성 후 원래 보던 탭으로 복귀
-              sessionStorage.setItem('createPostFromTab', selectedTab);
-              navigate('/create-post', { state: { fromTab: selectedTab } });
-            }}
-            style={{
-              width: '56px',
-              height: '56px',
-              borderRadius: '50%',
-              backgroundColor: 'transparent',
-              border: 'none',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              padding: 0,
-              animation: 'slideUp 0.3s ease-out',
-              transformOrigin: 'bottom'
-            }}
-          >
-            <Asset.Icon
-              frameShape={Asset.frameShape.CircleXLarge}
-              backgroundColor="#fdf6f0"
-              name="icon-pencil-line-mono"
-              color="#5e403b"
-              scale={0.66}
-              aria-hidden={true}
-            />
-          </button>
+          <div style={{ 
+            display: 'flex', 
+            flexDirection: 'column', 
+            alignItems: 'center',
+            animation: 'slideUp 0.3s ease-out',
+            transformOrigin: 'bottom'
+          }}>
+            <button
+              onClick={() => {
+                setIsFabExpanded(false);
+                // 글작성 후 원래 보던 탭으로 복귀
+                sessionStorage.setItem('createPostFromTab', selectedTab);
+                navigate('/create-post', { state: { fromTab: selectedTab } });
+              }}
+              style={{
+                width: '56px',
+                height: '56px',
+                borderRadius: '50%',
+                backgroundColor: 'transparent',
+                border: 'none',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                padding: 0
+              }}
+            >
+              <Asset.Icon
+                frameShape={Asset.frameShape.CircleXLarge}
+                backgroundColor="#fdf6f0"
+                name="icon-pencil-line-mono"
+                color="#5e403b"
+                scale={0.66}
+                aria-hidden={true}
+              />
+            </button>
+            <Text 
+              color="#5e403b" 
+              typography="st13" 
+              fontWeight="bold"
+              style={{ marginTop: '2px', fontSize: '12px' }}
+            >
+              글쓰기
+            </Text>
+          </div>
         )}
         
         {/* 메인 버튼 (+ 또는 X) */}
@@ -625,7 +660,7 @@ function HomePage() {
               backgroundColor="#5e403b"
               name="icon-x-mono"
               color="#fef6f1"
-              scale={0.6}
+              scale={0.5}
               aria-hidden={true}
             />
           ) : (

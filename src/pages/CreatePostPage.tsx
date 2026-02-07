@@ -283,7 +283,7 @@ function CreatePostPage() {
               color="#191F28ff"
               typography="t4"
               fontWeight="bold"
-              style={{ marginBottom: '12px' }}
+              style={{ marginBottom: '4px', fontSize: '20px' }}
             >
               아래 정보를 함께 적어주면 좋아요
             </Text>
@@ -335,7 +335,7 @@ function CreatePostPage() {
                   backgroundColor: 'transparent',
                   border: 'none',
                   color: '#3182F6',
-                  fontSize: '15px',
+                  fontSize: '16px',
                   fontWeight: '600',
                   cursor: 'pointer'
                 }}
@@ -382,7 +382,7 @@ function CreatePostPage() {
               color="#191F28ff"
               typography="t4"
               fontWeight="bold"
-              style={{ marginBottom: '12px' }}
+              style={{ marginBottom: '12px', fontSize: '20px' }}
             >
               사건 등록이 완료됐어요!
             </Text>
@@ -409,7 +409,7 @@ function CreatePostPage() {
                   backgroundColor: 'transparent',
                   border: 'none',
                   color: '#3182F6',
-                  fontSize: '15px',
+                  fontSize: '16px',
                   fontWeight: '600',
                   cursor: 'pointer'
                 }}
