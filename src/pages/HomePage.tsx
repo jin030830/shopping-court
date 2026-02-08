@@ -1,5 +1,5 @@
 import { useNavigate, useLocation, useNavigationType } from 'react-router-dom';
-import { Asset, Text, Spacing, Modal, Button } from '@toss/tds-mobile';
+import { Asset, Text, Spacing, Modal } from '@toss/tds-mobile';
 import { useState, useEffect, useRef, useCallback, memo } from 'react';
 import { getCasesPaginated, getHotCases, type CaseDocument } from '../api/cases';
 import { Timestamp } from 'firebase/firestore';
