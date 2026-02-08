@@ -69,7 +69,8 @@ function CaseDetailPage() {
       navigate(-1);
     } else {
       if (fromTab === '내가 쓴 글') {
-        navigate('/my-posts', { replace: true });
+        const myPostsFromTab = sessionStorage.getItem('myPostsFromTab') || 'HOT 게시판';
+        navigate('/my-posts', { state: { fromTab: myPostsFromTab }, replace: true });
       } else {
         navigate('/', { state: { selectedTab: fromTab }, replace: true });
       }

@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom';
-import { Asset, Text, Spacing } from '@toss/tds-mobile';
+import { Asset, Text } from '@toss/tds-mobile';
 import { useRef, useCallback, memo, useState, useEffect } from 'react';
 import { getCasesPaginated, type CaseDocument } from '../api/cases';
 import { adaptive } from '@toss/tds-colors';
@@ -75,13 +75,11 @@ function CompletedTrendingPage() {
         <input type="text" value={search} onChange={e => setSearch(e.target.value)} placeholder="관심 키워드 검색" style={{ width: '100%', padding: '12px 16px 12px 44px', border: '1px solid #E5E5E5', borderRadius: '8px', fontSize: '15px', backgroundColor: 'white', color: '#191F28', boxSizing: 'border-box' }} />
       </div>
 
-      <div style={{ padding: '0 20px', marginBottom: '8px', display: 'flex', gap: '8px' }}>
+      <div style={{ padding: '0 20px', marginBottom: '0px', display: 'flex', gap: '8px', borderBottom: '1px solid #F0F0F0', paddingBottom: '12px' }}>
         {(['전체', '무죄', '유죄', '보류'] as const).map((opt) => (
           <button key={opt} onClick={() => setFilter(opt)} style={{ padding: '6px 16px', backgroundColor: filter === opt ? '#191F28' : '#F2F4F6', color: filter === opt ? 'white' : '#666', border: 'none', borderRadius: '20px', fontSize: '14px', fontWeight: filter === opt ? '600' : '400', cursor: 'pointer' }}>{opt}</button>
         ))}
       </div>
-
-      <Spacing size={8} />
 
       <div style={{ backgroundColor: 'white' }}>
         {error ? <div style={{ padding: '40px', textAlign: 'center' }}><Text color="#D32F2F">오류가 발생했습니다.</Text></div> : isLoading ? <div style={{ padding: '40px', textAlign: 'center' }}><Text color="#6B7684">로딩 중...</Text></div> : filtered.length === 0 ? <div style={{ padding: '40px', textAlign: 'center' }}><Text color="#6B7684">표시할 게시물이 없습니다.</Text></div> : (
