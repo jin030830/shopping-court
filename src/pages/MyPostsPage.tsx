@@ -1,10 +1,7 @@
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Asset, Text, Spacing } from '@toss/tds-mobile';
 import { useRef, useCallback, memo, useEffect } from 'react';
-import { getCasesByAuthorPaginated, type CaseDocument } from '../api/cases';
-import { adaptive } from '@toss/tds-colors';
-import { useAuth } from '../hooks/useAuth';
-import { useInfiniteQuery } from '@tanstack/react-query';
+import { caseKeys } from '../constants/queryKeys';
 
 const MyPostItem = memo(({ post, navigate, showVerdict }: any) => {
   let v: '무죄' | '유죄' | '보류' = '보류';
@@ -67,7 +64,7 @@ function MyPostsPage() {
   }, [navigate, location.state]);
 
   const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading } = useInfiniteQuery<{ cases: CaseDocument[], lastDoc: any }, Error>({
-    queryKey: ['cases', 'USER', user?.uid],
+    queryKey: caseKeys.userList(user?.uid || ''),
     queryFn: ({ pageParam }) => getCasesByAuthorPaginated(user!.uid, pageParam, 15),
     getNextPageParam: (last) => last.cases.length === 15 ? last.lastDoc : undefined,
     initialPageParam: null,

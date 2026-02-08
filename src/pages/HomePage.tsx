@@ -87,7 +87,7 @@ function HomePage() {
     getNextPageParam: (lastPage) => lastPage.cases.length === 10 ? lastPage.lastDoc : undefined,
     initialPageParam: null,
     enabled: selectedTab === '재판 중',
-    staleTime: 0, // [Optimization] 항상 최신 데이터 확인
+    staleTime: 1000 * 10, // [Optimization] 10초 동안은 캐시 유지
   });
 
   // Query for 'HOT 게시판' (상위 3개)
@@ -95,7 +95,7 @@ function HomePage() {
     queryKey: caseKeys.list('HOT'),
     queryFn: () => getHotCases(3),
     enabled: selectedTab === 'HOT 게시판',
-    staleTime: 0,
+    staleTime: 1000 * 10,
   });
 
   // Query for '재판 완료' 대시보드
@@ -103,7 +103,7 @@ function HomePage() {
     queryKey: caseKeys.list('CLOSED_DASHBOARD'),
     queryFn: () => getCasesPaginated({ status: 'CLOSED', limitCount: 10 }) as any,
     enabled: selectedTab === '재판 완료',
-    staleTime: 0,
+    staleTime: 1000 * 10,
   });
 
   const observer = useRef<IntersectionObserver | null>(null);
