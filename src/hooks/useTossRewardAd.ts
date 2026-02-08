@@ -63,7 +63,7 @@ export const useTossRewardAd = (adUnitId: string) => {
 
     if (!globalIsLoaded) {
       console.warn('[AdMob] 광고 미준수 상태에서 노출 시도');
-      alert('광고를 불러오는 중입니다. 잠시 후 다시 시도해 주세요.');
+      alert('광고를 불러오는 중이에요. 잠시 후 다시 시도해 주세요.');
       load();
       return;
     }

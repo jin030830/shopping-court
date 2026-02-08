@@ -38,7 +38,7 @@ function EditPostPage() {
     }
 
     if (!user) {
-      alert('로그인이 필요합니다.');
+      alert('로그인이 필요해요.');
       login();
       return;
     }
@@ -49,7 +49,7 @@ function EditPostPage() {
         if (postData) {
           // Check for authorization
           if (user.uid !== postData.authorId) {
-            alert('수정 권한이 없습니다.');
+            alert('수정 권한이 없어요.');
             navigate('/');
             return;
           }
@@ -76,7 +76,7 @@ function EditPostPage() {
     if (isSubmitting) return; // 중복 클릭 방지
 
     if (!id || !user) {
-      alert('로그인이 필요합니다.');
+      alert('로그인이 필요해요.');
       login();
       return;
     }
@@ -90,11 +90,11 @@ function EditPostPage() {
 
     try {
       await updateCase(id, { title: title.trim(), content: content.trim() });
-      alert('게시물이 수정되었습니다!');
+      alert('게시물이 수정되었어요!');
       navigate(`/case/${id}`, { replace: true });
     } catch (error) {
       console.error('게시물 수정 실패:', error);
-      alert('게시물 수정에 실패했습니다.');
+      alert('게시물 수정에 실패했어요.');
       setIsSubmitting(false); // 실패 시에만 해제 (성공 시 이동하므로 불필요)
     }
   };

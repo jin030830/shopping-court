@@ -76,7 +76,7 @@ function CreatePostPage() {
 
   useEffect(() => {
     if (!isLoading && (!user || !userData)) {
-      alert('로그인이 필요합니다.');
+      alert('로그인이 필요해요.');
       login();
     }
   }, [isLoading, user, userData, login]);
@@ -138,7 +138,7 @@ function CreatePostPage() {
       } catch (error) {
         console.error('고민 등록 실패:', error);
         if (previousUserData && user) queryClient.setQueryData(['user', user.uid], previousUserData);
-        alert('고민을 등록하는 데 실패했습니다. 다시 시도해주세요.');
+        alert('고민을 등록하는 데 실패했어요. 다시 시도해주세요.');
       } finally {
         setIsSubmitting(false);
       }

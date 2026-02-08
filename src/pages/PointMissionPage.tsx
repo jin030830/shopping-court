@@ -379,7 +379,7 @@ function PointMissionPage() {
         }
       } catch (error) {
         console.error('보상 수령 실패:', error);
-        alert('보상을 받는 중 오류가 발생했습니다.');
+        alert('보상을 받는 중 오류가 발생했어요.');
       } finally {
         setIsClaiming(false);
         setPendingMission(null);

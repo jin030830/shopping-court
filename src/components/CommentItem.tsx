@@ -75,11 +75,11 @@ const CommentItem = memo(({
               <Asset.Icon frameShape={{ width: 14, height: 14 }} backgroundColor="transparent" name="icon-thumb-up-mono" color="#9E9E9E" aria-hidden={true} ratio="1/1" />
             </button>
             <div style={{ width: '1px', height: '16px', backgroundColor: '#9E9E9E', opacity: 0.3 }} />
-            <button onClick={() => { if (post.status === 'CLOSED') return; if (!hasVoted) { alert('투표 후 댓글을 작성할 수 있습니다!'); return; } onReply(comment.id); }} disabled={post.status === 'CLOSED'} style={{ background: 'none', border: 'none', cursor: post.status === 'CLOSED' ? 'not-allowed' : 'pointer', padding: '4px 8px', display: 'flex', alignItems: 'center', opacity: post.status === 'CLOSED' ? 0.5 : 1 }}>
+            <button onClick={() => { if (post.status === 'CLOSED') return; if (!hasVoted) { alert('투표 후 댓글을 작성할 수 있어요!'); return; } onReply(comment.id); }} disabled={post.status === 'CLOSED'} style={{ background: 'none', border: 'none', cursor: post.status === 'CLOSED' ? 'not-allowed' : 'pointer', padding: '4px 8px', display: 'flex', alignItems: 'center', opacity: post.status === 'CLOSED' ? 0.5 : 1 }}>
               <Asset.Icon frameShape={{ width: 14, height: 14 }} backgroundColor="transparent" name="icon-chat-square-two-mono" color="#9E9E9E" aria-hidden={true} ratio="1/1" />
             </button>
             <div style={{ width: '1px', height: '16px', backgroundColor: '#9E9E9E', opacity: 0.3 }} />
-            <button onClick={() => setShowMenu(!showMenu)} style={{ background: 'none', border: 'none', padding: '4px 8px', display: 'flex', alignItems: 'center' }}>
+            <button onClick={() => { if (post.status === 'CLOSED') return; setShowMenu(!showMenu); }} disabled={post.status === 'CLOSED'} style={{ background: 'none', border: 'none', padding: '4px 8px', display: 'flex', alignItems: 'center', cursor: post.status === 'CLOSED' ? 'not-allowed' : 'pointer', opacity: post.status === 'CLOSED' ? 0.5 : 1 }}>
               <Asset.Icon frameShape={{ width: 14, height: 14 }} backgroundColor="transparent" name="icon-dots-vertical-1-mono" color="#9E9E9E" aria-hidden={true} ratio="1/1" />
             </button>
           </div>
@@ -121,7 +121,7 @@ const CommentItem = memo(({
             {user?.uid === comment.authorId ? (
               <>
                 {post.status === 'OPEN' && <button onClick={handleEditStart} style={{ width: '100%', padding: '12px', border: 'none', background: 'none', textAlign: 'left', cursor: 'pointer', fontSize: '14px' }}>수정</button>}
-                <button onClick={() => { onDelete(comment.id); setShowMenu(false); }} style={{ width: '100%', padding: '12px', border: 'none', background: 'none', textAlign: 'left', cursor: 'pointer', fontSize: '14px', color: '#D32F2F' }}>삭제</button>
+                {post.status === 'OPEN' && <button onClick={() => { onDelete(comment.id); setShowMenu(false); }} style={{ width: '100%', padding: '12px', border: 'none', background: 'none', textAlign: 'left', cursor: 'pointer', fontSize: '14px', color: '#D32F2F' }}>삭제</button>}
               </>
             ) : (
               <button onClick={() => { onReport(); setShowMenu(false); }} style={{ width: '100%', padding: '12px', border: 'none', background: 'none', textAlign: 'left', cursor: 'pointer', fontSize: '14px', color: '#D32F2F' }}>신고하기</button>
@@ -150,7 +150,7 @@ const CommentItem = memo(({
                   <Asset.Icon frameShape={{ width: 14, height: 14 }} backgroundColor="transparent" name="icon-thumb-up-mono" color="#9E9E9E" aria-hidden={true} ratio="1/1" />
                 </button>
                 <div style={{ width: '1px', height: '16px', backgroundColor: '#9E9E9E', opacity: 0.3 }} />
-                <button onClick={() => setShowReplyMenuId(showReplyMenuId === reply.id ? null : reply.id)} style={{ background: 'none', border: 'none', padding: '4px', display: 'flex', alignItems: 'center' }}>
+                <button onClick={() => { if (post.status === 'CLOSED') return; setShowReplyMenuId(showReplyMenuId === reply.id ? null : reply.id); }} disabled={post.status === 'CLOSED'} style={{ background: 'none', border: 'none', padding: '4px', display: 'flex', alignItems: 'center', cursor: post.status === 'CLOSED' ? 'not-allowed' : 'pointer', opacity: post.status === 'CLOSED' ? 0.5 : 1 }}>
                   <Asset.Icon frameShape={{ width: 14, height: 14 }} backgroundColor="transparent" name="icon-dots-vertical-1-mono" color="#9E9E9E" aria-hidden={true} ratio="1/1" />
                 </button>
               </div>
@@ -182,7 +182,7 @@ const CommentItem = memo(({
                 {user?.uid === reply.authorId ? (
                   <>
                     {post.status === 'OPEN' && <button onClick={() => { setEditingReplyId(reply.id); setEditContent(reply.content); setShowReplyMenuId(null); }} style={{ width: '100%', padding: '12px', border: 'none', background: 'none', textAlign: 'left', cursor: 'pointer', fontSize: '14px' }}>수정</button>}
-                    <button onClick={() => { onDeleteReply(comment.id, reply.id); setShowReplyMenuId(null); }} style={{ width: '100%', padding: '12px', border: 'none', background: 'none', textAlign: 'left', cursor: 'pointer', fontSize: '14px', color: '#D32F2F' }}>삭제</button>
+                    {post.status === 'OPEN' && <button onClick={() => { onDeleteReply(comment.id, reply.id); setShowReplyMenuId(null); }} style={{ width: '100%', padding: '12px', border: 'none', background: 'none', textAlign: 'left', cursor: 'pointer', fontSize: '14px', color: '#D32F2F' }}>삭제</button>}
                   </>
                 ) : (
                   <button onClick={() => { onReport(); setShowReplyMenuId(null); }} style={{ width: '100%', padding: '12px', border: 'none', background: 'none', textAlign: 'left', cursor: 'pointer', fontSize: '14px', color: '#D32F2F' }}>신고하기</button>
