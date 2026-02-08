@@ -99,6 +99,9 @@ function CaseDetailPage() {
 
   const hasVoted = !!userVoteData;
   const selectedVote = userVoteData === 'innocent' ? 'agree' : userVoteData === 'guilty' ? 'disagree' : null;
+  
+  // 재판 완료 상태이면 투표 불가 (내가 쓴 글인지 여부와 관계없이)
+  const isVoteDisabled = hasVoted || post?.status === 'CLOSED';
 
   // UI States
   const [newComment, setNewComment] = useState('');
@@ -311,7 +314,7 @@ function CaseDetailPage() {
     },
     onError: () => {
       setIsDeleting(false);
-      alert('게시물 삭제에 실패했습니다.');
+      alert('게시물 삭제에 실패했어요.');
     }
   });
 
@@ -322,13 +325,13 @@ function CaseDetailPage() {
     
     // 투표 안한 경우
     if (!hasVoted) {
-      alert('투표 후 공감할 수 있습니다!');
+      alert('투표 후 공감할 수 있어요!');
       return;
     }
     
     // 이미 공감한 경우
     if (likedComments.has(commentId)) {
-      alert('이미 공감한 댓글입니다!');
+      alert('이미 공감한 댓글이에요!');
       return;
     }
     
@@ -346,7 +349,7 @@ function CaseDetailPage() {
     
     // 투표 안한 경우
     if (!hasVoted) {
-      alert('투표 후 공감할 수 있습니다!');
+      alert('투표 후 공감할 수 있어요!');
       return;
     }
     
@@ -354,7 +357,7 @@ function CaseDetailPage() {
     
     // 이미 공감한 경우
     if (likedComments.has(likeKey)) {
-      alert('이미 공감한 댓글입니다!');
+      alert('이미 공감한 댓글이에요!');
       return;
     }
     
@@ -435,7 +438,7 @@ function CaseDetailPage() {
                       <button onClick={() => { setShowDeleteConfirm(true); setShowPostMenu(false); }} style={{ width: '100%', padding: '12px 16px', border: 'none', background: 'none', textAlign: 'left', cursor: 'pointer', fontSize: '14px', color: '#D32F2F' }}>삭제</button>
                     </>
                   ) : (
-                    <button onClick={() => { alert('신고가 접수되었습니다.'); setShowPostMenu(false); }} style={{ width: '100%', padding: '12px 16px', border: 'none', background: 'none', textAlign: 'left', cursor: 'pointer', fontSize: '14px', color: '#D32F2F' }}>신고하기</button>
+                    <button onClick={() => { alert('신고가 접수되었어요!'); setShowPostMenu(false); }} style={{ width: '100%', padding: '12px 16px', border: 'none', background: 'none', textAlign: 'left', cursor: 'pointer', fontSize: '14px', color: '#D32F2F' }}>신고하기</button>
                   )}
                 </div>
               )}
@@ -447,8 +450,8 @@ function CaseDetailPage() {
 
           <div style={{ position: 'relative', marginBottom: '26px' }}>
             <div style={{ display: 'flex', gap: '12px' }}>
-              <button onClick={() => { setPendingVoteType('agree'); setShowVoteConfirm(true); }} disabled={hasVoted} style={{ flex: 1, padding: '12px', backgroundColor: '#E3F2FD', color: '#1976D2', border: selectedVote === 'agree' ? '3px solid #1976D2' : 'none', borderRadius: '8px', fontSize: '15px', fontWeight: '600', cursor: hasVoted ? 'not-allowed' : 'pointer', opacity: hasVoted && selectedVote !== 'agree' ? 0.5 : 1 }}>무죄</button>
-              <button onClick={() => { setPendingVoteType('disagree'); setShowVoteConfirm(true); }} disabled={hasVoted} style={{ flex: 1, padding: '12px', backgroundColor: '#FFEBEE', color: '#D32F2F', border: selectedVote === 'disagree' ? '3px solid #D32F2F' : 'none', borderRadius: '8px', fontSize: '15px', fontWeight: '600', cursor: hasVoted ? 'not-allowed' : 'pointer', opacity: hasVoted && selectedVote !== 'disagree' ? 0.5 : 1 }}>유죄</button>
+              <button onClick={() => { if (isVoteDisabled) return; setPendingVoteType('agree'); setShowVoteConfirm(true); }} disabled={isVoteDisabled} style={{ flex: 1, padding: '12px', backgroundColor: '#E3F2FD', color: '#1976D2', border: selectedVote === 'agree' ? '3px solid #1976D2' : 'none', borderRadius: '8px', fontSize: '15px', fontWeight: '600', cursor: isVoteDisabled ? 'not-allowed' : 'pointer', opacity: isVoteDisabled && selectedVote !== 'agree' ? 0.5 : 1 }}>무죄</button>
+              <button onClick={() => { if (isVoteDisabled) return; setPendingVoteType('disagree'); setShowVoteConfirm(true); }} disabled={isVoteDisabled} style={{ flex: 1, padding: '12px', backgroundColor: '#FFEBEE', color: '#D32F2F', border: selectedVote === 'disagree' ? '3px solid #D32F2F' : 'none', borderRadius: '8px', fontSize: '15px', fontWeight: '600', cursor: isVoteDisabled ? 'not-allowed' : 'pointer', opacity: isVoteDisabled && selectedVote !== 'disagree' ? 0.5 : 1 }}>유죄</button>
             </div>
             <CountdownTimer voteEndAt={post.voteEndAt} status={post.status} />
           </div>
@@ -491,11 +494,11 @@ function CaseDetailPage() {
                 onLike={handleLikeComment}
                 onReply={setReplyingTo}
                 onEdit={(cid, content) => updateComment(id!, cid, content).then(() => queryClient.invalidateQueries({ queryKey: caseKeys.comments(id!) }))}
-                onDelete={(cid) => { if(window.confirm('댓글을 삭제하시겠습니까?')) deleteComment(id!, cid).then(() => queryClient.invalidateQueries({ queryKey: caseKeys.comments(id!) })) }}
+                onDelete={(cid) => { if(window.confirm('댓글을 삭제하시겠어요?')) deleteComment(id!, cid).then(() => queryClient.invalidateQueries({ queryKey: caseKeys.comments(id!) })) }}
                 onLikeReply={handleLikeReply}
                 onEditReply={(cid, rid, content) => updateReply(id!, cid, rid, content).then(() => queryClient.invalidateQueries({ queryKey: caseKeys.comments(id!) }))}
-                onDeleteReply={(cid, rid) => { if(window.confirm('답글을 삭제하시겠습니까?')) deleteReply(id!, cid, rid).then(() => queryClient.invalidateQueries({ queryKey: caseKeys.comments(id!) })) }}
-                onReport={() => alert('신고가 접수되었습니다.')}
+                onDeleteReply={(cid, rid) => { if(window.confirm('답글을 삭제하시겠어요?')) deleteReply(id!, cid, rid).then(() => queryClient.invalidateQueries({ queryKey: caseKeys.comments(id!) })) }}
+                onReport={() => alert('신고가 접수되었어요!')}
                 isReplying={replyingTo === comment.id}
                 replyContent={replyContent}
                 onReplyContentChange={setReplyContent}
@@ -645,7 +648,7 @@ const FullPageLoading = () => (
 );
 
 const NotFoundView = ({ onBack }: { onBack: () => void }) => (
-  <div style={{ padding: '40px 20px', textAlign: 'center', minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', backgroundColor: '#F8F9FA' }}>
+  <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, padding: '40px 20px', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', backgroundColor: '#F8F9FA', zIndex: 2000, overflow: 'hidden' }}>
     <div style={{ marginBottom: '24px' }}>
       <Asset.Icon 
         frameShape={{ width: 64, height: 64 }} 
@@ -654,7 +657,7 @@ const NotFoundView = ({ onBack }: { onBack: () => void }) => (
         style={{ transform: 'rotate(180deg)' }}
       />
     </div>
-    <Text display="block" typography="t4" fontWeight="bold" color="#191F28" style={{ marginBottom: '12px' }}>삭제된 게시물입니다</Text>
+    <Text display="block" typography="t4" fontWeight="bold" color="#191F28" style={{ marginBottom: '12px' }}>삭제된 게시물이에요</Text>
     <Text display="block" typography="t6" color="#6B7684" style={{ marginBottom: '32px' }}>작성자가 연결을 끊었거나<br />게시물이 삭제되어 볼 수 없어요.</Text>
     <button onClick={onBack} style={{ width: '100%', maxWidth: '200px', padding: '14px 24px', backgroundColor: '#3182F6', color: 'white', border: 'none', borderRadius: '12px', fontSize: '16px', fontWeight: '600', cursor: 'pointer' }}>홈으로 돌아가기</button>
   </div>

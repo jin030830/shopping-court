@@ -56,7 +56,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
     } catch (error) {
       console.error('Login error:', error);
-      alert(error instanceof Error ? error.message : '로그인에 실패했습니다.');
+      alert(error instanceof Error ? error.message : '로그인에 실패했어요.');
       setIsLoggingIn(false);
       setIsVerified(false);
     }

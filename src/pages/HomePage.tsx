@@ -258,7 +258,8 @@ function CompletedPostListMain({ posts, navigate }: any) {
     return { ...p, verdict: vc > 0 ? (p.innocentCount > p.guiltyCount ? '무죄' : p.guiltyCount > p.innocentCount ? '유죄' : '보류') : '보류', hotScore: p.hotScore || (vc + (2 * (p.commentCount || 0))) };
   });
   // 대시보드용 정렬 (DB에서 limit 10으로 가져온 데이터 중 상위 5개씩 슬라이스)
-  const hot = processed.filter((p: any) => p.hotScore > 0).sort((a: any, b: any) => b.hotScore - a.hotScore).slice(0, 5);
+  // 화제의 재판 기록: 최신순 정렬 (createdAt 기준)
+  const hot = processed.sort((a: any, b: any) => (b.createdAt?.toMillis() || 0) - (a.createdAt?.toMillis() || 0)).slice(0, 5);
   const prev = [...processed].sort((a: any, b: any) => (b.voteEndAt?.toMillis() || 0) - (a.voteEndAt?.toMillis() || 0)).slice(0, 5);
 
   const renderCard = (p: any) => (
