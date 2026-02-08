@@ -341,7 +341,7 @@ function CreatePostPage() {
           className="custom-modal-overlay"
         />
         <Modal.Content>
-          <div style={{ padding: '24px', backgroundColor: 'white', borderRadius: '16px' }}>
+          <div style={{ padding: '24px 24px 14px 24px', backgroundColor: 'white', borderRadius: '16px' }}>
             <Text
               display="block"
               color="#191F28ff"
@@ -362,7 +362,7 @@ function CreatePostPage() {
               ※ 모두 선택 사항이에요!
             </Text>
             
-            <div style={{ marginBottom: '24px' }}>
+            <div style={{ marginBottom: '10px' }}>
               <Text
                 display="block"
                 color="#191F28"
@@ -536,7 +536,7 @@ function CreatePostPage() {
             />
 
             {/* 제목 */}
-            <Text color={adaptive.grey800} typography="st5" fontWeight="bold" style={{ marginBottom: '16px', textAlign: 'center', fontSize: '24px' }}>
+            <Text color={adaptive.grey800} typography="st5" fontWeight="bold" style={{ marginBottom: '8px', textAlign: 'center', fontSize: '24px' }}>
               광고 5초보고 등록하기!
             </Text>
 

@@ -290,10 +290,10 @@ function PointMissionPage() {
               }} />
             </div>
           )}
-          <div style={{ width: '100%', borderRadius: '12px', overflow: 'hidden', boxShadow: '0px 0px 2px 0px rgba(0, 0, 0, 0.25)', border: '1px solid #C9A86A', position: 'relative', backgroundColor: '#F7F3EE', padding: '4px' }}>
-            <div style={{ width: '100%', borderRadius: '10px', boxShadow: 'inset 0 0 0 1px #C9A86A', backgroundColor: '#F7F3EE', padding: '8px 14px', display: 'flex', flexDirection: 'column', gap: '0px', position: 'relative', boxSizing: 'border-box' }}>
+          <div style={{ width: '100%', borderRadius: '12px', overflow: 'hidden', boxShadow: '0px 0px 2px 0px rgba(0, 0, 0, 0.25)', border: '1px solid #C9A86A', position: 'relative', backgroundColor: '#F7F3EE', padding: '2px' }}>
+            <div style={{ width: '100%', borderRadius: '10px', boxShadow: 'inset 0 0 0 1px #C9A86A', backgroundColor: '#F7F3EE', padding: '8px 16px', display: 'flex', flexDirection: 'column', gap: '0px', position: 'relative', boxSizing: 'border-box' }}>
               {/* 제목과 정보 아이콘 */}
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0px', marginTop: '4px' }}>
                 <Text display="block" color="#3A2E25" typography="st8" fontWeight="bold" style={{ fontSize: '18px' }}>
                   {title}
                 </Text>
@@ -322,16 +322,16 @@ function PointMissionPage() {
               {/* 조건과 보상 */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0px', marginBottom: 'auto' }}>
                 {/* 조건 */}
-                <Text color={adaptive.grey800} typography="t6" fontWeight="bold" style={{ fontSize: '14px', marginBottom: '0px' }}>
+                <Text color={adaptive.grey800} typography="t6" fontWeight="bold" style={{ fontSize: '16px', marginBottom: '0px' }}>
                   {limitation}
                 </Text>
                 
                 {/* 보상 */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                  <Text color={adaptive.grey700} typography="t7" fontWeight="medium" style={{ fontSize: '13px' }}>
+                  <Text color={adaptive.grey700} typography="t7" fontWeight="medium" style={{ fontSize: '15px' }}>
                     보상 :{' '}
                   </Text>
-                  <Text color={adaptive.grey700} typography="t7" fontWeight="bold" style={{ fontSize: '13px' }}>
+                  <Text color={adaptive.grey700} typography="t7" fontWeight="bold" style={{ fontSize: '15px' }}>
                     판사봉 {reward}개
                   </Text>
                 </div>
@@ -447,10 +447,10 @@ function PointMissionPage() {
         <div style={{ width: '100%', height: '1px', backgroundColor: '#ccb284', opacity: 0.6, marginBottom: '11px' }} />
         <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'flex-start', padding: '0 10px', marginBottom: '10px', gap: '80px' }}>
           {/* 왼쪽: 판사봉 정보 */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '11px', alignItems: 'center', marginTop: '8px' }}>
-            <Asset.Icon frameShape={Asset.frameShape.CleanW40} backgroundColor="transparent" name="icon-gavel" aria-hidden={true} ratio="1/1" />
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '11px', alignItems: 'center', marginTop: '8px', justifyContent: 'flex-start' }}>
+            <Asset.Icon frameShape={{ width: 48, height: 48 }} backgroundColor="transparent" name="icon-gavel" aria-hidden={true} ratio="1/1" />
             <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-              <Text display="inline" color={adaptive.grey800} typography="t5" fontWeight="bold">
+              <Text display="inline" color={adaptive.grey800} typography="t5" fontWeight="bold" style={{ fontSize: '18px' }}>
                 판사봉 {currentGavel}
               </Text>
               <div ref={infoPopupRef} style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -503,6 +503,7 @@ function PointMissionPage() {
               size="small"
               onClick={handleExchange}
               disabled={!canExchange || isExchanging}
+              style={{ marginTop: '-6px' }}
             >
               {isExchanging ? '교환 중...' : '교환하기'}
             </TextButton>
@@ -589,7 +590,7 @@ function PointMissionPage() {
             />
 
             {/* 제목 */}
-            <Text color={adaptive.grey800} typography="st5" fontWeight="bold" style={{ marginBottom: '16px', textAlign: 'center', fontSize: '24px' }}>
+            <Text color={adaptive.grey800} typography="st5" fontWeight="bold" style={{ marginBottom: '18px', textAlign: 'center', fontSize: '24px' }}>
               광고 보고 포인트 받기!
             </Text>
 

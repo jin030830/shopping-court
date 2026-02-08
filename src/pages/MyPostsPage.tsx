@@ -69,7 +69,7 @@ function MyPostsPage() {
         <Text display="block" color="#191F28" typography="t3" fontWeight="bold" style={{ fontSize: '22px' }}>내가 쓴 글</Text>
         <Text display="block" color="#191F28" typography="t7" fontWeight="regular">내가 참여한 재판 현황을 한눈에 확인하세요</Text>
       </div>
-      <Spacing size={24} />
+      <Spacing size={38} />
       <Section title="재판 중인 글" iconSrc="https://static.toss.im/2d-emojis/png/4x/u2696.png" posts={open} isLoading={isLoading} showVerdict={false} navigate={navigate} lastRef={closed.length === 0 ? lastElementRef : null} />
       <Spacing size={32} />
       <Section title="이전 재판 기록" iconName="icon-check-circle-mono" posts={closed} isLoading={isLoading} showVerdict={true} navigate={navigate} lastRef={lastElementRef} isNextFetching={isFetchingNextPage} />
