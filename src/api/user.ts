@@ -169,7 +169,7 @@ export async function warmUpClaimMissionReward(): Promise<void> {
 }
 
 export async function exchangeGavel(): Promise<void> {
-  const PROMOTION_CODE = 'TEST_01KGA79JNAY2T8AWYCM9869TKS'; 
+  const PROMOTION_CODE = '01KGA79JNAY2T8AWYCM9869TKS'; 
   const requestPromotionReward = httpsCallable<{ promotionCode: string }, { success: boolean }>(functions, 'requestPromotionReward');
   const result = await requestPromotionReward({ promotionCode: PROMOTION_CODE });
   if (!result.data.success) throw new Error("토스 포인트 지급에 실패했습니다.");

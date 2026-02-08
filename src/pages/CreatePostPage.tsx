@@ -15,7 +15,7 @@ function CreatePostPage() {
   const location = useLocation();
   const queryClient = useQueryClient();
   const { user, userData, isLoading, login } = useAuth();
-  const { show: showAd } = useTossAd('ait-ad-test-interstitial-id');
+  const { show: showAd } = useTossAd('ait.v2.live.3060421c86fb48a4');
 
   // 글쓰기 진입 전 보고 있던 탭 (작성 완료 후 복귀용)
   const returnTab =

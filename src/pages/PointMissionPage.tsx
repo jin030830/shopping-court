@@ -277,7 +277,7 @@ function PointMissionPage() {
   const [showRewardPopup, setShowRewardPopup] = useState(false);
   const [pendingMission, setPendingMission] = useState<{ missionType: string; gavel: number } | null>(null);
   
-  const { show: showRewardAd } = useTossRewardAd('ait-ad-test-rewarded-id');
+  const { show: showRewardAd } = useTossRewardAd('ait.v2.live.ad43dc8f10064218');
   const [today, setToday] = useState(getTodayDateString());
 
   // 페이지 진입 시 Warm-up 시도
