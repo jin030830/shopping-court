@@ -5,11 +5,14 @@ import { adaptive } from '@toss/tds-colors';
 import { useAuth } from '../hooks/useAuth';
 import { createCase, type CaseData } from '../api/cases';
 import { useTossAd } from '../hooks/useTossAd';
+import { useQueryClient } from '@tanstack/react-query';
+import { caseKeys } from '../constants/queryKeys';
 import missionBannerImage from '../assets/missionbanner.jpeg';
 
 function CreatePostPage() {
   const navigate = useNavigate();
   const location = useLocation();
+  const queryClient = useQueryClient();
   const { user, userData, isLoading, login } = useAuth();
   const { show: showAd } = useTossAd('ait-ad-test-interstitial-id');
 
@@ -133,6 +136,11 @@ function CreatePostPage() {
 
       try {
         await createCase(caseData);
+        // 모든 사건 관련 쿼리를 무효화하여 숨겨진 홈 화면 리스트까지 즉시 강제 리프레시
+        await queryClient.invalidateQueries({ 
+          queryKey: caseKeys.all,
+          refetchType: 'all' 
+        });
         setShowSuccessModal(true);
       } catch (error) {
         console.error('고민 등록 실패:', error);

@@ -28,6 +28,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { caseKeys } from '../constants/queryKeys';
 import CountdownTimer from '../components/CountdownTimer';
 import CommentItem from '../components/CommentItem';
+import { Timestamp } from 'firebase/firestore';
 
 // UI용 댓글 타입 (대댓글 포함)
 interface CommentWithReplies extends CommentDocument {
@@ -135,7 +136,7 @@ function CaseDetailPage() {
   const addVoteMutation = useMutation({
     mutationFn: ({ voteType }: { voteType: VoteType }) => addVote(id!, user!.uid, voteType),
     onMutate: async ({ voteType }) => {
-      await queryClient.cancelQueries({ queryKey: caseKeys.detail(id!) });
+      await queryClient.cancelQueries({ queryKey: caseKeys.all });
       const previousPost = queryClient.getQueryData<CaseDocument>(caseKeys.detail(id!));
       queryClient.setQueryData(caseKeys.detail(id!), (old: CaseDocument | undefined) => {
         if (!old) return old;
@@ -145,20 +146,98 @@ function CaseDetailPage() {
           innocentCount: voteType === 'innocent' ? (old.innocentCount || 0) + 1 : (old.innocentCount || 0),
         };
       });
+      // 홈 목록 투표수 업데이트
+      queryClient.setQueriesData({ queryKey: caseKeys.lists() }, (oldData: any) => {
+        if (!oldData) return oldData;
+        const updateCase = (c: any) => c.id === id ? { ...c, guiltyCount: voteType === 'guilty' ? (c.guiltyCount || 0) + 1 : (c.guiltyCount || 0), innocentCount: voteType === 'innocent' ? (c.innocentCount || 0) + 1 : (c.innocentCount || 0) } : c;
+        if (oldData.pages) return { ...oldData, pages: oldData.pages.map((p: any) => ({ ...p, cases: p.cases.map(updateCase) })) };
+        return Array.isArray(oldData) ? oldData.map(updateCase) : oldData;
+      });
       return { previousPost };
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: caseKeys.detail(id!) });
-      queryClient.invalidateQueries({ queryKey: caseKeys.userVote(id!, user!.uid) });
+    onSettled: () => {
+      setTimeout(() => {
+        queryClient.invalidateQueries({ queryKey: caseKeys.all, refetchType: 'all' });
+      }, 500);
     }
   });
 
-  // [Mutation] 댓글 작성
+  // [Mutation] 댓글 작성 (낙관적 업데이트)
   const addCommentMutation = useMutation({
     mutationFn: (commentData: { authorId: string; authorNickname: string; content: string; vote: VoteType }) => addComment(id!, commentData),
-    onSuccess: () => {
+    onMutate: async (newCommentData) => {
+      await queryClient.cancelQueries({ queryKey: caseKeys.all });
+      const previousComments = queryClient.getQueryData<CommentWithReplies[]>(caseKeys.comments(id!));
+      
+      const optimisticComment: CommentWithReplies = {
+        id: 'temp-' + Date.now(),
+        ...newCommentData,
+        createdAt: Timestamp.now(),
+        likes: 0,
+        likedBy: [],
+        replies: []
+      };
+      queryClient.setQueryData(caseKeys.comments(id!), (old: CommentWithReplies[] | undefined) => [optimisticComment, ...(old || [])]);
+
+      // 홈 목록 댓글수 업데이트
+      queryClient.setQueriesData({ queryKey: caseKeys.lists() }, (oldData: any) => {
+        if (!oldData) return oldData;
+        const updateCount = (c: any) => c.id === id ? { ...c, commentCount: (c.commentCount || 0) + 1 } : c;
+        if (oldData.pages) return { ...oldData, pages: oldData.pages.map((p: any) => ({ ...p, cases: p.cases.map(updateCount) })) };
+        return Array.isArray(oldData) ? oldData.map(updateCount) : oldData;
+      });
+
       setNewComment('');
-      queryClient.invalidateQueries({ queryKey: caseKeys.comments(id!) });
+      return { previousComments };
+    },
+    onError: (_err, _vars, context) => {
+      queryClient.setQueryData(caseKeys.comments(id!), context?.previousComments);
+    },
+    onSettled: () => {
+      setTimeout(() => {
+        queryClient.invalidateQueries({ queryKey: caseKeys.all, refetchType: 'all' });
+      }, 500);
+    }
+  });
+
+  // [Mutation] 답글 작성 (홈 화면 카운트 반영 낙관적 업데이트)
+  const addReplyMutation = useMutation({
+    mutationFn: ({ commentId, replyData }: { commentId: string; replyData: any }) => addReply(id!, commentId, replyData),
+    onMutate: async ({ commentId, replyData }) => {
+      await queryClient.cancelQueries({ queryKey: caseKeys.all });
+      const previousComments = queryClient.getQueryData<CommentWithReplies[]>(caseKeys.comments(id!));
+
+      // 1. 상세 페이지에 답글 즉시 추가
+      queryClient.setQueryData(caseKeys.comments(id!), (old: CommentWithReplies[] | undefined) => {
+        if (!old) return old;
+        return old.map(comment => {
+          if (comment.id !== commentId) return comment;
+          return {
+            ...comment,
+            replies: [...(comment.replies || []), { id: 'temp-reply-' + Date.now(), ...replyData, createdAt: Timestamp.now(), likes: 0, likedBy: [] }]
+          };
+        });
+      });
+
+      // 2. 홈 화면 목록의 전체 댓글수 즉시 증가
+      queryClient.setQueriesData({ queryKey: caseKeys.lists() }, (oldData: any) => {
+        if (!oldData) return oldData;
+        const updateCount = (c: any) => c.id === id ? { ...c, commentCount: (c.commentCount || 0) + 1 } : c;
+        if (oldData.pages) return { ...oldData, pages: oldData.pages.map((p: any) => ({ ...p, cases: p.cases.map(updateCount) })) };
+        return Array.isArray(oldData) ? oldData.map(updateCount) : oldData;
+      });
+
+      setReplyContent('');
+      setReplyingTo(null);
+      return { previousComments };
+    },
+    onError: (_err, _vars, context) => {
+      queryClient.setQueryData(caseKeys.comments(id!), context?.previousComments);
+    },
+    onSettled: () => {
+      setTimeout(() => {
+        queryClient.invalidateQueries({ queryKey: caseKeys.all, refetchType: 'all' });
+      }, 500);
     }
   });
 
@@ -169,7 +248,11 @@ function CaseDetailPage() {
     onSuccess: () => {
       setIsDeleting(false);
       setShowDeleteComplete(true);
-      queryClient.removeQueries({ queryKey: caseKeys.detail(id!) });
+    },
+    onSettled: () => {
+      setTimeout(() => {
+        queryClient.invalidateQueries({ queryKey: caseKeys.all, refetchType: 'all' });
+      }, 500);
     },
     onError: () => {
       setIsDeleting(false);
@@ -309,8 +392,10 @@ function CaseDetailPage() {
                 onReplyContentChange={setReplyContent}
                 onReplySubmit={(cid) => {
                   if (!replyContent.trim() || !user || !userData || !userVoteData) return;
-                  addReply(id!, cid, { authorId: user.uid, authorNickname: userData.nickname, content: replyContent, vote: userVoteData })
-                    .then(() => { setReplyContent(''); setReplyingTo(null); queryClient.invalidateQueries({ queryKey: caseKeys.comments(id!) }); });
+                  addReplyMutation.mutate({ 
+                    commentId: cid, 
+                    replyData: { authorId: user.uid, authorNickname: userData.nickname, content: replyContent, vote: userVoteData } 
+                  });
                 }}
                 onCancelReply={() => setReplyingTo(null)}
               />
@@ -389,10 +474,49 @@ const SortButtons = ({ sortBy, onSortChange }: { sortBy: 'latest' | 'likes'; onS
 );
 
 const CommentInput = ({ value, onChange, onSubmit, isPending }: { value: string; onChange: (v: string) => void; onSubmit: () => void; isPending: boolean }) => (
-  <div style={{ marginBottom: '20px' }}>
-    <textarea value={value} onChange={(e) => onChange(e.target.value)} placeholder="의견을 남겨주세요..." style={{ width: '100%', minHeight: '80px', padding: '12px', border: '1px solid #E5E5E5', borderRadius: '8px', fontSize: '14px', resize: 'vertical', boxSizing: 'border-box', backgroundColor: 'white', color: '#191F28' }} />
-    <button onClick={onSubmit} disabled={isPending} style={{ marginTop: '8px', padding: '10px 20px', backgroundColor: '#3182F6', color: 'white', border: 'none', borderRadius: '8px', fontSize: '14px', fontWeight: '600', float: 'right', cursor: 'pointer' }}>댓글 작성</button>
-    <div style={{ clear: 'both' }} />
+  <div style={{ marginBottom: '20px', width: '100%', boxSizing: 'border-box', display: 'block' }}>
+    <textarea 
+      value={value} 
+      onChange={(e) => onChange(e.target.value)} 
+      placeholder="의견을 남겨주세요..." 
+      style={{ 
+        width: '100%', 
+        minWidth: '100%',
+        minHeight: '80px', 
+        padding: '12px', 
+        border: '1px solid #E5E5E5', 
+        borderRadius: '8px', 
+        fontSize: '14px', 
+        resize: 'none', 
+        boxSizing: 'border-box', 
+        backgroundColor: 'white', 
+        color: '#191F28',
+        display: 'block',
+        marginBottom: '8px',
+        lineHeight: '1.5',
+        whiteSpace: 'pre-wrap',
+        overflow: 'hidden'
+      }} 
+    />
+    <div style={{ display: 'flex', justifyContent: 'flex-end', width: '100%' }}>
+      <button 
+        onClick={onSubmit} 
+        disabled={isPending} 
+        style={{ 
+          padding: '10px 20px', 
+          backgroundColor: '#3182F6', 
+          color: 'white', 
+          border: 'none', 
+          borderRadius: '8px', 
+          fontSize: '14px', 
+          fontWeight: '600', 
+          cursor: isPending ? 'not-allowed' : 'pointer',
+          opacity: isPending ? 0.7 : 1
+        }}
+      >
+        {isPending ? '작성 중...' : '댓글 작성'}
+      </button>
+    </div>
   </div>
 );
 
