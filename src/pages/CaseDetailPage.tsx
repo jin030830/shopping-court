@@ -354,8 +354,36 @@ function CaseDetailPage() {
     });
   }, [comments, sortBy]);
 
-  // --- 얼리 리턴 ---
+  // --- 얼리 리턴 (순서 조정) ---
+  
+  // 1. 삭제 완료 화면 우선
+  if (showDeleteComplete) {
+    return (
+      <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'white', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', zIndex: 2000 }}>
+        <svg width="100" height="100" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ marginBottom: '24px' }}>
+          <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z" fill="#3182F6" />
+        </svg>
+        <div style={{ color: '#666', fontSize: '20px', fontWeight: 'bold', marginBottom: '24px', textAlign: 'center' }}>삭제 완료했어요!</div>
+        <button onClick={() => navigate('/')} style={{ padding: '12px 24px', backgroundColor: '#3182F6', color: 'white', border: 'none', borderRadius: '8px', fontSize: '15px', fontWeight: '600', minWidth: '120px' }}>홈으로</button>
+      </div>
+    );
+  }
+
+  // 2. 삭제 중 화면
+  if (isDeleting) {
+    return (
+      <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'white', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', zIndex: 2000 }}>
+        <div style={{ width: '40px', height: '40px', border: '4px solid #f3f3f3', borderTop: '4px solid #3182F6', borderRadius: '50%', animation: 'spin 1s linear infinite', marginBottom: '16px' }} />
+        <Text color="#191F28" typography="t5" fontWeight="medium">게시글을 삭제하고 있어요</Text>
+        <style>{`@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }`}</style>
+      </div>
+    );
+  }
+
+  // 3. 로딩 중
   if (isLoadingPost) return <FullPageLoading />;
+  
+  // 4. 게시물 없음 (삭제된 경우)
   if (!post) return <NotFoundView onBack={handleBack} />;
 
   return (
@@ -593,8 +621,17 @@ const FullPageLoading = () => (
 
 const NotFoundView = ({ onBack }: { onBack: () => void }) => (
   <div style={{ padding: '40px 20px', textAlign: 'center', minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', backgroundColor: '#F8F9FA' }}>
-    <Text display="block" typography="t5" fontWeight="bold" color="#191F28" style={{ marginBottom: '12px' }}>게시물을 찾을 수 없습니다.</Text>
-    <button onClick={onBack} style={{ marginTop: '24px', padding: '12px 24px', backgroundColor: '#3182F6', color: 'white', border: 'none', borderRadius: '8px', fontWeight: '600', cursor: 'pointer' }}>홈으로 돌아가기</button>
+    <div style={{ marginBottom: '24px' }}>
+      <Asset.Icon 
+        frameShape={{ width: 64, height: 64 }} 
+        name="icon-info-circle-mono" 
+        color="#B0B8C1" 
+        style={{ transform: 'rotate(180deg)' }}
+      />
+    </div>
+    <Text display="block" typography="t4" fontWeight="bold" color="#191F28" style={{ marginBottom: '12px' }}>삭제된 게시물입니다</Text>
+    <Text display="block" typography="t6" color="#6B7684" style={{ marginBottom: '32px' }}>작성자가 연결을 끊었거나<br />게시물이 삭제되어 볼 수 없어요.</Text>
+    <button onClick={onBack} style={{ width: '100%', maxWidth: '200px', padding: '14px 24px', backgroundColor: '#3182F6', color: 'white', border: 'none', borderRadius: '12px', fontSize: '16px', fontWeight: '600', cursor: 'pointer' }}>홈으로 돌아가기</button>
   </div>
 );
 

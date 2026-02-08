@@ -468,13 +468,47 @@ export const tossUnlinkCallback = functions
           await admin.auth().deleteUser(userKey);
           console.log(`[Toss Unlink Callback] ✅ Firebase Auth user deleted successfully: ${userKey}`);
 
-          // Firestore의 users 컬렉션에서도 사용자 데이터 삭제
+          // Firestore에서 사용자 관련 모든 데이터 삭제 시작
+          const db = admin.firestore();
+
+          // 1. 사용자가 작성한 게시물(cases) 삭제
+          const casesQuery = db.collection('cases').where('authorId', '==', userKey);
+          const casesSnapshot = await casesQuery.get();
+          console.log(`[Toss Unlink Callback] Found ${casesSnapshot.size} cases to delete`);
+          for (const doc of casesSnapshot.docs) {
+            await doc.ref.delete(); // 하위 컬렉션(votes, comments)은 트리거 또는 별도 로직으로 처리 필요할 수 있으나 여기서는 문서만 삭제
+          }
+
+          // 2. 사용자가 남긴 모든 투표(votes) 삭제 (Collection Group Query)
+          const votesQuery = db.collectionGroup('votes').where('userId', '==', userKey);
+          const votesSnapshot = await votesQuery.get();
+          console.log(`[Toss Unlink Callback] Found ${votesSnapshot.size} votes to delete`);
+          for (const doc of votesSnapshot.docs) {
+            await doc.ref.delete();
+          }
+
+          // 3. 사용자가 작성한 모든 댓글(comments) 삭제
+          const commentsQuery = db.collectionGroup('comments').where('authorId', '==', userKey);
+          const commentsSnapshot = await commentsQuery.get();
+          console.log(`[Toss Unlink Callback] Found ${commentsSnapshot.size} comments to delete`);
+          for (const doc of commentsSnapshot.docs) {
+            await doc.ref.delete();
+          }
+
+          // 4. 사용자가 작성한 모든 답글(replies) 삭제
+          const repliesQuery = db.collectionGroup('replies').where('authorId', '==', userKey);
+          const repliesSnapshot = await repliesQuery.get();
+          console.log(`[Toss Unlink Callback] Found ${repliesSnapshot.size} replies to delete`);
+          for (const doc of repliesSnapshot.docs) {
+            await doc.ref.delete();
+          }
+
+          // 5. Firestore의 users 컬렉션에서 사용자 프로필 삭제
           try {
-            await admin.firestore().collection('users').doc(userKey).delete();
-            console.log(`[Toss Unlink Callback] ✅ Firestore user data deleted successfully: ${userKey}`);
+            await db.collection('users').doc(userKey).delete();
+            console.log(`[Toss Unlink Callback] ✅ Firestore user data and all content deleted successfully: ${userKey}`);
           } catch (firestoreError: any) {
             console.warn(`[Toss Unlink Callback] ⚠️ Failed to delete Firestore user data: ${firestoreError.message}`);
-            // Firestore 삭제 실패는 치명적이지 않으므로 계속 진행
           }
         } else {
           console.log(`[Toss Unlink Callback] Firebase user not found: ${userKey}`);
