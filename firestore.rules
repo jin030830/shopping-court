@@ -2,25 +2,29 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // [함수] 데이터 타입 및 길이 검증 (저장소 용량 절약 및 어뷰징 방지)
+    // [함수] 데이터 타입 및 길이 검증
     function isValidText(text, min, max) {
       return text is string && text.size() >= min && text.size() <= max;
+    }
+
+    // [함수] 쿼리 갯수 제한 검증 (비용 보호)
+    // 한번에 최대 20개까지만 요청 가능하도록 제한
+    function isWithinLimit(maxLimit) {
+      return request.query.limit <= maxLimit;
     }
 
     // [함수] 게시물 생성 시 검증
     function isValidNewCase() {
       let data = request.resource.data;
       return 
-        // 1. 초기값 검증
         data.hotScore == 0 &&
         data.guiltyCount == 0 &&
         data.innocentCount == 0 &&
         data.commentCount == 0 &&
         data.status == 'OPEN' &&
         data.authorId == request.auth.uid &&
-        // 2. 스키마(길이) 검증 추가
-        isValidText(data.title, 1, 100) &&    // 제목 1~100자
-        isValidText(data.content, 1, 3000);   // 내용 1~3000자
+        isValidText(data.title, 1, 100) &&
+        isValidText(data.content, 1, 3000);
     }
 
     // [함수] 작성자 본인 확인
@@ -32,14 +36,12 @@ service cloud.firestore {
       return resource.data.authorId == request.auth.uid;
     }
 
-    // [함수] 좋아요 로직 검증 (모듈화)
-    // 조건: 투표자여야 함 + 좋아요 배열에 본인 추가 + 카운트 1 증가
+    // [함수] 좋아요 로직 검증
     function isValidLikeUpdate(caseId) {
        let hasVoted = exists(/databases/$(database)/documents/cases/$(caseId)/votes/$(request.auth.uid));
        let data = resource.data;
        let resData = request.resource.data;
        
-       // 필드가 없을 경우를 대비한 안전한 접근
        let currentLikedBy = data.get('likedBy', []);
        let newLikedBy = resData.get('likedBy', []);
        let currentLikes = data.get('likes', 0);
@@ -55,17 +57,18 @@ service cloud.firestore {
 
     // users 컬렉션
     match /users/{userId} {
-      // 닉네임 중복 체크를 위해 읽기 허용 (민감 정보 없다는 전제)
       allow read: if request.auth != null;
       allow write: if request.auth != null && request.auth.uid == userId;
     }
 
     // cases 컬렉션
     match /cases/{caseId} {
-      allow read: if true;
+      // 목록 조회(list) 시 20개 제한 강제, 단일 문서(get)는 항상 허용
+      allow list: if isWithinLimit(20);
+      allow get: if true;
+      
       allow create: if request.auth != null && isValidNewCase();
       
-      // 수정: 본인이거나, 투표 카운트만 올리는 경우 허용
       allow update: if request.auth != null && (
         isOwner() || 
         (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['guiltyCount', 'innocentCount']))
@@ -74,14 +77,16 @@ service cloud.firestore {
       allow delete: if request.auth != null && isOwner();
 
       match /votes/{userId} {
-        allow read: if true;
+        allow read: if isWithinLimit(50); // 투표 목록은 최대 50개까지
         allow write: if request.auth != null && request.auth.uid == userId;
       }
 
       // comments 서브컬렉션
       match /comments/{commentId} {
-        allow read: if true;
-        allow create: if request.auth != null && isAuthor() && isValidText(request.resource.data.content, 1, 500); // 댓글 길이 제한
+        allow list: if isWithinLimit(50); // 댓글 목록 조회 제한
+        allow get: if true;
+        
+        allow create: if request.auth != null && isAuthor() && isValidText(request.resource.data.content, 1, 500);
         
         allow update: if request.auth != null && (
           isOwner() || isValidLikeUpdate(caseId)
@@ -89,10 +94,11 @@ service cloud.firestore {
         
         allow delete: if request.auth != null && isOwner();
 
-        // replies 서브컬렉션
         match /replies/{replyId} {
-          allow read: if true;
-          allow create: if request.auth != null && isAuthor() && isValidText(request.resource.data.content, 1, 300); // 답글 길이 제한
+          allow list: if isWithinLimit(50); // 답글 목록 조회 제한
+          allow get: if true;
+          
+          allow create: if request.auth != null && isAuthor() && isValidText(request.resource.data.content, 1, 300);
           
           allow update: if request.auth != null && (
             isOwner() || isValidLikeUpdate(caseId)
