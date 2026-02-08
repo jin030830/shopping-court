@@ -3,13 +3,13 @@ import { lazy, Suspense } from 'react';
 import ProtectedRoute from './ProtectedRoute';
 import ScrollRestoration from '../components/ScrollRestoration';
 import { Text } from '@toss/tds-mobile';
+import StaticTermsPage from '../pages/StaticTermsPage';
 
 // 페이지 지연 로딩 (Code Splitting)
 const HomePage = lazy(() => import('../pages/HomePage'));
 const CaseDetailPage = lazy(() => import('../pages/CaseDetailPage'));
 const CreatePostPage = lazy(() => import('../pages/CreatePostPage'));
 const EditPostPage = lazy(() => import('../pages/EditPostPage'));
-const StaticTermsPage = lazy(() => import('../pages/StaticTermsPage'));
 const StaticMarketingPage = lazy(() => import('../pages/StaticMarketingPage'));
 const PointMissionPage = lazy(() => import('../pages/PointMissionPage'));
 const CompletedTrendingPage = lazy(() => import('../pages/CompletedTrendingPage'));
