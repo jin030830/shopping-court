@@ -1,6 +1,6 @@
 import { useNavigate, useParams } from 'react-router-dom';
 import { useState, useEffect } from 'react';
-import { Asset, Text, Spacing } from '@toss/tds-mobile';
+import { Text } from '@toss/tds-mobile';
 import { useAuth } from '../hooks/useAuth';
 import { getCase, updateCase } from '../api/cases';
 
@@ -139,40 +139,6 @@ function EditPostPage() {
       width: '100%',
       boxSizing: 'border-box'
     }}>
-      {/* Header */}
-      <div style={{ 
-        display: 'flex', 
-        alignItems: 'center',
-        padding: '14px 20px',
-        backgroundColor: 'white',
-        width: '100%',
-        boxSizing: 'border-box',
-        borderBottom: '1px solid #F2F4F6'
-      }}>
-        <button
-          onClick={handleBack}
-          style={{
-            background: 'none',
-            border: 'none',
-            cursor: 'pointer',
-            padding: '4px',
-            display: 'flex',
-            alignItems: 'center'
-          }}
-        >
-          <Asset.Icon
-            frameShape={Asset.frameShape.CleanW20}
-            name="icon-arrow-left-mono"
-            color="#191F28"
-            aria-label="뒤로가기"
-          />
-        </button>
-        <Spacing size={8} />
-        <Text color="#191F28" typography="t6" fontWeight="semibold">
-          수정하기
-        </Text>
-      </div>
-
       {/* Content Area */}
       <div style={{ 
         flex: 1, 
@@ -187,7 +153,7 @@ function EditPostPage() {
           color="#191F28ff" 
           typography="t4" 
           fontWeight="bold"
-          style={{ marginBottom: '24px' }}
+          style={{ marginBottom: '24px', fontSize: '20px' }}
         >
           게시물 수정하기
         </Text>
@@ -275,12 +241,11 @@ function EditPostPage() {
       {/* Fixed Bottom Button */}
       <div style={{
         position: 'fixed',
-        bottom: 0,
+        bottom: '18px',
         left: 0,
         right: 0,
         padding: '16px 20px',
         backgroundColor: 'white',
-        borderTop: '1px solid #e5e5e5',
         width: '100%',
         boxSizing: 'border-box'
       }}>

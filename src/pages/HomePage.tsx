@@ -57,8 +57,22 @@ function HomePage() {
   const [isFabExpanded, setIsFabExpanded] = useState(false);
   
   const [selectedTab, setSelectedTab] = useState(() => {
-    const s = (location.state as any)?.selectedTab || sessionStorage.getItem('caseDetailFromTab') || sessionStorage.getItem('completedListFromTab') || sessionStorage.getItem('pointMissionFromTab') || sessionStorage.getItem('createPostFromTab') || sessionStorage.getItem('myPostsFromTab');
-    return s || 'HOT 게시판';
+    // 1. location.state에서 전달된 탭 (다른 페이지에서 돌아올 때)
+    const stateTab = (location.state as any)?.selectedTab;
+    if (stateTab) return stateTab;
+    
+    // 2. sessionStorage에서 임시 저장된 탭 (뒤로가기 대응)
+    const tempTab = sessionStorage.getItem('caseDetailFromTab') || sessionStorage.getItem('completedListFromTab') || sessionStorage.getItem('pointMissionFromTab') || sessionStorage.getItem('createPostFromTab') || sessionStorage.getItem('myPostsFromTab');
+    if (tempTab) return tempTab;
+    
+    // 3. localStorage에서 마지막 선택된 탭 (새로고침 대응)
+    const lastTab = localStorage.getItem('lastSelectedTab');
+    if (lastTab && ['재판 중', 'HOT 게시판', '재판 완료'].includes(lastTab)) {
+      return lastTab;
+    }
+    
+    // 4. 기본값
+    return 'HOT 게시판';
   });
 
   // Infinite Query for '재판 중'
@@ -137,7 +151,11 @@ function HomePage() {
       <div style={{ padding: '0 20px', backgroundColor: 'white', position: 'sticky', top: 0, zIndex: 100 }}>
         <div style={{ display: 'flex', borderBottom: '1px solid #e5e5e5', justifyContent: 'space-between' }}>
           {['재판 중', 'HOT 게시판', '재판 완료'].map(tab => (
-            <TabButton key={tab} label={tab} isSelected={selectedTab === tab} onClick={() => setSelectedTab(tab)} />
+            <TabButton key={tab} label={tab} isSelected={selectedTab === tab} onClick={() => {
+              setSelectedTab(tab);
+              // 탭 변경 시 localStorage에 저장 (새로고침 대응)
+              localStorage.setItem('lastSelectedTab', tab);
+            }} />
           ))}
         </div>
       </div>
