@@ -1,6 +1,6 @@
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useState, useEffect } from 'react';
-import { Asset, Text, Spacing, Modal, Button } from '@toss/tds-mobile';
+import { Text, Spacing, Modal, Button } from '@toss/tds-mobile';
 import { adaptive } from '@toss/tds-colors';
 import { useAuth } from '../hooks/useAuth';
 import { createCase, type CaseData } from '../api/cases';
@@ -12,15 +12,6 @@ function CreatePostPage() {
   const location = useLocation();
   const { user, userData, isLoading, login } = useAuth();
   const { show: showAd } = useTossAd('ait-ad-test-interstitial-id');
-
-  // 뒤로가기 핸들러
-  const handleBack = () => {
-    if (window.history.length > 1) {
-      navigate(-1);
-    } else {
-      navigate('/', { state: { selectedTab: returnTab }, replace: true });
-    }
-  };
 
   // 글쓰기 진입 전 보고 있던 탭 (작성 완료 후 복귀용)
   const returnTab =
@@ -165,40 +156,6 @@ function CreatePostPage() {
       width: '100%',
       boxSizing: 'border-box'
     }}>
-      {/* Header */}
-      <div style={{ 
-        display: 'flex', 
-        alignItems: 'center',
-        padding: '14px 20px',
-        backgroundColor: 'white',
-        width: '100%',
-        boxSizing: 'border-box',
-        borderBottom: '1px solid #F2F4F6'
-      }}>
-        <button
-          onClick={handleBack}
-          style={{
-            background: 'none',
-            border: 'none',
-            cursor: 'pointer',
-            padding: '4px',
-            display: 'flex',
-            alignItems: 'center'
-          }}
-        >
-          <Asset.Icon
-            frameShape={Asset.frameShape.CleanW20}
-            name="icon-arrow-left-mono"
-            color="#191F28"
-            aria-label="뒤로가기"
-          />
-        </button>
-        <Spacing size={8} />
-        <Text color="#191F28" typography="t6" fontWeight="semibold">
-          글쓰기
-        </Text>
-      </div>
-
       {/* Content Area */}
       <div style={{ 
         flex: 1, 
@@ -213,7 +170,7 @@ function CreatePostPage() {
           color="#191F28ff" 
           typography="t4" 
           fontWeight="bold"
-          style={{ marginBottom: '24px' }}
+          style={{ marginBottom: '24px', fontSize: '20px' }}
         >
           직접 고민을 적어보세요!
         </Text>
@@ -299,12 +256,11 @@ function CreatePostPage() {
       {/* Fixed Bottom Button */}
       <div style={{
         position: 'fixed',
-        bottom: 0,
+        bottom: '18px',
         left: 0,
         right: 0,
         padding: '16px 20px',
         backgroundColor: 'white',
-        borderTop: '1px solid #e5e5e5',
         width: '100%',
         boxSizing: 'border-box'
       }}>

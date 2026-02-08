@@ -150,17 +150,14 @@ function PointMissionPage() {
     
     const currentGavel = userData.points || 0;
     if (currentGavel < 50) {
-      alert('판사봉이 부족합니다. (50개 필요)');
       return;
     }
 
     setIsExchanging(true);
     try {
       await exchangeGavel();
-      alert('5P가 지급되었습니다!');
     } catch (error: any) {
       console.error('교환 실패:', error);
-      alert(error.message || '교환 중 오류가 발생했습니다.');
     } finally {
       setIsExchanging(false);
     }
@@ -291,7 +288,7 @@ function PointMissionPage() {
             </div>
           )}
           <div style={{ width: '100%', borderRadius: '12px', overflow: 'hidden', boxShadow: '0px 0px 2px 0px rgba(0, 0, 0, 0.25)', border: '1px solid #C9A86A', position: 'relative', backgroundColor: '#F7F3EE', padding: '2px' }}>
-            <div style={{ width: '100%', borderRadius: '10px', boxShadow: 'inset 0 0 0 1px #C9A86A', backgroundColor: '#F7F3EE', padding: '8px 16px', display: 'flex', flexDirection: 'column', gap: '0px', position: 'relative', boxSizing: 'border-box' }}>
+            <div style={{ width: '100%', borderRadius: '10px', boxShadow: 'inset 0 0 0 1px #C9A86A', backgroundColor: '#F7F3EE', padding: '8px 16px 12px 16px', display: 'flex', flexDirection: 'column', gap: '0px', position: 'relative', boxSizing: 'border-box' }}>
               {/* 제목과 정보 아이콘 */}
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0px', marginTop: '4px' }}>
                 <Text display="block" color="#3A2E25" typography="st8" fontWeight="bold" style={{ fontSize: '18px' }}>
