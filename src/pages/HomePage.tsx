@@ -4,8 +4,6 @@ import { useState, useEffect, useRef, useCallback, memo } from 'react';
 import { getCasesPaginated, getHotCases, type CaseDocument } from '../api/cases';
 import { Timestamp } from 'firebase/firestore';
 import { adaptive } from '@toss/tds-colors';
-import scaleIcon from '../assets/scale.svg';
-import hotFlameIcon from '../assets/fire.png';
 import pointMissionImage from '../assets/pansascale.png';
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import { caseKeys } from '../constants/queryKeys';
@@ -160,8 +158,8 @@ function HomePage() {
         </div>
       </div>
 
-      {selectedTab === '재판 중' && <TabHeader title="재판 중인 글" subtitle="재판에 참여해보세요!" color="#0D47A1" icon={scaleIcon} />}
-      {selectedTab === 'HOT 게시판' && <TabHeader title="실시간 HOT한 글" subtitle="재판에 참여해보세요!" color="#B71C1C" icon={hotFlameIcon} />}
+      {selectedTab === '재판 중' && <TabHeader title="재판 중인 글" subtitle="재판에 참여해보세요!" color="#0D47A1" iconSrc="https://static.toss.im/2d-emojis/png/4x/u2696.png" />}
+      {selectedTab === 'HOT 게시판' && <TabHeader title="실시간 HOT한 글" subtitle="재판에 참여해보세요!" color="#B71C1C" iconName="icon-fire-red-fill" />}
       {selectedTab === '재판 완료' && <TabHeader title="재판 완료된 글" subtitle="어떤 경우가 합리적이었을까요?" color="#5e403b" isGavel />}
 
       <div style={{ backgroundColor: 'white' }}>
@@ -216,7 +214,7 @@ const Banner = ({ navigate, selectedTab }: any) => (
   </div>
 );
 
-const TabHeader = ({ title, subtitle, color, icon, isGavel }: any) => (
+const TabHeader = ({ title, subtitle, color, icon, iconName, iconSrc, isGavel }: any) => (
   <div style={{ padding: '0 20px', background: 'linear-gradient(180deg, #FAF0E6 0%, #ffffff 100%)', paddingTop: '16px' }}>
     <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '16px' }}>
       <div style={{ flex: 1, paddingTop: '13px' }}>
@@ -224,7 +222,7 @@ const TabHeader = ({ title, subtitle, color, icon, isGavel }: any) => (
         <Text display="block" color="#191F28" typography="t7" fontWeight="regular">{subtitle}</Text>
       </div>
       <div style={{ marginLeft: '16px' }}>
-        {isGavel ? <Asset.Icon frameShape={Asset.frameShape.CleanW60} name="icon-gavel" style={{ width: '80px', height: '80px' }} /> : <img src={icon} alt={title} style={{ width: '80px', height: '80px', objectFit: 'contain' }} />}
+        {isGavel ? <Asset.Icon frameShape={Asset.frameShape.CleanW60} name="icon-gavel" style={{ width: '80px', height: '80px' }} /> : iconSrc ? <Asset.Image frameShape={Asset.frameShape.CleanW60} src={iconSrc} style={{ width: '80px', height: '80px' }} /> : iconName ? <Asset.Icon frameShape={Asset.frameShape.CleanW60} name={iconName} style={{ width: '80px', height: '80px' }} /> : icon ? <img src={icon} alt={title} style={{ width: '80px', height: '80px', objectFit: 'contain' }} /> : null}
       </div>
     </div>
     <div style={{ height: '1px', borderTop: '1px solid #F0F0F0', marginLeft: '-20px', marginRight: '-20px', width: 'calc(100% + 40px)' }} />

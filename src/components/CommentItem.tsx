@@ -2,7 +2,6 @@ import { memo, useState } from 'react';
 import { Asset, Text } from '@toss/tds-mobile';
 import { Timestamp } from 'firebase/firestore';
 import type { CommentDocument, ReplyDocument, CaseDocument } from '../api/cases';
-import replyArrowIcon from '../assets/arrow.svg';
 
 const formatDate = (timestamp: Timestamp): string => {
   if (!timestamp) return '';
@@ -133,7 +132,7 @@ const CommentItem = memo(({
 
       {comment.replies?.map((reply) => (
         <div key={reply.id} style={{ display: 'flex', alignItems: 'flex-start', marginTop: '12px', gap: '8px', marginLeft: '24px' }}>
-          <div style={{ marginTop: '10px' }}><img src={replyArrowIcon} alt="arrow" style={{ width: '20px', height: '20px', objectFit: 'contain' }} /></div>
+          <div style={{ marginTop: '10px' }}><Asset.Icon frameShape={{ width: 20, height: 20 }} backgroundColor="transparent" name="icon-enter-right-round-mono" color="#9E9E9E" aria-hidden={true} ratio="1/1" /></div>
           <div style={{ flex: 1, padding: '10px 12px', backgroundColor: '#fff', borderRadius: '8px', border: '1px solid #e0e0e0', position: 'relative' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '6px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>

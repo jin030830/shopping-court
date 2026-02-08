@@ -452,7 +452,7 @@ function PointMissionPage() {
             오늘의 판결 업무
           </Text>
         </div>
-        <div style={{ width: '100%', height: '1px', backgroundColor: '#ccb284', opacity: 0.6, marginBottom: '11px' }} />
+        <div style={{ width: 'calc(100% - 40px)', height: '1px', backgroundColor: '#ccb284', opacity: 0.6, marginBottom: '11px', marginLeft: 'auto', marginRight: 'auto' }} />
         <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'flex-start', padding: '0 10px', marginBottom: '10px', gap: '80px' }}>
           {/* 왼쪽: 판사봉 정보 (develop 반영) */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '11px', alignItems: 'center', marginTop: '8px', justifyContent: 'flex-start' }}>

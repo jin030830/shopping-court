@@ -3,7 +3,6 @@ import { useEffect, useState, useMemo, useRef } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import { Asset, Text } from '@toss/tds-mobile';
 import { adaptive } from '@toss/tds-colors';
-import smileIcon from '../assets/smile.png';
 import { 
   getCase, 
   getUserVote, 
@@ -319,7 +318,20 @@ function CaseDetailPage() {
   // --- 비즈니스 로직 핸들러 ---
 
   const handleLikeComment = async (commentId: string) => {
-    if (!id || !user || !isVerified || !hasVoted || post?.status === 'CLOSED' || likedComments.has(commentId)) return;
+    if (!id || !user || !isVerified || post?.status === 'CLOSED') return;
+    
+    // 투표 안한 경우
+    if (!hasVoted) {
+      alert('투표 후 공감할 수 있습니다!');
+      return;
+    }
+    
+    // 이미 공감한 경우
+    if (likedComments.has(commentId)) {
+      alert('이미 공감한 댓글입니다!');
+      return;
+    }
+    
     try {
       await addCommentLike(id, commentId);
       queryClient.invalidateQueries({ queryKey: caseKeys.comments(id!) });
@@ -330,9 +342,22 @@ function CaseDetailPage() {
   };
 
   const handleLikeReply = async (commentId: string, replyId: string) => {
-    if (!id || !user || !isVerified || !hasVoted || post?.status === 'CLOSED') return;
+    if (!id || !user || !isVerified || post?.status === 'CLOSED') return;
+    
+    // 투표 안한 경우
+    if (!hasVoted) {
+      alert('투표 후 공감할 수 있습니다!');
+      return;
+    }
+    
     const likeKey = `${commentId}_${replyId}`;
-    if (likedComments.has(likeKey)) return;
+    
+    // 이미 공감한 경우
+    if (likedComments.has(likeKey)) {
+      alert('이미 공감한 댓글입니다!');
+      return;
+    }
+    
     try {
       await addReplyLike(id, commentId, replyId);
       queryClient.invalidateQueries({ queryKey: caseKeys.comments(id!) });
@@ -393,12 +418,12 @@ function CaseDetailPage() {
       <div style={{ padding: '0 13px', width: '100%', boxSizing: 'border-box' }}>
         <div style={{ backgroundColor: 'white', padding: '2px 13px 16px 13px', borderRadius: '12px', width: '100%', boxSizing: 'border-box', maxWidth: '100%', overflow: 'hidden', position: 'relative' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0px', marginLeft: '-8px', marginTop: '4px' }}>
-              <img src={smileIcon} alt="smile" style={{ width: '36px', height: '36px', objectFit: 'contain' }} />
+            <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginLeft: '0px', marginTop: '10px' }}>
+              <Asset.Image frameShape={{ width: 20, height: 20 }} backgroundColor="transparent" src="https://static.toss.im/ml-product/tosst-inapp_tdvjdh3nb4l5yg4xp9a734u4.png" aria-hidden={true} style={{ aspectRatio: '1/1' }} />
               <span style={{ color: '#666', fontSize: '13px' }}>피고인 {post.authorNickname.replace(/^배심원/, '')}님</span>
             </div>
             
-            <div style={{ position: 'relative' }} ref={postMenuRef}>
+            <div style={{ position: 'relative', marginTop: '8px' }} ref={postMenuRef}>
               <button onClick={() => setShowPostMenu(!showPostMenu)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 <Asset.Icon frameShape={Asset.frameShape.CleanW20} name="icon-dots-mono" color="rgba(0, 19, 43, 0.58)" />
               </button>
@@ -417,8 +442,8 @@ function CaseDetailPage() {
             </div>
           </div>
 
-          <h2 style={{ color: '#191F28', fontSize: '20px', fontWeight: '700', marginBottom: '6px', textAlign: 'center' }}>{post.title}</h2>
-          <p style={{ color: '#191F28', fontSize: '15px', fontWeight: '400', marginBottom: '20px', lineHeight: '1.6', textAlign: 'left' }}>{post.content}</p>
+          <h2 style={{ color: '#191F28', fontSize: '20px', fontWeight: '700', marginBottom: '6px', textAlign: 'center'}}>{post.title}</h2>
+          <p style={{ color: '#191F28', fontSize: '15px', fontWeight: '400', marginBottom: '20px', lineHeight: '1.6', textAlign: 'left', paddingLeft: '8px' }}>{post.content}</p>
 
           <div style={{ position: 'relative', marginBottom: '26px' }}>
             <div style={{ display: 'flex', gap: '12px' }}>
