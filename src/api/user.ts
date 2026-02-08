@@ -137,7 +137,8 @@ export async function createOrUpdateUser(
         updatedAt: serverTimestamp() as any
       };
       await setDoc(userRef, newUser);
-      return newUser;
+      const finalDoc = await getDoc(userRef);
+      return finalDoc.data() as UserDocument;
     }
   } catch (error) {
     console.error('사용자 문서 저장 실패:', error)

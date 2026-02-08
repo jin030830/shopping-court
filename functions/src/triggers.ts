@@ -126,9 +126,17 @@ const recalculateHotScore = async (caseId: string): Promise<void> => {
 const updateCommentCount = async (caseId: string, delta: number) => {
   const db = getDb();
   const caseRef = db.collection('cases').doc(caseId);
-  await caseRef.update({
-    commentCount: admin.firestore.FieldValue.increment(delta)
-  });
+  
+  try {
+    const caseDoc = await caseRef.get();
+    if (!caseDoc.exists) return; // 게시물이 이미 없으면 업데이트 안함
+
+    await caseRef.update({
+      commentCount: admin.firestore.FieldValue.increment(delta)
+    });
+  } catch (error) {
+    functions.logger.warn(`Failed to update comment count for ${caseId} (may be already deleted)`);
+  }
 };
 
 export const onCaseCreate = functions.region('asia-northeast3')
@@ -188,6 +196,12 @@ export const onVoteDelete = functions.region('asia-northeast3')
       const db = getDb();
       const caseRef = db.collection('cases').doc(context.params.caseId);
       
+      const caseDoc = await caseRef.get();
+      if (!caseDoc.exists) {
+        functions.logger.log(`Case ${context.params.caseId} already deleted, skipping count update.`);
+        return;
+      }
+
       // 삭제 시에는 클라이언트에서 처리하기 어려우므로 트리거에서 차감 유지
       if (data.vote === 'guilty') {
         await caseRef.update({ guiltyCount: admin.firestore.FieldValue.increment(-1) });
