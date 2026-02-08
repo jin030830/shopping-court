@@ -1,7 +1,7 @@
 import { useNavigate, useLocation, useNavigationType } from 'react-router-dom';
 import { Asset, Text, Spacing } from '@toss/tds-mobile';
 import { useState, useEffect, useRef, useCallback, memo } from 'react';
-import { getCasesPaginated, type CaseDocument } from '../api/cases';
+import { getCasesPaginated, getHotCases, type CaseDocument } from '../api/cases';
 import { Timestamp } from 'firebase/firestore';
 import { adaptive } from '@toss/tds-colors';
 import scaleIcon from '../assets/scale.svg';
@@ -77,20 +77,18 @@ function HomePage() {
   });
 
   // Query for 'HOT 게시판' (상위 3개)
-  const { data: hotCases, isLoading: isLoadingHot, error: hotError } = useQuery<any[], Error>({
+  const { data: hotCases, isLoading: isLoadingHot, error: hotError } = useQuery<CaseDocument[], Error>({
     queryKey: ['cases', 'HOT'],
-    queryFn: async () => {
-      const res = await getCasesPaginated({ status: 'OPEN', limitCount: 20 });
-      return res.cases.map(p => ({ ...p, hotScore: (p.guiltyCount || 0) + (p.innocentCount || 0) + (2 * (p.commentCount || 0)) }))
-        .filter(p => p.hotScore > 0).sort((a, b) => b.hotScore - a.hotScore).slice(0, 3);
-    },
+    // [Optimization] 서버 사이드 정렬 및 Limit 적용 (읽기 비용 20 -> 3으로 감소)
+    queryFn: () => getHotCases(3),
     enabled: selectedTab === 'HOT 게시판'
   });
 
   // Query for '재판 완료' 대시보드
   const { data: completedDashboard, isLoading: isLoadingCompleted, error: completedError } = useQuery<{ cases: CaseDocument[] }, Error>({
     queryKey: ['cases', 'CLOSED', 'dashboard'],
-    queryFn: () => getCasesPaginated({ status: 'CLOSED', limitCount: 20 }) as any,
+    // [Chore] 대시보드용이므로 limit을 10으로 축소하여 비용 절감
+    queryFn: () => getCasesPaginated({ status: 'CLOSED', limitCount: 10 }) as any,
     enabled: selectedTab === '재판 완료'
   });
 
@@ -226,8 +224,9 @@ const FabItem = ({ onClick, icon, label, delay }: any) => (
 function CompletedPostListMain({ posts, navigate }: any) {
   const processed = posts.map((p: any) => {
     const vc = (p.guiltyCount || 0) + (p.innocentCount || 0);
-    return { ...p, verdict: vc > 0 ? (p.innocentCount > p.guiltyCount ? '무죄' : p.guiltyCount > p.innocentCount ? '유죄' : '보류') : '보류', hotScore: vc + (2 * (p.commentCount || 0)) };
+    return { ...p, verdict: vc > 0 ? (p.innocentCount > p.guiltyCount ? '무죄' : p.guiltyCount > p.innocentCount ? '유죄' : '보류') : '보류', hotScore: p.hotScore || (vc + (2 * (p.commentCount || 0))) };
   });
+  // 대시보드용 정렬 (DB에서 limit 10으로 가져온 데이터 중 상위 5개씩 슬라이스)
   const hot = processed.filter((p: any) => p.hotScore > 0).sort((a: any, b: any) => b.hotScore - a.hotScore).slice(0, 5);
   const prev = [...processed].sort((a: any, b: any) => (b.voteEndAt?.toMillis() || 0) - (a.voteEndAt?.toMillis() || 0)).slice(0, 5);
 

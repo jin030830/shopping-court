@@ -3,9 +3,7 @@ import * as admin from "firebase-admin";
 import axios from "axios";
 import { 
   getTossApiConfig, 
-  createMtlsAgent, 
-  getPromotionKey, 
-  executePromotion 
+  createMtlsAgent
 } from "./toss";
 
 // Firebase Admin 초기화
@@ -66,7 +64,13 @@ export const requestPromotionReward = functions
     timeoutSeconds: 60,
     memory: "512MB"
   })
-  .https.onCall(async (data: { promotionCode: string }, context) => {
+  .https.onCall(async (data: { promotionCode: string; isWarmUp?: boolean }, context) => {
+    // 0. Warm-up 요청 처리
+    if (data.isWarmUp) {
+      console.log(`[Warm-up] requestPromotionReward instance warmed up.`);
+      return { success: true, message: "warmed up" };
+    }
+
     // 1. 인증 확인
     if (!context.auth) {
       throw new functions.https.HttpsError(
@@ -74,6 +78,12 @@ export const requestPromotionReward = functions
         "로그인이 필요합니다."
       );
     }
+
+    // Lazy Loading: 필요한 모듈을 실제 로직 실행 시점에 임포트
+    const { 
+      getPromotionKey, 
+      executePromotion 
+    } = await import("./toss");
 
     const uid = context.auth.uid; // Firebase Auth UID
     const promotionCode = data.promotionCode;
