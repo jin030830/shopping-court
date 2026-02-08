@@ -261,11 +261,12 @@ function PointMissionPage() {
   const queryClient = useQueryClient();
   
   // [Optimization] 실시간 리스너 대신 React Query 사용
-  const { data: userData, isLoading: isUserLoading } = useQuery<UserDocument | null, Error>({
+  const { data: userData, isInitialLoading: isUserLoading } = useQuery<UserDocument | null, Error>({
     queryKey: ['user', user?.uid],
     queryFn: () => user ? getUserData(user) : null,
     enabled: !!user,
-    staleTime: 1000 * 60 * 5,
+    staleTime: 1000 * 60 * 30, // 30분간 캐시 유지 (재진입 시 즉시 표시)
+    gcTime: 1000 * 60 * 60,    // 1시간 동안 메모리에 캐시 유지
   });
 
   const [isClaiming, setIsClaiming] = useState(false);

@@ -1,77 +1,70 @@
-import { useCallback, useEffect, useState, useRef } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { GoogleAdMob } from '@apps-in-toss/web-framework';
 
+// 전역 상태 관리를 위한 모듈 레벨 변수 (Singleton)
+let globalIsLoaded = false;
+let globalIsLoading = false;
+let globalRetryCount = 0;
+const MAX_RETRY = 5;
+
 export const useTossRewardAd = (adUnitId: string) => {
-  const [isLoaded, setIsLoaded] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
-  const loadCleanupRef = useRef<(() => void) | null>(null);
-  const retryCountRef = useRef(0);
-  const MAX_RETRY = 5;
+  const [, setTick] = useState(0); // 로컬 상태 강제 리렌더링용
+  const forceUpdate = useCallback(() => setTick(t => t + 1), []);
 
   const load = useCallback(() => {
-    // 1. 지원 여부 확인
     if (!GoogleAdMob?.loadAppsInTossAdMob?.isSupported?.()) {
-      console.warn('[AdMob] 광고 로드를 지원하지 않는 환경입니다.');
+      console.warn('[AdMob] 광고 로드 미지원 환경');
       return;
     }
 
-    // 이미 로딩 중이거나 로드 완료된 경우 중복 호출 방지
-    if (isLoading || isLoaded) return;
+    if (globalIsLoading || globalIsLoaded) return;
 
     try {
-      console.log(`[AdMob] 광고 로드 시도: ${adUnitId}`);
-      setIsLoading(true);
+      console.log(`[AdMob] 광고 선제 로드 시작: ${adUnitId}`);
+      globalIsLoading = true;
+      forceUpdate();
 
       const cleanup = GoogleAdMob.loadAppsInTossAdMob({
         options: { adGroupId: adUnitId },
         onEvent: (event) => {
           console.log(`[AdMob] Load Event: ${event.type}`);
           if (event.type === 'loaded') {
-            setIsLoaded(true);
-            setIsLoading(false);
-            retryCountRef.current = 0; // 성공 시 재시도 횟수 초기화
-            
-            // 2. 가이드 준수: 로드 완료 시 즉시 cleanup 호출하여 리소스 정리
+            globalIsLoaded = true;
+            globalIsLoading = false;
+            globalRetryCount = 0;
+            forceUpdate();
             if (cleanup) cleanup();
           }
         },
         onError: (error) => {
           console.error('[AdMob] 광고 로드 실패:', error);
-          setIsLoaded(false);
-          setIsLoading(false);
+          globalIsLoaded = false;
+          globalIsLoading = false;
+          forceUpdate();
 
-          // 3. 자동 재시도 로직 (Exponential Backoff)
-          if (retryCountRef.current < MAX_RETRY) {
-            const delay = Math.pow(2, retryCountRef.current) * 1000;
-            console.log(`[AdMob] ${delay}ms 후 재시도 합니다. (횟수: ${retryCountRef.current + 1})`);
+          if (globalRetryCount < MAX_RETRY) {
+            const delay = Math.pow(2, globalRetryCount) * 1000;
             setTimeout(() => {
-              retryCountRef.current += 1;
+              globalRetryCount += 1;
               load();
             }, delay);
           }
         },
       });
-
-      loadCleanupRef.current = cleanup;
     } catch (e) {
-      console.error('[AdMob] loadAppsInTossAdMob 예외 발생:', e);
-      setIsLoading(false);
+      console.error('[AdMob] load 예외:', e);
+      globalIsLoading = false;
+      forceUpdate();
     }
-  }, [adUnitId, isLoaded, isLoading]);
+  }, [adUnitId, forceUpdate]);
 
   const show = useCallback((onRewardEarned: () => void, onDismiss?: () => void) => {
-    // 1. 지원 여부 확인
-    if (!GoogleAdMob?.showAppsInTossAdMob?.isSupported?.()) {
-      console.warn('[AdMob] 광고 노출을 지원하지 않는 환경입니다.');
-      return;
-    }
+    if (!GoogleAdMob?.showAppsInTossAdMob?.isSupported?.()) return;
 
-    // 로드되지 않은 경우 얼럿 표시 및 즉시 재로드 시도
-    if (!isLoaded) {
-      console.warn('[AdMob] 광고가 로드되지 않은 상태에서 show 호출');
+    if (!globalIsLoaded) {
+      console.warn('[AdMob] 광고 미준수 상태에서 노출 시도');
       alert('광고를 불러오는 중입니다. 잠시 후 다시 시도해 주세요.');
       load();
-      if (onDismiss) onDismiss();
       return;
     }
 
@@ -83,42 +76,37 @@ export const useTossRewardAd = (adUnitId: string) => {
         onEvent: (event) => {
           console.log(`[AdMob] Show Event: ${event.type}`, event.data);
           
-          // 가이드 준수: userEarnedReward 시점에만 보상 지급
           if (event.type === 'userEarnedReward') {
-            console.log('[AdMob] 보상 조건 충족');
             onRewardEarned();
           }
 
-          // 광고 종료 시 상태 초기화 및 다음 광고 예약 로드
           if (event.type === 'dismissed') {
-            setIsLoaded(false);
+            globalIsLoaded = false;
+            forceUpdate();
             if (cleanupShow) cleanupShow();
             if (onDismiss) onDismiss();
-            // 0.5초 뒤 다음 광고 미리 로드
-            setTimeout(() => load(), 500);
+            // [Zero-Wait] 광고 닫히자마자 다음 광고 즉시 충전
+            setTimeout(() => load(), 100);
           }
         },
         onError: (error) => {
           console.error('[AdMob] 광고 표시 에러:', error);
-          setIsLoaded(false);
+          globalIsLoaded = false;
+          forceUpdate();
           if (cleanupShow) cleanupShow();
           if (onDismiss) onDismiss();
           load();
         },
       });
     } catch (e) {
-      console.error('[AdMob] showAppsInTossAdMob 예외 발생:', e);
+      console.error('[AdMob] show 예외:', e);
       if (onDismiss) onDismiss();
     }
-  }, [adUnitId, isLoaded, load]);
+  }, [adUnitId, load, forceUpdate]);
 
   useEffect(() => {
-    // 최초 진입 시 로드
     load();
-    return () => {
-      if (loadCleanupRef.current) loadCleanupRef.current();
-    };
   }, [load]);
 
-  return { isLoaded, show };
+  return { isLoaded: globalIsLoaded, isLoading: globalIsLoading, show, load };
 };
