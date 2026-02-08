@@ -455,86 +455,141 @@ export const tossUnlinkCallback = functions
       }
 
       // userKey로 Firebase 사용자 찾기 및 삭제
-      // 참고: userKey는 토스에서 발급한 사용자 식별자이며, Firebase UID로 사용됩니다
       try {
-        console.log(`[Toss Unlink Callback] Attempting to find Firebase user: ${userKey}`);
-        const firebaseUser = await admin.auth().getUser(userKey);
-        
-        if (firebaseUser) {
-          console.log(`[Toss Unlink Callback] Firebase user found: ${userKey}, email: ${firebaseUser.email || 'N/A'}`);
-          
-          // Firebase Auth에서 사용자 삭제 (모든 세션 무효화)
-          // 이렇게 하면 클라이언트에서 자동으로 로그아웃됩니다
-          await admin.auth().deleteUser(userKey);
-          console.log(`[Toss Unlink Callback] ✅ Firebase Auth user deleted successfully: ${userKey}`);
-
-          // Firestore에서 사용자 관련 모든 데이터 삭제 시작
-          const db = admin.firestore();
-
-          // 1. 사용자가 작성한 게시물(cases) 삭제
-          const casesQuery = db.collection('cases').where('authorId', '==', userKey);
-          const casesSnapshot = await casesQuery.get();
-          console.log(`[Toss Unlink Callback] Found ${casesSnapshot.size} cases to delete`);
-          for (const doc of casesSnapshot.docs) {
-            await doc.ref.delete(); // 하위 컬렉션(votes, comments)은 트리거 또는 별도 로직으로 처리 필요할 수 있으나 여기서는 문서만 삭제
-          }
-
-          // 2. 사용자가 남긴 모든 투표(votes) 삭제 (Collection Group Query)
-          const votesQuery = db.collectionGroup('votes').where('userId', '==', userKey);
-          const votesSnapshot = await votesQuery.get();
-          console.log(`[Toss Unlink Callback] Found ${votesSnapshot.size} votes to delete`);
-          for (const doc of votesSnapshot.docs) {
-            await doc.ref.delete();
-          }
-
-          // 3. 사용자가 작성한 모든 댓글(comments) 삭제
-          const commentsQuery = db.collectionGroup('comments').where('authorId', '==', userKey);
-          const commentsSnapshot = await commentsQuery.get();
-          console.log(`[Toss Unlink Callback] Found ${commentsSnapshot.size} comments to delete`);
-          for (const doc of commentsSnapshot.docs) {
-            await doc.ref.delete();
-          }
-
-          // 4. 사용자가 작성한 모든 답글(replies) 삭제
-          const repliesQuery = db.collectionGroup('replies').where('authorId', '==', userKey);
-          const repliesSnapshot = await repliesQuery.get();
-          console.log(`[Toss Unlink Callback] Found ${repliesSnapshot.size} replies to delete`);
-          for (const doc of repliesSnapshot.docs) {
-            await doc.ref.delete();
-          }
-
-          // 5. Firestore의 users 컬렉션에서 사용자 프로필 삭제
-          try {
-            await db.collection('users').doc(userKey).delete();
-            console.log(`[Toss Unlink Callback] ✅ Firestore user data and all content deleted successfully: ${userKey}`);
-          } catch (firestoreError: any) {
-            console.warn(`[Toss Unlink Callback] ⚠️ Failed to delete Firestore user data: ${firestoreError.message}`);
-          }
-        } else {
-          console.log(`[Toss Unlink Callback] Firebase user not found: ${userKey}`);
-        }
+        console.log(`[Toss Unlink Callback] Attempting to delete Firebase Auth user: ${userKey}`);
+        await admin.auth().deleteUser(userKey);
+        console.log(`[Toss Unlink Callback] ✅ Firebase Auth user deleted successfully: ${userKey}`);
       } catch (authError: any) {
-        // 사용자가 존재하지 않는 경우도 정상 처리 (이미 삭제되었거나 없는 경우)
         if (authError.code === 'auth/user-not-found') {
-          console.log(`[Toss Unlink Callback] ⚠️ Firebase user not found (already deleted?): ${userKey}`);
+          console.log(`[Toss Unlink Callback] ⚠️ Auth user already deleted or not found: ${userKey}`);
         } else {
-          console.error(`[Toss Unlink Callback] ❌ Error deleting Firebase user:`, {
-            code: authError.code,
-            message: authError.message,
-            stack: authError.stack
-          });
-          // 에러가 발생해도 200 응답 (토스에 성공으로 알림하여 재시도 방지)
+          console.error(`[Toss Unlink Callback] ❌ Error deleting Auth user:`, authError);
         }
       }
 
-      // 성공 응답
-      // 참고: 토스는 200 응답을 받으면 성공으로 간주합니다
-      console.log(`[Toss Unlink Callback] ✅ Successfully processed unlink request`);
+      // Firestore에서 사용자 관련 모든 데이터 삭제 시작 (각 단계 독립 처리)
+      const db = admin.firestore();
+      const affectedCaseIds = new Set<string>();
+
+      // 1. 사용자가 작성한 게시물(cases) 삭제
+      try {
+        const casesQuery = db.collection('cases').where('authorId', '==', userKey);
+        const casesSnapshot = await casesQuery.get();
+        console.log(`[Toss Unlink Callback] Found ${casesSnapshot.size} cases to delete`);
+        for (const doc of casesSnapshot.docs) {
+          await doc.ref.delete();
+        }
+      } catch (e) {
+        console.error(`[Toss Unlink Callback] Error deleting cases:`, e);
+      }
+
+      // 2. 사용자가 남긴 모든 투표(votes) 삭제
+      try {
+        const votesQuery = db.collectionGroup('votes').where('userId', '==', userKey);
+        const votesSnapshot = await votesQuery.get();
+        console.log(`[Toss Unlink Callback] Found ${votesSnapshot.size} votes to delete`);
+        for (const doc of votesSnapshot.docs) {
+          const caseId = doc.ref.parent.parent?.id;
+          if (caseId) affectedCaseIds.add(caseId);
+          await doc.ref.delete();
+        }
+      } catch (e) {
+        console.error(`[Toss Unlink Callback] Error deleting votes:`, e);
+      }
+
+      // 3. 사용자가 작성한 모든 댓글(comments) 삭제
+      try {
+        const commentsQuery = db.collectionGroup('comments').where('authorId', '==', userKey);
+        const commentsSnapshot = await commentsQuery.get();
+        console.log(`[Toss Unlink Callback] Found ${commentsSnapshot.size} comments to delete`);
+        for (const doc of commentsSnapshot.docs) {
+          const caseId = doc.ref.parent.parent?.id;
+          if (caseId) affectedCaseIds.add(caseId);
+          await doc.ref.delete();
+        }
+      } catch (e) {
+        console.error(`[Toss Unlink Callback] Error deleting comments:`, e);
+      }
+
+      // 4. 사용자가 작성한 모든 답글(replies) 삭제
+      try {
+        const repliesQuery = db.collectionGroup('replies').where('authorId', '==', userKey);
+        const repliesSnapshot = await repliesQuery.get();
+        console.log(`[Toss Unlink Callback] Found ${repliesSnapshot.size} replies to delete`);
+        for (const doc of repliesSnapshot.docs) {
+          const caseId = doc.ref.parent.parent?.parent?.parent?.id;
+          if (caseId) affectedCaseIds.add(caseId);
+          await doc.ref.delete();
+        }
+      } catch (e) {
+        console.error(`[Toss Unlink Callback] Error deleting replies:`, e);
+      }
+
+      // 5. 사용자가 누른 '좋아요' 제거 및 카운트 차감 (댓글)
+      try {
+        const likedCommentsQuery = db.collectionGroup('comments').where('likedBy', 'array-contains', userKey);
+        const likedCommentsSnapshot = await likedCommentsQuery.get();
+        for (const doc of likedCommentsSnapshot.docs) {
+          const currentLikes = doc.data().likes || 0;
+          await doc.ref.update({
+            likedBy: admin.firestore.FieldValue.arrayRemove(userKey),
+            likes: Math.max(0, currentLikes - 1)
+          });
+        }
+      } catch (e) {
+        console.error(`[Toss Unlink Callback] Error removing likes from comments:`, e);
+      }
+
+      // 6. 사용자가 누른 '좋아요' 제거 및 카운트 차감 (답글)
+      try {
+        const likedRepliesQuery = db.collectionGroup('replies').where('likedBy', 'array-contains', userKey);
+        const likedRepliesSnapshot = await likedRepliesQuery.get();
+        for (const doc of likedRepliesSnapshot.docs) {
+          const currentLikes = doc.data().likes || 0;
+          await doc.ref.update({
+            likedBy: admin.firestore.FieldValue.arrayRemove(userKey),
+            likes: Math.max(0, currentLikes - 1)
+          });
+        }
+      } catch (e) {
+        console.error(`[Toss Unlink Callback] Error removing likes from replies:`, e);
+      }
+
+      // 7. 영향을 받은 게시물들 수치 최종 동기화 및 0 미만 방지
+      console.log(`[Toss Unlink Callback] Syncing ${affectedCaseIds.size} affected cases`);
+      for (const caseId of affectedCaseIds) {
+        try {
+          const caseRef = db.collection('cases').doc(caseId);
+          const caseDoc = await caseRef.get();
+          if (caseDoc.exists) {
+            const data = caseDoc.data();
+            await caseRef.update({
+              guiltyCount: Math.max(0, data?.guiltyCount || 0),
+              innocentCount: Math.max(0, data?.innocentCount || 0),
+              commentCount: Math.max(0, data?.commentCount || 0),
+              hotScore: Math.max(0, data?.hotScore || 0)
+            });
+          }
+        } catch (syncError) {
+          console.error(`[Toss Unlink Callback] Error syncing case ${caseId}:`, syncError);
+        }
+      }
+
+      // 8. 사용자 프로필 최종 삭제 (판사봉 등 모든 정보 삭제)
+      try {
+        await db.collection('users').doc(userKey).delete();
+        console.log(`[Toss Unlink Callback] ✅ Firestore user profile deleted: ${userKey}`);
+      } catch (firestoreError: any) {
+        console.error(`[Toss Unlink Callback] ❌ Failed to delete users document:`, firestoreError);
+      }
+
+      // 성공 응답 (토스 재시도 방지를 위해 무조건 200 반환)
+      console.log(`[Toss Unlink Callback] ✅ Cleanup process finished for ${userKey}`);
       res.status(200).json({ 
         success: true, 
         userKey,
         referrer: referrer || 'N/A',
-        message: 'User unlinked successfully'
+        message: 'Cleanup process completed'
       });
 
     } catch (error: any) {
