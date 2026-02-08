@@ -281,23 +281,94 @@ function CompletedPostListMain({ posts, navigate }: any) {
   );
 }
 
-const CompletedSection = ({ title, iconSrc, iconName, posts, onMore, renderCard }: any) => (
-  <div>
-    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 20px', marginBottom: '16px' }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-        {iconSrc ? <Asset.Image frameShape={Asset.frameShape.CleanW24} src={iconSrc} style={{ aspectRatio: '1/1' }} /> : <Asset.Icon frameShape={Asset.frameShape.CleanW24} name={iconName} ratio="1/1" />}
-        <Text display="block" color={adaptive.grey900} typography="t3" fontWeight="bold" style={{ fontSize: '22px' }}>{title}</Text>
+const CompletedSection = ({ title, iconSrc, iconName, posts, onMore, renderCard }: any) => {
+  const [showInfoPopup, setShowInfoPopup] = useState(false);
+  const infoPopupRef = useRef<HTMLDivElement>(null);
+  const isTrending = title === '화제의 재판 기록';
+  
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (infoPopupRef.current && !infoPopupRef.current.contains(event.target as Node)) {
+        setShowInfoPopup(false);
+      }
+    };
+    if (showInfoPopup) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showInfoPopup]);
+  
+  return (
+    <div>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 20px', marginBottom: '16px', position: 'relative' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          {iconSrc ? <Asset.Image frameShape={Asset.frameShape.CleanW24} src={iconSrc} style={{ aspectRatio: '1/1' }} /> : <Asset.Icon frameShape={Asset.frameShape.CleanW24} name={iconName} ratio="1/1" />}
+          <Text display="block" color={adaptive.grey900} typography="t3" fontWeight="bold" style={{ fontSize: '22px' }}>{title}</Text>
+          {isTrending && (
+            <div ref={infoPopupRef} style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', marginLeft: '4px' }}>
+              <div 
+                onClick={() => setShowInfoPopup(!showInfoPopup)} 
+                style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+              >
+                <Asset.Icon
+                  frameShape={Asset.frameShape.CleanW16}
+                  backgroundColor="transparent"
+                  name="icon-info-circle-mono"
+                  color="#9E9E9E"
+                  aria-hidden={true}
+                  ratio="1/1"
+                />
+              </div>
+              {showInfoPopup && (
+                <div style={{ 
+                  position: 'absolute', 
+                  left: '50%',
+                  bottom: '100%',
+                  transform: 'translateX(-50%)',
+                  marginBottom: '8px',
+                  backgroundColor: 'white', 
+                  padding: '8px 12px', 
+                  borderRadius: '8px', 
+                  boxShadow: '0px 2px 8px rgba(0, 0, 0, 0.15)', 
+                  zIndex: 1002, 
+                  whiteSpace: 'nowrap',
+                  fontSize: '13px',
+                  color: '#191F28',
+                  display: 'inline-block',
+                  lineHeight: '1.4'
+                }}>
+                  <Text color="#191F28" typography="t7" fontWeight="medium" style={{ fontSize: '13px', whiteSpace: 'nowrap', display: 'inline' }}>
+                    특히 많은 관심을 받았던 사건들이에요
+                  </Text>
+                  <div style={{
+                    position: 'absolute',
+                    bottom: '-6px',
+                    left: '50%',
+                    transform: 'translateX(-50%)',
+                    width: 0,
+                    height: 0,
+                    borderLeft: '6px solid transparent',
+                    borderRight: '6px solid transparent',
+                    borderTop: '6px solid white'
+                  }} />
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+        <button onClick={onMore} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px' }}>
+          <Asset.Icon frameShape={Asset.frameShape.CleanW24} name="icon-arrow-left-big-mono" color="#9E9E9E" />
+        </button>
       </div>
-      <button onClick={onMore} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px' }}>
-        <Asset.Icon frameShape={Asset.frameShape.CleanW24} name="icon-arrow-left-big-mono" color="#9E9E9E" />
-      </button>
-    </div>
     {posts.length > 0 ? (
       <div style={{ overflowX: 'auto', padding: '0 20px', WebkitOverflowScrolling: 'touch' }}>
         <div style={{ display: 'flex', flexDirection: 'row', gap: '0', paddingRight: '20px' }}>{posts.map(renderCard)}</div>
       </div>
     ) : <div style={{ padding: '20px', textAlign: 'center' }}><Text color="#6B7684">{title}이 없습니다.</Text></div>}
-  </div>
-);
+    </div>
+  );
+};
 
 export default HomePage;

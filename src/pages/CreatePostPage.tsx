@@ -83,7 +83,7 @@ function CreatePostPage() {
 
   const handleSubmit = async () => {
     if (isSubmitting) return;
-    if (!user || !userData) { alert('로그인이 필요합니다.'); login(); return; }
+    if (!user || !userData) { alert('로그인이 필요해요.'); login(); return; }
     if (!title.trim() || !content.trim()) { alert('제목과 내용을 모두 입력해주세요.'); return; }
     setShowAdPopup(true);
   };

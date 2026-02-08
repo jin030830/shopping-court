@@ -1,9 +1,6 @@
-import { useNavigate } from 'react-router-dom';
-import { Asset, Text, Spacing } from '@toss/tds-mobile';
-import { adaptive } from '@toss/tds-colors';
+import { Text, Spacing } from '@toss/tds-mobile';
 
 function StaticTermsPage() {
-  const navigate = useNavigate();
   
   return (
     <div style={{ 
@@ -13,43 +10,6 @@ function StaticTermsPage() {
       boxSizing: 'border-box'
     }}>
       <Spacing size={14} />
-      <div style={{ 
-        display: 'flex', 
-        alignItems: 'center',
-        padding: '14px 20px',
-        backgroundColor: 'white',
-        width: '100%',
-        boxSizing: 'border-box'
-      }}>
-        <button
-          onClick={() => {
-            if (window.history.length > 1) {
-              navigate(-1);
-            } else {
-              navigate('/', { replace: true });
-            }
-          }}
-          style={{
-            background: 'none',
-            border: 'none',
-            cursor: 'pointer',
-            padding: '4px',
-            display: 'flex',
-            alignItems: 'center'
-          }}
-        >
-          <Asset.Icon
-            frameShape={Asset.frameShape.CleanW20}
-            name="icon-arrow-left-mono"
-            color="#191F28"
-            aria-label="뒤로가기"
-          />
-        </button>
-        <Spacing size={8} />
-        <Text color={adaptive.grey900} typography="t6" fontWeight="semibold">
-          뒤로가기
-        </Text>
-      </div>
       
       <div style={{ 
         padding: '20px',
