@@ -28,8 +28,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { caseKeys } from '../constants/queryKeys';
 import CountdownTimer from '../components/CountdownTimer';
 import CommentItem from '../components/CommentItem';
-import { Timestamp, doc, onSnapshot, collection, query, orderBy } from 'firebase/firestore';
-import { db } from '../api/firebase';
+import { Timestamp } from 'firebase/firestore';
 
 // UI용 댓글 타입 (대댓글 포함)
 interface CommentWithReplies extends CommentDocument {
@@ -43,43 +42,6 @@ function CaseDetailPage() {
   const queryClient = useQueryClient();
   const { user, userData, login, isVerified } = useAuth();
   
-  // [실시간 리스너] 게시물 & 댓글 즉시 업데이트
-  useEffect(() => {
-    if (!id || !db) return;
-
-    // 1. 게시물 실시간 연동 (투표수 등)
-    const unsubscribePost = onSnapshot(doc(db, 'cases', id), (snapshot) => {
-      if (snapshot.exists()) {
-        const postData = { id: snapshot.id, ...snapshot.data() };
-        queryClient.setQueryData(caseKeys.detail(id), postData);
-      } else {
-        queryClient.setQueryData(caseKeys.detail(id), null);
-      }
-    });
-
-    // 2. 댓글 실시간 연동 (댓글 목록 즉시 반영)
-    const commentsQuery = query(collection(db, 'cases', id, 'comments'), orderBy('createdAt', 'asc'));
-    const unsubscribeComments = onSnapshot(commentsQuery, (snapshot) => {
-      const currentComments = queryClient.getQueryData<CommentWithReplies[]>(caseKeys.comments(id)) || [];
-      
-      const newComments = snapshot.docs.map(doc => {
-        const existing = currentComments.find((c: CommentWithReplies) => c.id === doc.id);
-        return { 
-          id: doc.id, 
-          ...doc.data(), 
-          replies: existing?.replies || [] 
-        } as CommentWithReplies;
-      });
-      
-      queryClient.setQueryData(caseKeys.comments(id), newComments);
-    });
-
-    return () => {
-      unsubscribePost();
-      unsubscribeComments();
-    };
-  }, [id, queryClient]);
-
   const initialFromTab = (location.state as { fromTab?: string })?.fromTab || '재판 중';
   const [fromTab] = useState<string>(initialFromTab);
   
@@ -102,15 +64,16 @@ function CaseDetailPage() {
     }
   };
 
-  // [Query] 게시물 상세 정보 (기본 로딩용)
+  // [Query] 게시물 상세 정보 (진입 시마다 최신화)
   const { data: post, isInitialLoading: isLoadingPost } = useQuery<CaseDocument | null, Error>({
     queryKey: caseKeys.detail(id!),
     queryFn: () => (id ? getCase(id) : Promise.resolve(null)),
     enabled: !!id,
-    staleTime: 1000 * 60 * 5,
+    staleTime: 0, 
+    refetchOnWindowFocus: true,
   });
 
-  // [Query] 댓글 및 대댓글 통합 정보 (대댓글은 30초마다 자동 갱신)
+  // [Query] 댓글 및 대댓글 통합 정보
   const { data: comments = [] } = useQuery<CommentWithReplies[], Error>({
     queryKey: caseKeys.comments(id!),
     queryFn: async () => {
@@ -124,8 +87,8 @@ function CaseDetailPage() {
       );
     },
     enabled: !!id,
-    staleTime: 1000 * 60 * 2,
-    refetchInterval: 30000,
+    staleTime: 0,
+    refetchOnWindowFocus: true,
   });
 
   // [Query] 현재 사용자의 투표 상태 확인
