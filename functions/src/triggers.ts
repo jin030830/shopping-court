@@ -110,14 +110,19 @@ const recalculateHotScore = async (caseId: string): Promise<void> => {
 
   if (!data) return;
 
-  const guiltyCount = data.guiltyCount || 0;
-  const innocentCount = data.innocentCount || 0;
-  const commentCount = data.commentCount || 0;
+  const guiltyCount = Math.max(0, data.guiltyCount || 0);
+  const innocentCount = Math.max(0, data.innocentCount || 0);
+  const commentCount = Math.max(0, data.commentCount || 0);
   
   const voteCount = guiltyCount + innocentCount;
   const hotScore = voteCount + (commentCount * 2);
 
-  await caseRef.update({ hotScore });
+  await caseRef.update({ 
+    guiltyCount, 
+    innocentCount, 
+    commentCount, 
+    hotScore 
+  });
 };
 
 /**
@@ -131,8 +136,9 @@ const updateCommentCount = async (caseId: string, delta: number) => {
     const caseDoc = await caseRef.get();
     if (!caseDoc.exists) return; // 게시물이 이미 없으면 업데이트 안함
 
+    const currentCount = caseDoc.data()?.commentCount || 0;
     await caseRef.update({
-      commentCount: admin.firestore.FieldValue.increment(delta)
+      commentCount: Math.max(0, currentCount + delta)
     });
   } catch (error) {
     functions.logger.warn(`Failed to update comment count for ${caseId} (may be already deleted)`);
@@ -203,10 +209,17 @@ export const onVoteDelete = functions.region('asia-northeast3')
       }
 
       // 삭제 시에는 클라이언트에서 처리하기 어려우므로 트리거에서 차감 유지
+      const currentGuilty = caseDoc.data()?.guiltyCount || 0;
+      const currentInnocent = caseDoc.data()?.innocentCount || 0;
+
       if (data.vote === 'guilty') {
-        await caseRef.update({ guiltyCount: admin.firestore.FieldValue.increment(-1) });
+        await caseRef.update({ 
+          guiltyCount: Math.max(0, currentGuilty - 1) 
+        });
       } else {
-        await caseRef.update({ innocentCount: admin.firestore.FieldValue.increment(-1) });
+        await caseRef.update({ 
+          innocentCount: Math.max(0, currentInnocent - 1) 
+        });
       }
       await recalculateHotScore(context.params.caseId);
     } catch (error) {
