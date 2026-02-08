@@ -547,7 +547,7 @@ function PointMissionPage() {
             left: 0,
             right: 0,
             bottom: 0,
-            backgroundColor: 'rgba(188, 188, 188, 0.8)',
+            backgroundColor: 'rgba(0, 0, 0, 0.6)',
             display: 'flex',
             alignItems: 'flex-end',
             justifyContent: 'center',
@@ -620,15 +620,22 @@ function PointMissionPage() {
             </Button>
 
             {/* 돌아가기 버튼 */}
-            <Button
-              size="large"
-              color="light"
-              display="block"
+            <button
               onClick={handleRewardCancel}
-              style={{ width: '100%' }}
+              style={{ 
+                width: '100%', 
+                padding: '16px', 
+                backgroundColor: '#F2F4F6', 
+                color: '#191F28', 
+                border: 'none', 
+                borderRadius: '12px', 
+                fontSize: '16px', 
+                fontWeight: '600', 
+                cursor: 'pointer' 
+              }}
             >
               돌아가기
-            </Button>
+            </button>
           </div>
         </div>
       )}

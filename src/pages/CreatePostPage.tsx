@@ -567,15 +567,22 @@ function CreatePostPage() {
             </Button>
 
             {/* 돌아가기 버튼 */}
-            <Button
-              size="large"
-              color="light"
-              display="block"
+            <button
               onClick={handleAdCancel}
-              style={{ width: '100%' }}
+              style={{ 
+                width: '100%', 
+                padding: '16px', 
+                backgroundColor: '#F2F4F6', 
+                color: '#191F28', 
+                border: 'none', 
+                borderRadius: '12px', 
+                fontSize: '16px', 
+                fontWeight: '600', 
+                cursor: 'pointer' 
+              }}
             >
               돌아가기
-            </Button>
+            </button>
           </div>
         </div>
       )}
