@@ -6,6 +6,16 @@ import ErrorBoundary from './components/ErrorBoundary';
 import { ThemeProvider } from '@toss/tds-mobile';
 import './index.css';
 import './api/firebase'; // 에뮬레이터 연결 로직을 포함하므로 import 유지
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      refetchOnWindowFocus: false,
+      retry: 1,
+    },
+  },
+});
 
 const rootElement = document.getElementById('root')!;
 const root = ReactDOM.createRoot(rootElement);
@@ -27,13 +37,15 @@ async function renderApp() {
     root.render(
       <React.StrictMode>
         <ErrorBoundary>
-          <ThemeProvider>
-            <BrowserRouter>
-              <AuthProvider>
-                <App />
-              </AuthProvider>
-            </BrowserRouter>
-          </ThemeProvider>
+          <QueryClientProvider client={queryClient}>
+            <ThemeProvider>
+              <BrowserRouter>
+                <AuthProvider>
+                  <App />
+                </AuthProvider>
+              </BrowserRouter>
+            </ThemeProvider>
+          </QueryClientProvider>
         </ErrorBoundary>
       </React.StrictMode>
     );

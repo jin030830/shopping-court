@@ -1,371 +1,99 @@
 import { useNavigate } from 'react-router-dom';
 import { Asset, Text, Spacing } from '@toss/tds-mobile';
-import { useState, useEffect } from 'react';
-import { getAllCases, type CaseDocument } from '../api/cases';
-import { Timestamp } from 'firebase/firestore';
+import { useRef, useCallback, memo } from 'react';
+import { getCasesByAuthorPaginated, type CaseDocument } from '../api/cases';
 import { adaptive } from '@toss/tds-colors';
 import { useAuth } from '../hooks/useAuth';
+import { useInfiniteQuery } from '@tanstack/react-query';
 
-// 단순 메모리 캐시
-let myPostsCache: CaseDocument[] | null = null;
+const MyPostItem = memo(({ post, navigate, showVerdict }: any) => {
+  let v: '무죄' | '유죄' | '보류' = '보류';
+  if (showVerdict && post.status === 'CLOSED') {
+    const ic = post.innocentCount || 0, gc = post.guiltyCount || 0;
+    v = ic > gc ? '무죄' : gc > ic ? '유죄' : '보류';
+  }
+  const bg = v === '무죄' ? '#E3F2FD' : v === '유죄' ? '#FFEBEE' : '#F2F4F6';
+  const co = v === '무죄' ? '#1976D2' : v === '유죄' ? '#D32F2F' : '#6B7684';
+  const d = post.createdAt ? post.createdAt.toDate() : new Date();
+  const ds = `${d.getMonth() + 1}/${d.getDate()} ${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}`;
+
+  return (
+    <div onClick={() => navigate(`/case/${post.id}`, { state: { fromTab: '내가 쓴 글' } })} style={{ padding: '16px 20px', borderBottom: '1px solid #F0F0F0', cursor: 'pointer', backgroundColor: 'white' }}>
+      {showVerdict && post.status === 'CLOSED' && (
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+          <div style={{ padding: '4px 10px', backgroundColor: bg, color: co, fontSize: '12px', fontWeight: '600', borderRadius: '4px' }}>{v}</div>
+          <Text color="#9E9E9E" typography="st13" style={{ fontSize: '14px' }}>{ds}</Text>
+        </div>
+      )}
+      <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', marginBottom: '4px' }}>
+        <Text display="block" color="#191F28" typography="t4" fontWeight="bold" style={{ flex: 1, textAlign: 'center', WebkitLineClamp: 2, display: '-webkit-box', WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{post.title}</Text>
+        {!showVerdict && post.status === 'OPEN' && <Text color="#9E9E9E" typography="st13" style={{ fontSize: '14px' }}>{ds}</Text>}
+      </div>
+      <div style={{ marginBottom: '8px', lineHeight: '1.5', color: '#191F28', fontSize: '14px', wordBreak: 'break-word' }}>{post.content && post.content.length > 50 ? `${post.content.substring(0, 50)}...` : post.content}</div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><Asset.Icon frameShape={{ width: 15, height: 15 }} name="icon-user-two-mono" color="#5e403b" /><Text color="#5e403b" typography="st13" style={{ fontSize: '14px' }}>{(post.guiltyCount || 0) + (post.innocentCount || 0)}</Text></div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '3px' }}><Asset.Icon frameShape={{ width: 15, height: 15 }} name="icon-chat-bubble-mono" color="#5E403Bff" /><Text color="#5e403b" typography="st13" style={{ fontSize: '14px' }}>{post.commentCount ?? 0}</Text></div>
+      </div>
+    </div>
+  );
+});
 
 function MyPostsPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
-  
-  // 데이터 가공 함수 (재사용)
-  const processPosts = (rawPosts: CaseDocument[]) => {
-    return rawPosts.map((post) => {
-      const actualCommentCount = post.commentCount || 0;
-      const voteCount = (post.guiltyCount || 0) + (post.innocentCount || 0);
-      return { ...post, commentCount: actualCommentCount, voteCount };
-    });
-  };
 
-  const [allPosts, setAllPosts] = useState<CaseDocument[]>(myPostsCache || []);
-  const [isLoading, setIsLoading] = useState(!myPostsCache);
-  // 캐시가 있으면 즉시 가공된 데이터로 시작하여 로딩 화면을 건너뜀
-  const [postsWithDetails, setPostsWithDetails] = useState<any[]>(() => processPosts(myPostsCache || []));
-  const [isLoadingDetails, setIsLoadingDetails] = useState(myPostsCache === null);
-
-  useEffect(() => {
-    const fetchCases = async () => {
-      try {
-        if (!myPostsCache) setIsLoading(true);
-        const cases = await getAllCases();
-        const myPosts = cases.filter(post => post.authorId === user?.uid);
-        setAllPosts(myPosts);
-        myPostsCache = myPosts;
-      } catch (err) {
-        console.error('게시물 로드 실패:', err);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    if (user?.uid) {
-      fetchCases();
-    }
-  }, [user?.uid]);
-
-  useEffect(() => {
-    const loadPostDetails = () => {
-      if (allPosts.length === 0) {
-        setIsLoadingDetails(false);
-        return;
-      }
-      
-      // 이미 위에서 초기화했거나 background에서 업데이트
-      const processed = processPosts(allPosts);
-      setPostsWithDetails(processed);
-      setIsLoadingDetails(false);
-    };
-
-    loadPostDetails();
-  }, [allPosts]);
-
-  // 재판 중인 글 (status === 'OPEN')
-  const inProgressPosts = postsWithDetails.filter(post => {
-    if (post.status !== 'OPEN') return false;
-    // 제목이 "0"이거나 공백만 있거나 빈 문자열인 경우 제외
-    const title = (post.title && typeof post.title === 'string') ? post.title.trim() : '';
-    return title !== '' && title !== '0';
+  const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading } = useInfiniteQuery<{ cases: CaseDocument[], lastDoc: any }, Error>({
+    queryKey: ['cases', 'USER', user?.uid],
+    queryFn: ({ pageParam }) => getCasesByAuthorPaginated(user!.uid, pageParam, 15),
+    getNextPageParam: (last) => last.cases.length === 15 ? last.lastDoc : undefined,
+    initialPageParam: null,
+    enabled: !!user?.uid
   });
-  
-  // 이전 재판 기록 (status === 'CLOSED')
-  const completedPosts = postsWithDetails.filter(post => post.status === 'CLOSED');
 
-  const formatDate = (timestamp: Timestamp | undefined) => {
-    if (!timestamp) return '';
-    const date = timestamp.toDate();
-    const month = date.getMonth() + 1;
-    const day = date.getDate();
-    const hours = date.getHours();
-    const minutes = date.getMinutes();
-    return `${month.toString().padStart(2, '0')}/${day.toString().padStart(2, '0')} ${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
-  };
+  const observer = useRef<IntersectionObserver | null>(null);
+  const lastElementRef = useCallback((node: any) => {
+    if (isLoading || isFetchingNextPage) return;
+    if (observer.current) observer.current.disconnect();
+    observer.current = new IntersectionObserver(entries => { if (entries[0].isIntersecting && hasNextPage) fetchNextPage(); });
+    if (node) observer.current.observe(node);
+  }, [isLoading, isFetchingNextPage, hasNextPage, fetchNextPage]);
 
-  const renderPostItem = (post: any, showVerdict: boolean = false) => {
-    // 재판 완료된 글의 경우 verdict 계산
-    let verdict: '무죄' | '유죄' | '보류' = '보류';
-    if (showVerdict && post.status === 'CLOSED') {
-      const innocentCount = post.innocentCount || 0;
-      const guiltyCount = post.guiltyCount || 0;
-      if (innocentCount > guiltyCount) {
-        verdict = '무죄';
-      } else if (guiltyCount > innocentCount) {
-        verdict = '유죄';
-      } else {
-        verdict = '보류';
-      }
-    }
-    
-    const badgeBgColor = verdict === '무죄' ? '#E3F2FD' : verdict === '유죄' ? '#FFEBEE' : '#F2F4F6';
-    const badgeTextColor = verdict === '무죄' ? '#1976D2' : verdict === '유죄' ? '#D32F2F' : '#6B7684';
-
-    return (
-      <div
-        key={post.id}
-        onClick={() => navigate(`/case/${post.id}`, { state: { fromTab: '내가 쓴 글' } })}
-        style={{
-          padding: '16px 20px',
-          borderBottom: '1px solid #F0F0F0',
-          cursor: 'pointer',
-          backgroundColor: 'white'
-        }}
-      >
-        {/* Verdict Badge와 날짜 - 재판 완료된 글 */}
-        {showVerdict && post.status === 'CLOSED' && (
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
-            <div style={{
-              padding: '4px 10px',
-              backgroundColor: badgeBgColor,
-              color: badgeTextColor,
-              fontSize: '12px',
-              fontWeight: '600',
-              borderRadius: '4px',
-              whiteSpace: 'nowrap',
-              minWidth: 'fit-content',
-              display: 'inline-block'
-            }}>
-              {verdict}
-            </div>
-            {post.createdAt && (
-              <Text color="#9E9E9E" typography="st13" fontWeight="regular" style={{ flexShrink: 0, whiteSpace: 'nowrap', fontSize: '14px' }}>
-                {formatDate(post.createdAt)}
-              </Text>
-            )}
-          </div>
-        )}
-
-        {/* 제목과 날짜 - 재판 중인 글 */}
-        {!showVerdict && post.status === 'OPEN' ? (
-          <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', marginBottom: '4px' }}>
-            <Text 
-              display="block" 
-              color="#191F28" 
-              typography="t4" 
-              fontWeight="bold"
-              style={{ 
-                flex: 1,
-                minWidth: 0,
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-                display: '-webkit-box',
-                WebkitLineClamp: 2,
-                WebkitBoxOrient: 'vertical',
-                fontSize: '18px',
-                lineHeight: '1.4',
-                textAlign: 'center'
-              }}
-            >
-              {post.title}
-            </Text>
-            {post.createdAt && (
-              <Text color="#9E9E9E" typography="st13" fontWeight="regular" style={{ flexShrink: 0, whiteSpace: 'nowrap', fontSize: '14px' }}>
-                {formatDate(post.createdAt)}
-              </Text>
-            )}
-          </div>
-        ) : (
-          <div style={{ marginBottom: '4px' }}>
-            <Text 
-              display="block" 
-              color="#191F28" 
-              typography="t4" 
-              fontWeight="bold"
-              style={{ 
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-                display: '-webkit-box',
-                WebkitLineClamp: 2,
-                WebkitBoxOrient: 'vertical',
-                fontSize: '18px',
-                lineHeight: '1.4',
-                textAlign: 'center'
-              }}
-            >
-              {post.title}
-            </Text>
-          </div>
-        )}
-
-        {/* 내용 미리보기 */}
-        <div
-          style={{ 
-            marginBottom: '8px',
-            lineHeight: '1.5',
-            color: '#191F28ff',
-            fontSize: '14px',
-            wordBreak: 'break-word',
-            textAlign: 'left'
-          }}
-        >
-          {post.content && post.content.length > 50 ? `${post.content.substring(0, 50)}...` : post.content}
-        </div>
-
-        {/* 통계 */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-            <Asset.Icon
-              frameShape={{ width: 15, height: 15 }}
-              backgroundColor="transparent"
-              name="icon-user-two-mono"
-              color="#5e403b"
-              aria-hidden={true}
-              ratio="1/1"
-            />
-            <Text color="#5e403b" typography="st13" fontWeight="medium" style={{ fontSize: '14px' }}>
-              {post.voteCount || 0}
-            </Text>
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
-            <Asset.Icon
-              frameShape={{ width: 15, height: 15 }}
-              backgroundColor="transparent"
-              name="icon-chat-bubble-mono"
-              color="#5E403Bff"
-              aria-hidden={true}
-              ratio="1/1"
-            />
-            <Text color="#5e403b" typography="st13" fontWeight="medium" style={{ fontSize: '14px' }}>
-              {post.commentCount ?? 0}
-            </Text>
-          </div>
-        </div>
-      </div>
-    );
-  };
+  const pages = data?.pages as any[];
+  const allPosts = pages?.flatMap(p => p.cases) || [];
+  const open = allPosts.filter(p => p.status === 'OPEN');
+  const closed = allPosts.filter(p => p.status === 'CLOSED');
 
   return (
-    <div style={{ 
-      backgroundColor: 'white', 
-      minHeight: '100vh',
-      width: '100%',
-      boxSizing: 'border-box'
-    }}>
-      {/* Header with gradient background */}
-      <div style={{ 
-        padding: '0 20px', 
-        marginBottom: '0px',
-        background: 'linear-gradient(180deg, #F7F3EEff 0%, #ffffff 100%)',
-        paddingTop: '16px',
-        paddingBottom: '0px',
-        marginTop: '0px'
-      }}>
-        <div style={{ 
-          display: 'flex', 
-          alignItems: 'flex-start', 
-          justifyContent: 'space-between',
-          marginBottom: '12px'
-        }}>
-          <div style={{ flex: 1, paddingTop: '6px' }}>
-            <Text 
-              display="block" 
-              color="#191F28" 
-              typography="t3" 
-              fontWeight="bold"
-              style={{ marginBottom: '8px', fontSize: '22px' }}
-            >
-              내가 쓴 글
-            </Text>
-            <Text 
-              display="block" 
-              color="#191F28" 
-              typography="t7" 
-              fontWeight="regular"
-              style={{ marginBottom: '0px' }}
-            >
-              내가 참여한 재판 현황을 한눈에 확인하세요
-            </Text>
-          </div>
-        </div>
+    <div style={{ backgroundColor: 'white', minHeight: '100vh', width: '100%', boxSizing: 'border-box' }}>
+      <div style={{ padding: '0 20px', background: 'linear-gradient(180deg, #F7F3EE 0%, #ffffff 100%)', paddingTop: '16px' }}>
+        <Text display="block" color="#191F28" typography="t3" fontWeight="bold" style={{ fontSize: '22px' }}>내가 쓴 글</Text>
+        <Text display="block" color="#191F28" typography="t7" fontWeight="regular">내가 참여한 재판 현황을 한눈에 확인하세요</Text>
       </div>
-
       <Spacing size={24} />
-
-      {/* 재판 중인 글 */}
-      <div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '0 20px', marginBottom: '16px' }}>
-          <Asset.Image
-            frameShape={Asset.frameShape.CleanW24}
-            backgroundColor="transparent"
-            src="https://static.toss.im/2d-emojis/png/4x/u2696.png"
-            aria-hidden={true}
-            style={{ aspectRatio: '1/1', width: '28px', height: '28px' }}
-          />
-          <Text color={adaptive.grey800} typography="t4" fontWeight="bold" style={{ fontSize: '20px' }}>
-            재판 중인 글
-          </Text>
-        </div>
-
-        {isLoading || isLoadingDetails ? (
-          <div style={{ padding: '40px', textAlign: 'center' }}>
-            <Text color="#6B7684">게시물을 불러오는 중...</Text>
-          </div>
-        ) : inProgressPosts.length === 0 ? (
-          <div style={{ padding: '40px', textAlign: 'center' }}>
-            <Text color="#6B7684">재판 중인 글이 없습니다.</Text>
-          </div>
-        ) : (
-          <>
-            {!isLoading && !isLoadingDetails && inProgressPosts.length > 0 && (
-              <div style={{ 
-                height: '1px', 
-                backgroundColor: '#F0F0F0', 
-                marginBottom: '0px',
-                width: '100%'
-              }} />
-            )}
-            {inProgressPosts.map(post => renderPostItem(post, false))}
-          </>
-        )}
-      </div>
-
+      <Section title="재판 중인 글" iconSrc="https://static.toss.im/2d-emojis/png/4x/u2696.png" posts={open} isLoading={isLoading} showVerdict={false} navigate={navigate} lastRef={closed.length === 0 ? lastElementRef : null} />
       <Spacing size={32} />
-
-      {/* 이전 재판 기록 */}
-      <div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '0 20px', marginBottom: '16px' }}>
-          <Asset.Icon
-            frameShape={Asset.frameShape.CleanW24}
-            backgroundColor="transparent"
-            name="icon-check-circle-mono"
-            color="#5e403b"
-            aria-hidden={true}
-            ratio="1/1"
-          />
-          <Text color={adaptive.grey800} typography="t4" fontWeight="bold" style={{ fontSize: '20px' }}>
-            이전 재판 기록
-          </Text>
-        </div>
-
-        {isLoading || isLoadingDetails ? (
-          <div style={{ padding: '40px', textAlign: 'center' }}>
-            <Text color="#6B7684">게시물을 불러오는 중...</Text>
-          </div>
-        ) : completedPosts.length === 0 ? (
-          <div style={{ padding: '40px', textAlign: 'center' }}>
-            <Text color="#6B7684">이전 재판 기록이 없습니다.</Text>
-          </div>
-        ) : (
-          <>
-            {!isLoading && !isLoadingDetails && completedPosts.length > 0 && (
-              <div style={{ 
-                height: '1px', 
-                backgroundColor: '#F0F0F0', 
-                marginBottom: '0px',
-                width: '100%'
-              }} />
-            )}
-            {completedPosts.map(post => renderPostItem(post, true))}
-          </>
-        )}
-      </div>
-
+      <Section title="이전 재판 기록" iconName="icon-check-circle-mono" posts={closed} isLoading={isLoading} showVerdict={true} navigate={navigate} lastRef={lastElementRef} isNextFetching={isFetchingNextPage} />
       <Spacing size={32} />
     </div>
   );
 }
+
+const Section = ({ title, iconSrc, iconName, posts, isLoading, showVerdict, navigate, lastRef, isNextFetching }: any) => (
+  <div>
+    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '0 20px', marginBottom: '16px' }}>
+      {iconSrc ? <img src={iconSrc} style={{ width: '28px', height: '28px' }} /> : <Asset.Icon frameShape={Asset.frameShape.CleanW24} name={iconName} color="#5e403b" />}
+      <Text color={adaptive.grey800} typography="t4" fontWeight="bold" style={{ fontSize: '20px' }}>{title}</Text>
+    </div>
+    {isLoading && posts.length === 0 ? <div style={{ padding: '40px', textAlign: 'center' }}><Text color="#6B7684">로딩 중...</Text></div> : posts.length === 0 ? <div style={{ padding: '40px', textAlign: 'center' }}><Text color="#6B7684">{title}이 없습니다.</Text></div> : (
+      <div>
+        <div style={{ height: '1px', backgroundColor: '#F0F0F0', width: '100%' }} />
+        {posts.map((p: any, idx: number) => (
+          <div key={p.id} ref={idx === posts.length - 1 ? lastRef : null}><MyPostItem post={p} navigate={navigate} showVerdict={showVerdict} /></div>
+        ))}
+        {isNextFetching && <div style={{ padding: '20px', textAlign: 'center' }}><Text color="#6B7684">더 불러오는 중...</Text></div>}
+      </div>
+    )}
+  </div>
+);
 
 export default MyPostsPage;

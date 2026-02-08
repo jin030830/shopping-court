@@ -14,7 +14,9 @@ import {
   orderBy,
   runTransaction,
   increment,
-  arrayUnion
+  arrayUnion,
+  limit,
+  startAfter
 } from 'firebase/firestore';
 
 // '통합명세서.md'에 정의된 데이터 구조를 기반으로 인터페이스 정의
@@ -93,6 +95,99 @@ export const getAllCases = async (): Promise<CaseDocument[]> => {
   } catch (error) {
     console.error('❌ 모든 고민 조회 중 오류 발생:', error);
     throw new Error('고민 목록을 불러오는 데 실패했습니다.');
+  }
+};
+
+/**
+ * 페이지네이션된 '고민' 목록을 조회합니다.
+ * @param options - 필터 및 정렬 옵션 (status, lastVisibleDoc 등)
+ * @returns 게시물 배열과 마지막 문서 스냅샷
+ */
+export const getCasesPaginated = async (options: {
+  status?: 'OPEN' | 'CLOSED';
+  limitCount?: number;
+  lastVisible?: any;
+  orderByField?: string;
+  orderDirection?: 'asc' | 'desc';
+}) => {
+  if (!db) throw new Error('Firebase가 초기화되지 않았습니다.');
+  
+  const { 
+    status, 
+    limitCount = 10, 
+    lastVisible, 
+    orderByField = 'createdAt', 
+    orderDirection = 'desc' 
+  } = options;
+
+  try {
+    const casesCollection = collection(db, 'cases');
+    let q = query(casesCollection);
+
+    if (status) {
+      q = query(q, where('status', '==', status));
+    }
+
+    q = query(q, orderBy(orderByField, orderDirection));
+
+    if (lastVisible) {
+      q = query(q, startAfter(lastVisible));
+    }
+
+    q = query(q, limit(limitCount));
+
+    const querySnapshot = await getDocs(q);
+    const lastDoc = querySnapshot.docs[querySnapshot.docs.length - 1];
+    const cases = querySnapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data()
+    } as CaseDocument));
+
+    return { cases, lastDoc };
+  } catch (error) {
+    console.error('❌ 페이지네이션 조회 중 오류 발생:', error);
+    throw error;
+  }
+};
+
+/**
+ * 특정 사용자가 작성한 '고민' 목록을 페이지네이션하여 조회합니다.
+ * @param userId - 작성자 ID
+ * @param lastVisible - 마지막 문서 스냅샷
+ * @param limitCount - 가져올 개수
+ * @returns 게시물 배열과 마지막 문서 스냅샷
+ */
+export const getCasesByAuthorPaginated = async (
+  userId: string, 
+  lastVisible?: any, 
+  limitCount: number = 10
+) => {
+  if (!db) throw new Error('Firebase가 초기화되지 않았습니다.');
+  try {
+    const casesCollection = collection(db, 'cases');
+    let q = query(
+      casesCollection, 
+      where('authorId', '==', userId),
+      orderBy('createdAt', 'desc')
+    );
+
+    if (lastVisible) {
+      q = query(q, startAfter(lastVisible));
+    }
+
+    q = query(q, limit(limitCount));
+
+    const querySnapshot = await getDocs(q);
+    const lastDoc = querySnapshot.docs[querySnapshot.docs.length - 1];
+    const cases = querySnapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data()
+    } as CaseDocument));
+
+    return { cases, lastDoc };
+  } catch (error) {
+    console.error('❌ 내 고민 조회 중 오류 발생:', error);
+    throw error;
   }
 };
 
