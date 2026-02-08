@@ -106,15 +106,16 @@ export const claimMissionReward = functions.region('asia-northeast3')
           updateField = 'dailyStats.isLevel2Claimed';
         } else if (missionType === 'LEVEL_3') {
           // Level 3: 화제의 재판 등재 (게시물당 1회 보상)
-          // [Safe Optimization] 쿼리에서는 필수 조건만 필터링 (필드 누락 문서 호환성 확보)
+          // [Ultra-Safe] 인덱스 오류를 방지하기 위해 작성자 ID로만 조회 후 메모리에서 필터링
           const potentialCases = await db.collection('cases')
             .where('authorId', '==', userId)
-            .where('status', '==', 'CLOSED')
-            .where('hotScore', '>', 0)
             .get();
 
-          // 아직 보상을 받지 않은(isHotListed 필드가 없거나 false인) 첫 번째 글을 찾음
-          const targetCase = potentialCases.docs.find(doc => doc.data().isHotListed !== true);
+          // 조건: 종료됨(CLOSED) + 화제 점수 있음(>0) + 보상 미수령(isHotListed !== true)
+          const targetCase = potentialCases.docs.find(doc => {
+            const d = doc.data();
+            return d.status === 'CLOSED' && (d.hotScore || 0) > 0 && d.isHotListed !== true;
+          });
 
           if (!targetCase) {
             throw new functions.https.HttpsError('failed-precondition', '보상 받을 수 있는 새로운 화제의 재판 기록이 없습니다.');

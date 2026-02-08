@@ -228,11 +228,10 @@ export const getUnclaimedHotCases = async (userId: string): Promise<CaseDocument
   if (!db) throw new Error('Firebase가 초기화되지 않았습니다.');
   try {
     const casesCollection = collection(db, 'cases');
-    // [Safe Optimization] 사용자의 'CLOSED' 상태 게시물만 가져온 후 메모리에서 필터링 (필드 누락 문서 호환성 확보)
+    // [Ultra-Safe] 인덱스 오류 방지 및 호환성 확보를 위해 단순 쿼리 후 메모리 필터링
     const q = query(
       casesCollection,
       where('authorId', '==', userId),
-      where('status', '==', 'CLOSED'),
       orderBy('createdAt', 'desc')
     );
     const querySnapshot = await getDocs(q);
@@ -241,7 +240,11 @@ export const getUnclaimedHotCases = async (userId: string): Promise<CaseDocument
         id: doc.id,
         ...doc.data()
       } as CaseDocument))
-      .filter(caseItem => (caseItem.hotScore || 0) > 0 && caseItem.isHotListed !== true);
+      .filter(caseItem => 
+        caseItem.status === 'CLOSED' && 
+        (caseItem.hotScore || 0) > 0 && 
+        caseItem.isHotListed !== true
+      );
   } catch (error) {
     console.error('❌ 보상 가능 화제 게시물 조회 실패:', error);
     return [];
