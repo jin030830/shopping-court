@@ -169,18 +169,18 @@ const TabButton = ({ label, isSelected, onClick }: any) => (
 );
 
 const Banner = ({ navigate, selectedTab }: any) => (
-  <div style={{ backgroundColor: 'white', padding: '0px', width: '100%', boxSizing: 'border-box' }}>
-    <div style={{ width: '100%', height: '147px', backgroundColor: '#FAF0E6', padding: '16px 20px', boxSizing: 'border-box', position: 'relative', overflow: 'hidden', boxShadow: '0px 4px 3px 0px rgba(0, 0, 0, 0.25)' }}>
+  <div style={{ backgroundColor: 'white', padding: '11px 20px', width: '100%', boxSizing: 'border-box' }}>
+    <div style={{ width: '100%', height: '147px', backgroundColor: '#FAF0E6', padding: '12px 12px', boxSizing: 'border-box', position: 'relative', overflow: 'hidden', borderRadius: '10px', boxShadow: '0px 4px 4px 0px rgba(0, 0, 0, 0.25)' }}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', position: 'relative', zIndex: 1, height: '100%' }}>
-        <Text display="block" color="#191F28" typography="t2" fontWeight="bold" style={{ lineHeight: '1.4', fontSize: '20px', marginLeft: '14px' }}>재판에 참여하고{"\n"}포인트를 모아보세요</Text>
-        <div style={{ position: 'absolute', bottom: '4px', left: '14px', cursor: 'pointer', zIndex: 2 }} onClick={() => { sessionStorage.setItem('pointMissionFromTab', selectedTab); navigate('/point-mission', { state: { fromTab: selectedTab } }); }}>
+        <Text display="block" color="#191F28" typography="t2" fontWeight="bold" style={{ lineHeight: '1.4', fontSize: '20px', marginLeft: '14px', marginTop: '8px' }}>재판에 참여하고{"\n"}포인트를 모아보세요</Text>
+        <div style={{ position: 'absolute', bottom: '8px', left: '14px', cursor: 'pointer', zIndex: 2 }} onClick={() => { sessionStorage.setItem('pointMissionFromTab', selectedTab); navigate('/point-mission', { state: { fromTab: selectedTab } }); }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '4px', padding: '8px 12px 8px 18px', backgroundColor: '#5E403B', borderRadius: '10px', boxShadow: '0px 0px 4px 0px rgba(255, 255, 255, 1)' }}>
             <Text display="block" color="white" typography="t6" fontWeight="bold">미션 확인하기</Text>
             <Asset.Icon frameShape={Asset.frameShape.CleanW16} name="icon-arrow-right-mono" color="white" ratio="1/1" />
           </div>
         </div>
       </div>
-      <div style={{ position: 'absolute', bottom: '0px', right: '25px', width: '150px', height: '150px', backgroundImage: `url(${pointMissionImage})`, backgroundSize: 'contain', backgroundRepeat: 'no-repeat', backgroundPosition: 'bottom right', filter: 'drop-shadow(2px 4px 6px rgba(0, 0, 0, 0.3))' }} />
+      <div style={{ position: 'absolute', bottom: '0px', right: '15px', width: '150px', height: '150px', backgroundImage: `url(${pointMissionImage})`, backgroundSize: 'contain', backgroundRepeat: 'no-repeat', backgroundPosition: 'bottom right', filter: 'drop-shadow(2px 4px 6px rgba(0, 0, 0, 0.3))' }} />
     </div>
   </div>
 );
