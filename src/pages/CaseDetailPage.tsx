@@ -27,6 +27,7 @@ import {
   type VoteType
 } from '../api/cases';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { getTodayDateString, type UserDocument } from '../api/user';
 
 // 날짜 포맷팅 함수 (M/d HH:mm 형식)
 const formatDate = (timestamp: Timestamp): string => {
@@ -165,10 +166,15 @@ function CaseDetailPage() {
     onMutate: async ({ voteType }) => {
       await queryClient.cancelQueries({ queryKey: ['case', id] });
       await queryClient.cancelQueries({ queryKey: ['case', id, 'vote', user?.uid] });
+      if (user) {
+        await queryClient.cancelQueries({ queryKey: ['user', user.uid] });
+      }
       
       const previousPost = queryClient.getQueryData<CaseDocument>(['case', id]);
       const previousVote = queryClient.getQueryData<VoteType>(['case', id, 'vote', user?.uid]);
+      const previousUserData = user ? queryClient.getQueryData<UserDocument | null>(['user', user.uid]) : null;
 
+      // 게시물 투표 수 낙관적 업데이트
       queryClient.setQueryData(['case', id], (old: CaseDocument | undefined) => {
         if (!old) return old;
         return {
@@ -179,16 +185,59 @@ function CaseDetailPage() {
       });
       queryClient.setQueryData(['case', id, 'vote', user?.uid], voteType);
 
-      return { previousPost, previousVote };
+      // userData의 voteCount 낙관적 업데이트
+      if (user) {
+        const today = getTodayDateString();
+        queryClient.setQueryData<UserDocument | null>(['user', user.uid], (prev) => {
+          if (!prev) return prev;
+          
+          const rawDailyStats = prev.dailyStats || { 
+            voteCount: 0, 
+            commentCount: 0, 
+            postCount: 0, 
+            lastActiveDate: today, 
+            isLevel1Claimed: false, 
+            isLevel2Claimed: false 
+          };
+          
+          const isDateMismatched = rawDailyStats.lastActiveDate !== today;
+          const currentVoteCount = isDateMismatched ? 0 : (rawDailyStats.voteCount || 0);
+          
+          return {
+            ...prev,
+            dailyStats: {
+              ...rawDailyStats,
+              voteCount: currentVoteCount + 1,
+              lastActiveDate: today
+            }
+          };
+        });
+      }
+
+      return { previousPost, previousVote, previousUserData };
     },
     onError: (_err, _variables, context) => {
       queryClient.setQueryData(['case', id], context?.previousPost);
       queryClient.setQueryData(['case', id, 'vote', user?.uid], context?.previousVote);
+      if (user && context?.previousUserData) {
+        queryClient.setQueryData(['user', user.uid], context.previousUserData);
+      }
       alert('투표에 실패했습니다.');
     },
-    onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: ['case', id] });
+    onSuccess: () => {
+      // 성공 후 약간의 지연을 두고 서버 데이터와 동기화 (트리거 지연 고려)
+      // 게시물 데이터는 낙관적 업데이트가 이미 적용되어 있으므로 즉시 invalidate하지 않음
+      // 대신 더 긴 지연 후 동기화하여 서버 업데이트 완료 후 동기화
       queryClient.invalidateQueries({ queryKey: ['case', id, 'vote', user?.uid] });
+      if (user) {
+        setTimeout(() => {
+          queryClient.invalidateQueries({ queryKey: ['user', user.uid] });
+        }, 1000);
+      }
+      // 게시물 데이터는 3초 후 동기화 (트리거 완료 대기) - 낙관적 업데이트 유지
+      setTimeout(() => {
+        queryClient.invalidateQueries({ queryKey: ['case', id] });
+      }, 3000);
     }
   });
 
@@ -197,7 +246,12 @@ function CaseDetailPage() {
     mutationFn: (commentData: { authorId: string; authorNickname: string; content: string; vote: VoteType }) => addComment(id!, commentData),
     onMutate: async (newCommentData) => {
       await queryClient.cancelQueries({ queryKey: ['case', id, 'comments'] });
+      if (user) {
+        await queryClient.cancelQueries({ queryKey: ['user', user.uid] });
+      }
+      
       const previousComments = queryClient.getQueryData<CommentWithReplies[]>(['case', id, 'comments']);
+      const previousUserData = user ? queryClient.getQueryData<UserDocument | null>(['user', user.uid]) : null;
       
       const optimisticComment: CommentWithReplies = {
         id: 'temp-' + Date.now(),
@@ -209,14 +263,53 @@ function CaseDetailPage() {
       };
 
       queryClient.setQueryData(['case', id, 'comments'], (old: CommentWithReplies[] | undefined) => [optimisticComment, ...(old || [])]);
-      return { previousComments };
+      
+      // userData의 commentCount 낙관적 업데이트
+      if (user) {
+        const today = getTodayDateString();
+        queryClient.setQueryData<UserDocument | null>(['user', user.uid], (prev) => {
+          if (!prev) return prev;
+          
+          const rawDailyStats = prev.dailyStats || { 
+            voteCount: 0, 
+            commentCount: 0, 
+            postCount: 0, 
+            lastActiveDate: today, 
+            isLevel1Claimed: false, 
+            isLevel2Claimed: false 
+          };
+          
+          const isDateMismatched = rawDailyStats.lastActiveDate !== today;
+          const currentCommentCount = isDateMismatched ? 0 : (rawDailyStats.commentCount || 0);
+          
+          return {
+            ...prev,
+            dailyStats: {
+              ...rawDailyStats,
+              commentCount: currentCommentCount + 1,
+              lastActiveDate: today
+            }
+          };
+        });
+      }
+
+      return { previousComments, previousUserData };
     },
     onError: (_err, _newCommentData, context) => {
       queryClient.setQueryData(['case', id, 'comments'], context?.previousComments);
+      if (user && context?.previousUserData) {
+        queryClient.setQueryData(['user', user.uid], context.previousUserData);
+      }
       alert('댓글 추가에 실패했습니다.');
     },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ['case', id, 'comments'] });
+      // Cloud Functions 트리거 지연을 고려하여 1초 후 동기화
+      if (user) {
+        setTimeout(() => {
+          queryClient.invalidateQueries({ queryKey: ['user', user.uid] });
+        }, 1000);
+      }
     }
   });
 

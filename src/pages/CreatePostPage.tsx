@@ -6,12 +6,16 @@ import { useAuth } from '../hooks/useAuth';
 import { createCase, type CaseData } from '../api/cases';
 import { useTossAd } from '../hooks/useTossAd';
 import missionBannerImage from '../assets/missionbanner.jpeg';
+import { useQueryClient } from '@tanstack/react-query';
+import type { UserDocument } from '../api/user';
+import { getTodayDateString } from '../api/user';
 
 function CreatePostPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const { user, userData, isLoading, login } = useAuth();
   const { show: showAd } = useTossAd('ait-ad-test-interstitial-id');
+  const queryClient = useQueryClient();
 
   // 글쓰기 진입 전 보고 있던 탭 (작성 완료 후 복귀용)
   const returnTab =
@@ -131,11 +135,61 @@ function CreatePostPage() {
         authorNickname: userData!.nickname,
       };
 
+      // 낙관적 업데이트를 위한 이전 상태 저장
+      let previousUserData: UserDocument | null = null;
+      if (user && userData) {
+        previousUserData = queryClient.getQueryData<UserDocument | null>(['user', user.uid]) || null;
+      }
+
       try {
         await createCase(caseData);
+        
+        // 낙관적 업데이트: postCount를 즉시 증가시켜 UI에 반영
+        // createCase 성공 후에만 실행되므로 안전함
+        if (user && userData) {
+          const today = getTodayDateString();
+          queryClient.setQueryData<UserDocument | null>(['user', user.uid], (prev) => {
+            if (!prev) return prev;
+            
+            const rawDailyStats = prev.dailyStats || { 
+              voteCount: 0, 
+              commentCount: 0, 
+              postCount: 0, 
+              lastActiveDate: today, 
+              isLevel1Claimed: false, 
+              isLevel2Claimed: false 
+            };
+            
+            const isDateMismatched = rawDailyStats.lastActiveDate !== today;
+            const currentPostCount = isDateMismatched ? 0 : (rawDailyStats.postCount || 0);
+            
+            return {
+              ...prev,
+              dailyStats: {
+                ...rawDailyStats,
+                postCount: currentPostCount + 1,
+                lastActiveDate: today
+              }
+            };
+          });
+        }
+        
+        // 서버 데이터와 동기화 (백그라운드에서)
+        // Cloud Functions 트리거가 postCount를 업데이트하므로 약간의 지연 후 동기화
+        // 트리거는 보통 빠르게 실행되지만, 지연을 고려하여 1초 후에 동기화
+        setTimeout(() => {
+          queryClient.invalidateQueries({ queryKey: ['user', user!.uid] });
+        }, 1000);
+        
         setShowSuccessModal(true);
       } catch (error) {
         console.error('고민 등록 실패:', error);
+        
+        // 에러 발생 시 낙관적 업데이트 롤백 (이미 적용된 경우)
+        if (previousUserData && user) {
+          queryClient.setQueryData<UserDocument | null>(['user', user.uid], previousUserData);
+        }
+        
         alert('고민을 등록하는 데 실패했습니다. 다시 시도해주세요.');
       } finally {
         setIsSubmitting(false);
