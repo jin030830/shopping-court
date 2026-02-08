@@ -638,13 +638,18 @@ export const getCommentCount = async (caseId: string): Promise<number> => {
 export const reportContent = async (reportData: Omit<ReportData, 'createdAt'>): Promise<void> => {
   if (!db) throw new Error('Firebase가 초기화되지 않았습니다.');
   try {
+    // Firestore는 undefined 값을 저장할 수 없으므로 제거
+    const cleanData = Object.fromEntries(
+      Object.entries(reportData).filter(([_, v]) => v !== undefined)
+    );
+
     await addDoc(collection(db, 'reports'), {
-      ...reportData,
+      ...cleanData,
       createdAt: serverTimestamp(),
     });
     console.log('✅ 신고가 성공적으로 접수되었습니다.');
   } catch (error) {
     console.error('❌ 신고 접수 중 오류 발생:', error);
-    throw new Error('신고 접수에 실패했습니다.');
+    throw error;
   }
 };
