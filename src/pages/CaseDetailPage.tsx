@@ -892,7 +892,7 @@ function CaseDetailPage() {
 
           {/* 댓글 목록 렌더링 (이전과 동일) */}
           {sortedComments.length > 0 && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
               {sortedComments.map((comment) => (
                 <div key={comment.id}>
                   {/* ... 댓글 내용 ... */}
