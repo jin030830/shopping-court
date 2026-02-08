@@ -24,7 +24,6 @@ const TrendingCaseItem = memo(({ post, navigate }: any) => {
       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><Asset.Icon frameShape={{ width: 15, height: 15 }} name="icon-user-two-mono" color="#5e403b" /><Text color="#5e403b" typography="st13" style={{ fontSize: '14px' }}>{vc}</Text></div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '3px' }}><Asset.Icon frameShape={{ width: 15, height: 15 }} name="icon-chat-bubble-mono" color="#5E403Bff" /><Text color="#5e403b" typography="st13" style={{ fontSize: '14px' }}>{post.commentCount ?? 0}</Text></div>
-        <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '2px' }}><Asset.Icon frameShape={{ width: 14, height: 14 }} name="icon-emoji-fire" /><Text color="#FF6B6B" typography="st13" fontWeight="bold" style={{ fontSize: '13px' }}>{post.hotScore}</Text></div>
       </div>
     </div>
   );
@@ -37,7 +36,7 @@ function CompletedTrendingPage() {
 
   const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading, error } = useInfiniteQuery<{ cases: CaseDocument[], lastDoc: any }, Error>({
     queryKey: ['cases', 'CLOSED', 'trending'],
-    queryFn: ({ pageParam }) => getCasesPaginated({ status: 'CLOSED', limitCount: 15, orderByField: 'hotScore', orderDirection: 'desc', lastVisible: pageParam }),
+    queryFn: ({ pageParam }) => getCasesPaginated({ status: 'CLOSED', limitCount: 15, orderByField: 'createdAt', orderDirection: 'desc', lastVisible: pageParam }),
     getNextPageParam: (last) => last.cases.length === 15 ? last.lastDoc : undefined,
     initialPageParam: null
   });
@@ -55,7 +54,7 @@ function CompletedTrendingPage() {
   useEffect(() => { sessionStorage.setItem('completedListFromTab', '재판 완료'); }, []);
 
   const pages = data?.pages as any[];
-  const allPosts = pages?.flatMap(p => p.cases).filter(p => p.hotScore > 0) || [];
+  const allPosts = pages?.flatMap(p => p.cases) || [];
   const filtered = allPosts.filter(p => {
     if (search.trim() && !p.title.toLowerCase().includes(search.toLowerCase()) && !p.content.toLowerCase().includes(search.toLowerCase())) return false;
     if (filter === '전체') return true;

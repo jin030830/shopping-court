@@ -6,7 +6,7 @@ import { Timestamp } from 'firebase/firestore';
 import { adaptive } from '@toss/tds-colors';
 import scaleIcon from '../assets/scale.svg';
 import hotFlameIcon from '../assets/fire.png';
-import pointMissionImage from '../assets/missionbanner.jpeg';
+import pointMissionImage from '../assets/pansabanner.png';
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 
 // 날짜 포맷팅 함수
@@ -172,7 +172,7 @@ const Banner = ({ navigate, selectedTab }: any) => (
   <div style={{ backgroundColor: 'white', padding: '0px', width: '100%', boxSizing: 'border-box' }}>
     <div style={{ width: '100%', height: '147px', backgroundColor: '#FAF0E6', padding: '16px 20px', boxSizing: 'border-box', position: 'relative', overflow: 'hidden', boxShadow: '0px 4px 3px 0px rgba(0, 0, 0, 0.25)' }}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', position: 'relative', zIndex: 1, height: '100%' }}>
-        <Text display="block" color="#191F28" typography="t2" fontWeight="bold" style={{ lineHeight: '1.4', fontSize: '20px' }}>재판에 참여하고{"\n"}포인트를 모아보세요</Text>
+        <Text display="block" color="#191F28" typography="t2" fontWeight="bold" style={{ lineHeight: '1.4', fontSize: '20px', marginLeft: '14px' }}>재판에 참여하고{"\n"}포인트를 모아보세요</Text>
         <div style={{ position: 'absolute', bottom: '4px', left: '14px', cursor: 'pointer', zIndex: 2 }} onClick={() => { sessionStorage.setItem('pointMissionFromTab', selectedTab); navigate('/point-mission', { state: { fromTab: selectedTab } }); }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '4px', padding: '8px 12px 8px 18px', backgroundColor: '#5E403B', borderRadius: '10px', boxShadow: '0px 0px 4px 0px rgba(255, 255, 255, 1)' }}>
             <Text display="block" color="white" typography="t6" fontWeight="bold">미션 확인하기</Text>
@@ -258,7 +258,7 @@ const CompletedSection = ({ title, iconSrc, iconName, posts, onMore, renderCard 
         <Text display="block" color={adaptive.grey900} typography="t3" fontWeight="bold" style={{ fontSize: '22px' }}>{title}</Text>
       </div>
       <button onClick={onMore} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px' }}>
-        <Asset.Icon frameShape={Asset.frameShape.CleanW24} name="icon-arrow-left-big-mono" color="#9E9E9E" style={{ transform: 'rotate(180deg)' }} />
+        <Asset.Icon frameShape={Asset.frameShape.CleanW24} name="icon-arrow-left-big-mono" color="#9E9E9E" />
       </button>
     </div>
     {posts.length > 0 ? (
