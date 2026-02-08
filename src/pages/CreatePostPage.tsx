@@ -2,6 +2,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import { Text, Spacing, Modal, Button } from '@toss/tds-mobile';
 import { adaptive } from '@toss/tds-colors';
+import { graniteEvent } from '@apps-in-toss/web-framework';
 import { useAuth } from '../hooks/useAuth';
 import { createCase, type CaseData } from '../api/cases';
 import { useTossAd } from '../hooks/useTossAd';
@@ -43,6 +44,27 @@ function CreatePostPage() {
       setHasShownGuide(true);
     }
   }, [hasShownGuide]);
+
+  // [Fix] 딥링크 진입 시 뒤로가기 제어
+  useEffect(() => {
+    const isSupported = graniteEvent?.addEventListener != null;
+    if (!isSupported) return;
+
+    let isSubscribed = true;
+    const unsubscribe = graniteEvent.addEventListener("backEvent", {
+      onEvent: () => {
+        if (!isSubscribed) return;
+        isSubscribed = false;
+        unsubscribe();
+        navigate("/", { replace: true });
+      },
+    });
+
+    return () => {
+      isSubscribed = false;
+      unsubscribe();
+    };
+  }, [navigate]);
 
   // TDS Modal 배경색 강제 설정
   useEffect(() => {

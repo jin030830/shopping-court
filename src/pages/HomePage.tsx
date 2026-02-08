@@ -1,5 +1,5 @@
 import { useNavigate, useLocation, useNavigationType } from 'react-router-dom';
-import { Asset, Text, Spacing } from '@toss/tds-mobile';
+import { Asset, Text, Spacing, Modal } from '@toss/tds-mobile';
 import { useState, useEffect, useRef, useCallback, memo } from 'react';
 import { getCasesPaginated, getHotCases, type CaseDocument } from '../api/cases';
 import { Timestamp } from 'firebase/firestore';
@@ -7,6 +7,7 @@ import { adaptive } from '@toss/tds-colors';
 import pointMissionImage from '../assets/pansascale.png';
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import { caseKeys } from '../constants/queryKeys';
+import { graniteEvent, closeView } from '@apps-in-toss/web-framework';
 
 // 날짜 포맷팅 함수
 const formatDate = (timestamp: Timestamp): string => {
@@ -53,6 +54,7 @@ function HomePage() {
   const navigate = useNavigate();
   const navigationType = useNavigationType();
   const [isFabExpanded, setIsFabExpanded] = useState(false);
+  const [showExitModal, setShowExitModal] = useState(false);
   
   const [selectedTab, setSelectedTab] = useState(() => {
     // 1. location.state에서 전달된 탭 (다른 페이지에서 돌아올 때)
@@ -125,7 +127,6 @@ function HomePage() {
   useEffect(() => {
     const keys = ['caseDetailFromTab', 'completedListFromTab', 'pointMissionFromTab', 'createPostFromTab'];
     keys.forEach(k => sessionStorage.removeItem(k));
-    window.history.replaceState({}, document.title);
   }, []);
 
   // location이 변경될 때 sessionStorage에서 탭 정보 확인 (뒤로가기 대응)
@@ -144,6 +145,21 @@ function HomePage() {
   useEffect(() => {
     if (navigationType !== 'POP') window.scrollTo(0, 0);
   }, [selectedTab, navigationType]);
+
+  // [Fix] 홈 화면에서 뒤로가기 시 종료 확인 팝업 띄우기 (커스텀 구현)
+  useEffect(() => {
+    const isSupported = graniteEvent?.addEventListener != null;
+    if (!isSupported) return;
+
+    const unsubscribe = graniteEvent.addEventListener('backEvent', {
+      onEvent: () => {
+        // 이미 모달이 떠 있다면 추가 뒤로가기 무시 (또는 여기서도 종료 처리 가능)
+        setShowExitModal(true);
+      },
+    });
+
+    return () => unsubscribe();
+  }, []); // showExitModal 상태를 의존성에 넣지 않아 리스너가 중복 등록되는 것을 방지
 
   const isLoading = isLoadingOpenCases || isLoadingHot || isLoadingCompleted;
   const error = openCasesError || hotError || completedError;
@@ -191,7 +207,32 @@ function HomePage() {
 
       {selectedTab !== '재판 완료' && <Fab isExpanded={isFabExpanded} setIsExpanded={setIsFabExpanded} navigate={navigate} selectedTab={selectedTab} />}
       <Spacing size={24} />
+      
+              {/* [Fix] 뒤로가기 시 띄울 종료 확인 모달 (네이티브 디자인과 아예 동일하게) */}
+              <Modal open={showExitModal}>
+                <Modal.Overlay className="custom-modal-overlay" />
+                <Modal.Content>
+                  <div style={{ padding: '24px 20px', backgroundColor: 'white', borderRadius: '20px', textAlign: 'center' }}>
+                    <Text display="block" color="#191F28" typography="t4" fontWeight="bold" style={{ marginBottom: '28px', fontSize: '19px', letterSpacing: '-0.5px' }}>소비재판소를 종료할까요?</Text>
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                      <button 
+                        onClick={() => setShowExitModal(false)} 
+                        style={{ flex: 1, height: '52px', backgroundColor: '#F2F4F6', color: '#4E5968', border: 'none', borderRadius: '12px', fontSize: '16px', fontWeight: '600', cursor: 'pointer' }}
+                      >
+                        취소
+                      </button>
+                      <button 
+                        onClick={() => closeView()} 
+                        style={{ flex: 1, height: '52px', backgroundColor: '#3182F6', color: 'white', border: 'none', borderRadius: '12px', fontSize: '16px', fontWeight: '600', cursor: 'pointer' }}
+                      >
+                        종료하기
+                      </button>
+                    </div>
+                  </div>
+                </Modal.Content>
+              </Modal>
       <style>{` @keyframes slideUp { from { opacity: 0; transform: translateY(20px) scale(0.8); } to { opacity: 1; transform: translateY(0) scale(1); } } `}</style>
+      <style>{`.custom-modal-overlay, [data-radix-dialog-overlay] { background-color: rgba(0, 0, 0, 0.6) !important; }`}</style>
     </div>
   );
 }

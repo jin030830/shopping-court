@@ -1,7 +1,8 @@
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useEffect, useState, useRef, useCallback, memo, type CSSProperties } from 'react';
 import { Asset, Text, Spacing, Button, TextButton } from '@toss/tds-mobile';
 import { adaptive } from '@toss/tds-colors';
+import { graniteEvent } from '@apps-in-toss/web-framework';
 import { useAuth } from '../hooks/useAuth';
 import { 
   claimMissionReward, 
@@ -257,10 +258,30 @@ const MissionCard = memo(({
 
 function PointMissionPage() {
   const location = useLocation();
+  const navigate = useNavigate();
   const { user } = useAuth();
   const queryClient = useQueryClient();
-  
-  // [Optimization] 실시간 리스너 대신 React Query 사용
+
+  useEffect(() => {
+    const isSupported = graniteEvent?.addEventListener != null;
+    if (!isSupported) return;
+
+    let isSubscribed = true;
+    const unsubscribe = graniteEvent.addEventListener("backEvent", {
+      onEvent: () => {
+        if (!isSubscribed) return;
+        isSubscribed = false;
+        unsubscribe();
+        navigate("/", { replace: true });
+      },
+    });
+
+    return () => {
+      isSubscribed = false;
+      unsubscribe();
+    };
+  }, [navigate]);
+
   const { data: userData, isInitialLoading: isUserLoading } = useQuery<UserDocument | null, Error>({
     queryKey: ['user', user?.uid],
     queryFn: () => user ? getUserData(user) : null,
