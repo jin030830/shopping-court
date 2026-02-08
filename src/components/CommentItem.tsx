@@ -26,7 +26,7 @@ interface CommentItemProps {
   onLikeReply: (commentId: string, replyId: string) => void;
   onEditReply: (commentId: string, replyId: string, content: string) => void;
   onDeleteReply: (commentId: string, replyId: string) => void;
-  onReport: () => void;
+  onReport: (type: 'comment' | 'reply', targetId: string, commentId?: string, replyId?: string) => void;
   isReplying: boolean;
   replyContent: string;
   onReplyContentChange: (content: string) => void;
@@ -124,7 +124,7 @@ const CommentItem = memo(({
                 {post.status === 'OPEN' && <button onClick={() => { onDelete(comment.id); setShowMenu(false); }} style={{ width: '100%', padding: '12px', border: 'none', background: 'none', textAlign: 'left', cursor: 'pointer', fontSize: '14px', color: '#D32F2F' }}>삭제</button>}
               </>
             ) : (
-              <button onClick={() => { onReport(); setShowMenu(false); }} style={{ width: '100%', padding: '12px', border: 'none', background: 'none', textAlign: 'left', cursor: 'pointer', fontSize: '14px', color: '#D32F2F' }}>신고하기</button>
+              <button onClick={() => { onReport('comment', comment.id, comment.id); setShowMenu(false); }} style={{ width: '100%', padding: '12px', border: 'none', background: 'none', textAlign: 'left', cursor: 'pointer', fontSize: '14px', color: '#D32F2F' }}>신고하기</button>
             )}
           </div>
         )}
@@ -185,7 +185,7 @@ const CommentItem = memo(({
                     {post.status === 'OPEN' && <button onClick={() => { onDeleteReply(comment.id, reply.id); setShowReplyMenuId(null); }} style={{ width: '100%', padding: '12px', border: 'none', background: 'none', textAlign: 'left', cursor: 'pointer', fontSize: '14px', color: '#D32F2F' }}>삭제</button>}
                   </>
                 ) : (
-                  <button onClick={() => { onReport(); setShowReplyMenuId(null); }} style={{ width: '100%', padding: '12px', border: 'none', background: 'none', textAlign: 'left', cursor: 'pointer', fontSize: '14px', color: '#D32F2F' }}>신고하기</button>
+                  <button onClick={() => { onReport('reply', reply.id, comment.id, reply.id); setShowReplyMenuId(null); }} style={{ width: '100%', padding: '12px', border: 'none', background: 'none', textAlign: 'left', cursor: 'pointer', fontSize: '14px', color: '#D32F2F' }}>신고하기</button>
                 )}
               </div>
             )}
@@ -197,3 +197,4 @@ const CommentItem = memo(({
 });
 
 export default CommentItem;
+

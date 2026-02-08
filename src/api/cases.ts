@@ -75,6 +75,16 @@ export interface ReplyDocument extends ReplyData {
   likedBy?: string[];
 }
 
+export interface ReportData {
+  reporterId: string;
+  targetType: 'case' | 'comment' | 'reply';
+  targetId: string;
+  caseId: string;
+  commentId?: string;
+  replyId?: string;
+  createdAt: Timestamp;
+}
+
 /**
  * 모든 '고민'을 Firestore에서 조회합니다.
  * @returns 모든 고민 문서의 배열
@@ -618,5 +628,28 @@ export const getCommentCount = async (caseId: string): Promise<number> => {
   } catch (error) {
     console.error('댓글 개수 조회 실패:', error);
     return 0;
+  }
+};
+
+/**
+ * 게시물, 댓글, 또는 답글을 신고합니다.
+ * @param reportData - 신고 데이터
+ */
+export const reportContent = async (reportData: Omit<ReportData, 'createdAt'>): Promise<void> => {
+  if (!db) throw new Error('Firebase가 초기화되지 않았습니다.');
+  try {
+    // Firestore는 undefined 값을 저장할 수 없으므로 제거
+    const cleanData = Object.fromEntries(
+      Object.entries(reportData).filter(([_, v]) => v !== undefined)
+    );
+
+    await addDoc(collection(db, 'reports'), {
+      ...cleanData,
+      createdAt: serverTimestamp(),
+    });
+    console.log('✅ 신고가 성공적으로 접수되었습니다.');
+  } catch (error) {
+    console.error('❌ 신고 접수 중 오류 발생:', error);
+    throw error;
   }
 };
