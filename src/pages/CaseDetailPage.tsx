@@ -1,34 +1,5 @@
-import { useParams, useNavigate, useLocation } from 'react-router-dom';
-import { useEffect, useState, useMemo, useRef } from 'react';
-import { useAuth } from '../hooks/useAuth';
-import { Asset, Text } from '@toss/tds-mobile';
-import { adaptive } from '@toss/tds-colors';
-import { 
-  getCase, 
-  getUserVote, 
-  addVote, 
-  getComments, 
-  getReplies,
-  addComment, 
-  addCommentLike,
-  addReplyLike,
-  addReply,
-  updateComment,
-  deleteComment,
-  updateReply,
-  deleteReply,
-  deleteCase,
-  type CaseDocument,
-  type CommentDocument,
-  type ReplyDocument,
-  type VoteType
-} from '../api/cases';
-import { getTodayDateString, type UserDocument } from '../api/user';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { caseKeys } from '../constants/queryKeys';
-import CountdownTimer from '../components/CountdownTimer';
-import CommentItem from '../components/CommentItem';
-import { Timestamp } from 'firebase/firestore';
+import { Timestamp, doc, onSnapshot, collection, query, orderBy } from 'firebase/firestore';
+import { db } from '../api/firebase';
 
 // UI용 댓글 타입 (대댓글 포함)
 interface CommentWithReplies extends CommentDocument {
@@ -42,6 +13,44 @@ function CaseDetailPage() {
   const queryClient = useQueryClient();
   const { user, userData, login, isVerified } = useAuth();
   
+  // [실시간 리스너] 게시물 & 댓글 즉시 업데이트
+  useEffect(() => {
+    if (!id || !db) return;
+
+    // 1. 게시물 실시간 연동 (투표수 등)
+    const unsubscribePost = onSnapshot(doc(db, 'cases', id), (snapshot) => {
+      if (snapshot.exists()) {
+        const postData = { id: snapshot.id, ...snapshot.data() };
+        queryClient.setQueryData(caseKeys.detail(id), postData);
+      } else {
+        queryClient.setQueryData(caseKeys.detail(id), null);
+      }
+    });
+
+    // 2. 댓글 실시간 연동 (댓글 목록 즉시 반영)
+    // 대댓글은 구조적 한계로 주기적 리페칭으로 처리
+    const commentsQuery = query(collection(db, 'cases', id, 'comments'), orderBy('createdAt', 'asc'));
+    const unsubscribeComments = onSnapshot(commentsQuery, (snapshot) => {
+      const currentComments = queryClient.getQueryData<CommentWithReplies[]>(caseKeys.comments(id)) || [];
+      
+      const newComments = snapshot.docs.map(doc => {
+        const existing = currentComments.find(c => c.id === doc.id);
+        return { 
+          id: doc.id, 
+          ...doc.data(), 
+          replies: existing?.replies || [] 
+        } as CommentWithReplies;
+      });
+      
+      queryClient.setQueryData(caseKeys.comments(id), newComments);
+    });
+
+    return () => {
+      unsubscribePost();
+      unsubscribeComments();
+    };
+  }, [id, queryClient]);
+
   const initialFromTab = (location.state as { fromTab?: string })?.fromTab || '재판 중';
   const [fromTab] = useState<string>(initialFromTab);
   
@@ -64,7 +73,7 @@ function CaseDetailPage() {
     }
   };
 
-  // [Query] 게시물 상세 정보
+  // [Query] 게시물 상세 정보 (기본 로딩용)
   const { data: post, isInitialLoading: isLoadingPost } = useQuery<CaseDocument | null, Error>({
     queryKey: caseKeys.detail(id!),
     queryFn: () => (id ? getCase(id) : Promise.resolve(null)),
@@ -72,7 +81,7 @@ function CaseDetailPage() {
     staleTime: 1000 * 60 * 5,
   });
 
-  // [Query] 댓글 및 대댓글 통합 정보
+  // [Query] 댓글 및 대댓글 통합 정보 (대댓글은 30초마다 자동 갱신)
   const { data: comments = [] } = useQuery<CommentWithReplies[], Error>({
     queryKey: caseKeys.comments(id!),
     queryFn: async () => {
@@ -87,6 +96,7 @@ function CaseDetailPage() {
     },
     enabled: !!id,
     staleTime: 1000 * 60 * 2,
+    refetchInterval: 30000, // 30초마다 대댓글 데이터 갱신
   });
 
   // [Query] 현재 사용자의 투표 상태 확인
@@ -208,13 +218,16 @@ function CaseDetailPage() {
       };
       queryClient.setQueryData(caseKeys.comments(id!), (old: CommentWithReplies[] | undefined) => [optimisticComment, ...(old || [])]);
 
-      // 2. 홈 목록 댓글수 업데이트
+      // 2. 홈 목록 댓글수 업데이트 (낙관적 업데이트 유지하되, 무효화 범위 확장)
       queryClient.setQueriesData({ queryKey: caseKeys.lists() }, (oldData: any) => {
         if (!oldData) return oldData;
         const updateCount = (c: any) => c.id === id ? { ...c, commentCount: (c.commentCount || 0) + 1 } : c;
         if (oldData.pages) return { ...oldData, pages: oldData.pages.map((p: any) => ({ ...p, cases: p.cases.map(updateCount) })) };
         return Array.isArray(oldData) ? oldData.map(updateCount) : oldData;
       });
+
+      // [추가] 내가 쓴 글 목록도 즉시 무효화 대상에 포함
+      await queryClient.invalidateQueries({ queryKey: caseKeys.userLists() });
 
       // 3. 유저 일일 활동량(commentCount) 업데이트
       if (user) {

@@ -99,6 +99,45 @@ const updateUserStats = async (
 };
 
 /**
+ * 게시물의 모든 수치(투표, 댓글)를 실제 문서 개수와 동기화하는 함수 (Source of Truth)
+ */
+export const syncCaseCounts = async (caseId: string) => {
+  const db = admin.firestore();
+  const caseRef = db.collection('cases').doc(caseId);
+
+  try {
+    // 1. 모든 관련 문서 카운트 (Promise.all로 병렬 처리)
+    const [votesSnap, commentsSnap, repliesSnap] = await Promise.all([
+      caseRef.collection('votes').get(),
+      caseRef.collection('comments').get(),
+      db.collectionGroup('replies').where('authorId', '!=', '').get() // 대댓글은 필터링 로직에 따라 조정 가능
+    ]);
+
+    // 해당 게시물에 속한 대댓글만 필터링 (collectionGroup은 전체를 가져오므로 경로 체크)
+    const filteredReplies = repliesSnap.docs.filter(doc => doc.ref.path.includes(`cases/${caseId}/`));
+
+    const guiltyCount = votesSnap.docs.filter(d => d.data().vote === 'guilty').length;
+    const innocentCount = votesSnap.docs.filter(d => d.data().vote === 'innocent').length;
+    const commentCount = commentsSnap.size + filteredReplies.length;
+
+    const voteCount = guiltyCount + innocentCount;
+    const hotScore = voteCount + (commentCount * 2);
+
+    await caseRef.update({
+      guiltyCount,
+      innocentCount,
+      commentCount,
+      hotScore,
+      updatedAt: admin.firestore.FieldValue.serverTimestamp()
+    });
+    
+    functions.logger.log(`[Sync] Case ${caseId} synced: G:${guiltyCount}, I:${innocentCount}, C:${commentCount}`);
+  } catch (error) {
+    functions.logger.error(`[Sync Error] Failed to sync case ${caseId}:`, error);
+  }
+};
+
+/**
  * 주어진 caseId에 대한 hotScore를 다시 계산하고 업데이트하는 함수
  */
 const recalculateHotScore = async (caseId: string): Promise<void> => {
