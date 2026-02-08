@@ -403,7 +403,6 @@ function PointMissionPage() {
     try {
       await exchangeGavel();
       queryClient.invalidateQueries({ queryKey: ['user', user?.uid] });
-      alert('5P가 지급되었습니다!');
     } catch (error: any) {
       console.error('교환 실패:', error);
     } finally {
