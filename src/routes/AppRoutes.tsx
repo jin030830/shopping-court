@@ -69,6 +69,14 @@ function AppRoutes() {
             } 
           />
           <Route 
+            path="/terms"
+            element={
+              <LowercaseRedirectWrapper>
+                <StaticTermsPage />
+              </LowercaseRedirectWrapper>
+            } 
+          />
+          <Route 
             path="/marketing-consent" 
             element={
               <LowercaseRedirectWrapper>
