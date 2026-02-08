@@ -396,7 +396,6 @@ function PointMissionPage() {
     
     const currentGavel = userData.points || 0;
     if (currentGavel < 50) {
-      alert('판사봉이 부족합니다. (50개 필요)');
       return;
     }
 
@@ -407,7 +406,6 @@ function PointMissionPage() {
       alert('5P가 지급되었습니다!');
     } catch (error: any) {
       console.error('교환 실패:', error);
-      alert(error.message || '교환 중 오류가 발생했습니다.');
     } finally {
       setIsExchanging(false);
     }
