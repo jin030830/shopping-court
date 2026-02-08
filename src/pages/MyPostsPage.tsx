@@ -1,6 +1,6 @@
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { Asset, Text, Spacing } from '@toss/tds-mobile';
-import { useRef, useCallback, memo } from 'react';
+import { useRef, useCallback, memo, useEffect } from 'react';
 import { getCasesByAuthorPaginated, type CaseDocument } from '../api/cases';
 import { adaptive } from '@toss/tds-colors';
 import { useAuth } from '../hooks/useAuth';
@@ -40,7 +40,31 @@ const MyPostItem = memo(({ post, navigate, showVerdict }: any) => {
 
 function MyPostsPage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { user } = useAuth();
+
+  // 뒤로가기 시 이전 탭으로 돌아가기
+  useEffect(() => {
+    const fromTab = (location.state as any)?.fromTab || sessionStorage.getItem('myPostsFromTab') || 'HOT 게시판';
+    
+    // sessionStorage에 저장 (CaseDetailPage와 HomePage에서 사용)
+    if (fromTab) {
+      sessionStorage.setItem('myPostsFromTab', fromTab);
+    }
+    
+    // 브라우저 뒤로가기 버튼 처리
+    const handlePopState = () => {
+      // 뒤로가기 시 이전 탭으로 이동 (sessionStorage에서 읽어옴)
+      const tabToGo = sessionStorage.getItem('myPostsFromTab') || 'HOT 게시판';
+      navigate('/', { state: { selectedTab: tabToGo }, replace: false });
+    };
+    
+    window.addEventListener('popstate', handlePopState);
+
+    return () => {
+      window.removeEventListener('popstate', handlePopState);
+    };
+  }, [navigate, location.state]);
 
   const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading } = useInfiniteQuery<{ cases: CaseDocument[], lastDoc: any }, Error>({
     queryKey: ['cases', 'USER', user?.uid],

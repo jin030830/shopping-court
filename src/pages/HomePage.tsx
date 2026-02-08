@@ -103,10 +103,23 @@ function HomePage() {
   }, [isLoadingOpenCases, isFetchingNextOpenCases, hasMoreOpenCases, fetchNextOpenCases]);
 
   useEffect(() => {
-    const keys = ['caseDetailFromTab', 'completedListFromTab', 'pointMissionFromTab', 'createPostFromTab', 'myPostsFromTab'];
+    const keys = ['caseDetailFromTab', 'completedListFromTab', 'pointMissionFromTab', 'createPostFromTab'];
     keys.forEach(k => sessionStorage.removeItem(k));
     window.history.replaceState({}, document.title);
   }, []);
+
+  // location이 변경될 때 sessionStorage에서 탭 정보 확인 (뒤로가기 대응)
+  useEffect(() => {
+    const myPostsFromTab = sessionStorage.getItem('myPostsFromTab');
+    if (myPostsFromTab) {
+      const stateTab = (location.state as any)?.selectedTab;
+      if (!stateTab || stateTab !== myPostsFromTab) {
+        setSelectedTab(myPostsFromTab);
+        // 사용 후 삭제
+        sessionStorage.removeItem('myPostsFromTab');
+      }
+    }
+  }, [location]);
 
   useEffect(() => {
     if (navigationType !== 'POP') window.scrollTo(0, 0);
@@ -202,7 +215,7 @@ const Fab = ({ isExpanded, setIsExpanded, navigate, selectedTab }: any) => (
   <div style={{ position: 'fixed', bottom: '36px', right: '32px', zIndex: 99999, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px' }}>
     {isExpanded && (
       <>
-        <FabItem onClick={() => { sessionStorage.setItem('myPostsFromTab', selectedTab); navigate('/my-posts'); setIsExpanded(false); }} icon="icon-user-mono" label="내가 쓴 글" delay="0.1s" />
+        <FabItem onClick={() => { sessionStorage.setItem('myPostsFromTab', selectedTab); navigate('/my-posts', { state: { fromTab: selectedTab } }); setIsExpanded(false); }} icon="icon-user-mono" label="내가 쓴 글" delay="0.1s" />
         <FabItem onClick={() => { setIsExpanded(false); sessionStorage.setItem('createPostFromTab', selectedTab); navigate('/create-post', { state: { fromTab: selectedTab } }); }} icon="icon-pencil-line-mono" label="글쓰기" />
       </>
     )}
