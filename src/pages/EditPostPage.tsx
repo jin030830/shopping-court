@@ -8,6 +8,15 @@ function EditPostPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { user, isLoading: isAuthLoading, login } = useAuth();
+
+  // 뒤로가기 핸들러
+  const handleBack = () => {
+    if (window.history.length > 1) {
+      navigate(-1);
+    } else {
+      navigate('/', { replace: true });
+    }
+  };
   
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
@@ -29,7 +38,7 @@ function EditPostPage() {
     }
 
     if (!user) {
-      alert('로그인이 필요합니다.');
+      alert('로그인이 필요해요.');
       login();
       return;
     }
@@ -40,7 +49,7 @@ function EditPostPage() {
         if (postData) {
           // Check for authorization
           if (user.uid !== postData.authorId) {
-            alert('수정 권한이 없습니다.');
+            alert('수정 권한이 없어요.');
             navigate('/');
             return;
           }
@@ -61,20 +70,13 @@ function EditPostPage() {
   }, [id, user, isAuthLoading, navigate, login]);
 
   // 브라우저/토스 앱의 뒤로가기 버튼 처리 - 홈으로 이동
-  useEffect(() => {
-    const handlePopState = () => {
-      navigate('/', { replace: true });
-    };
-
-    window.addEventListener('popstate', handlePopState);
-    return () => window.removeEventListener('popstate', handlePopState);
-  }, [navigate]);
+  // (브라우저 기본 뒤로가기 동작을 따르도록 변경)
 
   const handleSubmit = async () => {
     if (isSubmitting) return; // 중복 클릭 방지
 
     if (!id || !user) {
-      alert('로그인이 필요합니다.');
+      alert('로그인이 필요해요.');
       login();
       return;
     }
@@ -88,11 +90,11 @@ function EditPostPage() {
 
     try {
       await updateCase(id, { title: title.trim(), content: content.trim() });
-      alert('게시물이 수정되었습니다!');
+      alert('게시물이 수정되었어요!');
       navigate(`/case/${id}`, { replace: true });
     } catch (error) {
       console.error('게시물 수정 실패:', error);
-      alert('게시물 수정에 실패했습니다.');
+      alert('게시물 수정에 실패했어요.');
       setIsSubmitting(false); // 실패 시에만 해제 (성공 시 이동하므로 불필요)
     }
   };
@@ -110,7 +112,7 @@ function EditPostPage() {
       <div style={{ padding: '20px', textAlign: 'center' }}>
         <div style={{ color: '#D32F2F', marginBottom: '20px', fontSize: '15px' }}>{error}</div>
         <button 
-          onClick={() => navigate('/')} 
+          onClick={handleBack} 
           style={{
             padding: '12px 24px',
             backgroundColor: '#3182F6',
@@ -122,7 +124,7 @@ function EditPostPage() {
             cursor: 'pointer'
           }}
         >
-          홈으로 돌아가기
+          돌아가기
         </button>
       </div>
     );
@@ -137,7 +139,6 @@ function EditPostPage() {
       width: '100%',
       boxSizing: 'border-box'
     }}>
-
       {/* Content Area */}
       <div style={{ 
         flex: 1, 
@@ -152,7 +153,7 @@ function EditPostPage() {
           color="#191F28ff" 
           typography="t4" 
           fontWeight="bold"
-          style={{ marginBottom: '24px' }}
+          style={{ marginBottom: '24px', fontSize: '20px' }}
         >
           게시물 수정하기
         </Text>
@@ -240,12 +241,11 @@ function EditPostPage() {
       {/* Fixed Bottom Button */}
       <div style={{
         position: 'fixed',
-        bottom: 0,
+        bottom: '18px',
         left: 0,
         right: 0,
         padding: '16px 20px',
         backgroundColor: 'white',
-        borderTop: '1px solid #e5e5e5',
         width: '100%',
         boxSizing: 'border-box'
       }}>

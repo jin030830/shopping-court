@@ -1,8 +1,7 @@
 import * as functions from 'firebase-functions';
 import * as admin from 'firebase-admin';
 
-// DB 접근 헬퍼: 초기화 상태 확인 및 지연 초기화
-// 명시적으로 기본 자격 증명(applicationDefault)을 사용하여 권한 오류 방지
+// DB 접근 헬퍼
 const getDb = () => {
   if (!admin.apps.length) {
     admin.initializeApp({
@@ -17,17 +16,31 @@ const getDb = () => {
  */
 const getTodayDateString = (): string => {
   const now = new Date();
-  // 한국 시간대로 변환 (UTC+9)
   const kstDate = new Date(now.getTime() + 9 * 60 * 60 * 1000);
+  return kstDate.toISOString().split('T')[0];
+};
+
+/**
+ * Timestamp를 KST 날짜 문자열로 변환
+ */
+const timestampToDateString = (timestamp: admin.firestore.Timestamp): string => {
+  const date = timestamp.toDate();
+  const kstDate = new Date(date.getTime() + 9 * 60 * 60 * 1000);
   return kstDate.toISOString().split('T')[0];
 };
 
 /**
  * 사용자 활동 통계를 업데이트하는 함수
  */
-const updateUserStats = async (userId: string, type: 'vote' | 'comment' | 'post' | 'hotCase') => {
+const updateUserStats = async (
+  userId: string, 
+  type: 'vote' | 'comment' | 'post', 
+  action: 'create' | 'delete',
+  createdAt?: admin.firestore.Timestamp
+) => {
   const db = getDb();
   const userRef = db.collection('users').doc(userId);
+  const today = getTodayDateString();
 
   try {
     await db.runTransaction(async (transaction) => {
@@ -35,225 +48,157 @@ const updateUserStats = async (userId: string, type: 'vote' | 'comment' | 'post'
       if (!userDoc.exists) return;
 
       const userData = userDoc.data();
-      const today = getTodayDateString();
-      const lastActiveDate = userData?.stats?.lastActiveDate;
+      let dailyStats = userData?.dailyStats || {
+        lastActiveDate: today,
+        voteCount: 0,
+        commentCount: 0,
+        postCount: 0,
+        isLevel1Claimed: false,
+        isLevel2Claimed: false
+      };
 
-      if (lastActiveDate !== today) {
-        transaction.update(userRef, {
-          'stats.voteCount': type === 'vote' ? 1 : 0,
-          'stats.commentCount': type === 'comment' ? 1 : 0,
-          'stats.postCount': type === 'post' ? 1 : 0,
-          'stats.hotCaseCount': type === 'hotCase' ? 1 : 0,
-          'stats.lastActiveDate': today,
-          'missions.voteMission': { claimed: false, lastClaimedDate: '' },
-          'missions.commentMission': { claimed: false, lastClaimedDate: '' },
-          'missions.postMission': { claimed: false, lastClaimedDate: '' },
-          'missions.hotCaseMission': { claimed: false, lastClaimedDate: '' },
-        });
-      } else {
-        let fieldToIncrement = '';
-        if (type === 'vote') fieldToIncrement = 'stats.voteCount';
-        else if (type === 'comment') fieldToIncrement = 'stats.commentCount';
-        else if (type === 'post') fieldToIncrement = 'stats.postCount';
-        else if (type === 'hotCase') fieldToIncrement = 'stats.hotCaseCount';
+      if (dailyStats.lastActiveDate !== today) {
+        dailyStats = { lastActiveDate: today, voteCount: 0, commentCount: 0, postCount: 0, isLevel1Claimed: false, isLevel2Claimed: false };
+      }
 
-        if (fieldToIncrement) {
-          transaction.update(userRef, {
-            [fieldToIncrement]: admin.firestore.FieldValue.increment(1)
-          });
+      if (action === 'create') {
+        if (type === 'vote') dailyStats.voteCount = (dailyStats.voteCount || 0) + 1;
+        if (type === 'comment') dailyStats.commentCount = (dailyStats.commentCount || 0) + 1;
+        if (type === 'post') dailyStats.postCount = (dailyStats.postCount || 0) + 1;
+      } else if (action === 'delete') {
+        if (createdAt) {
+          const createdDate = timestampToDateString(createdAt);
+          if (createdDate === today) {
+             if (type === 'vote') dailyStats.voteCount = Math.max(0, (dailyStats.voteCount || 0) - 1);
+             if (type === 'comment') dailyStats.commentCount = Math.max(0, (dailyStats.commentCount || 0) - 1);
+             if (type === 'post') dailyStats.postCount = Math.max(0, (dailyStats.postCount || 0) - 1);
+          }
         }
       }
+
+      transaction.update(userRef, { dailyStats });
     });
-    functions.logger.log(`Updated user stats for ${userId}, type: ${type}`);
   } catch (error) {
     functions.logger.error(`Failed to update user stats for ${userId}`, error);
   }
 };
 
 /**
- * 주어진 caseId에 대한 hotScore를 다시 계산하고 업데이트하는 재사용 가능한 함수입니다.
- * @param caseId - 업데이트할 게시물의 ID
+ * 게시물의 모든 수치(투표, 댓글)를 실제 문서 개수와 동기화하는 함수
+ */
+export const syncCaseCounts = async (caseId: string) => {
+  const db = admin.firestore();
+  const caseRef = db.collection('cases').doc(caseId);
+
+  try {
+    const [votesSnap, commentsSnap, repliesSnap] = await Promise.all([
+      caseRef.collection('votes').get(),
+      caseRef.collection('comments').get(),
+      db.collectionGroup('replies').get()
+    ]);
+
+    const filteredReplies = repliesSnap.docs.filter(doc => doc.ref.path.includes(`cases/${caseId}/`));
+
+    const guiltyCount = votesSnap.docs.filter(d => d.data().vote === 'guilty').length;
+    const innocentCount = votesSnap.docs.filter(d => d.data().vote === 'innocent').length;
+    const commentCount = commentsSnap.size + filteredReplies.length;
+
+    const voteCount = guiltyCount + innocentCount;
+    const hotScore = voteCount + (commentCount * 2);
+
+    await caseRef.update({
+      guiltyCount,
+      innocentCount,
+      commentCount,
+      hotScore,
+      updatedAt: admin.firestore.FieldValue.serverTimestamp()
+    });
+  } catch (error) {
+    functions.logger.error(`[Sync Error] Failed to sync case ${caseId}:`, error);
+  }
+};
+
+/**
+ * 주어진 caseId에 대한 hotScore를 다시 계산하고 업데이트하는 함수
  */
 const recalculateHotScore = async (caseId: string): Promise<void> => {
   const db = getDb();
   const caseRef = db.collection('cases').doc(caseId);
-
-  // Firestore 읽기 비용 최적화:
-  // votes 서브컬렉션을 전체 조회(get)하지 않고, 부모 문서의 카운트 필드를 활용합니다.
   const caseDoc = await caseRef.get();
   const data = caseDoc.data();
+  if (!data) return;
 
-  if (!data) {
-    functions.logger.warn(`Case document not found for hotScore recalculation: ${caseId}`);
-    return;
-  }
-
-  const guiltyCount = data.guiltyCount || 0;
-  const innocentCount = data.innocentCount || 0;
-  const commentCount = data.commentCount || 0;
+  const guiltyCount = Math.max(0, data.guiltyCount || 0);
+  const innocentCount = Math.max(0, data.innocentCount || 0);
+  const commentCount = Math.max(0, data.commentCount || 0);
   
-  const voteCount = guiltyCount + innocentCount;
-
-  // hotScore를 계산합니다: 총 투표 수 + (총 댓글 수 * 2)
-  const hotScore = voteCount + (commentCount * 2);
-
-  functions.logger.log(
-    `Updating hotScore for case: ${caseId}. Votes: ${voteCount}, Comments: ${commentCount}, New HotScore: ${hotScore}`
-  );
-
-  // 계산된 hotScore로 'cases' 문서의 필드를 업데이트합니다.
-  await caseRef.update({ hotScore });
+  const hotScore = (guiltyCount + innocentCount) + (commentCount * 2);
+  await caseRef.update({ guiltyCount, innocentCount, commentCount, hotScore });
 };
 
 /**
- * 게시물 문서의 commentCount를 증감시키는 함수
+ * 게시물 문서의 수치를 안전하게 증감시키는 트랜잭션 함수
  */
-const updateCommentCount = async (caseId: string, delta: number) => {
+const updateCountAtomic = async (caseId: string, field: string, delta: number) => {
   const db = getDb();
   const caseRef = db.collection('cases').doc(caseId);
-  await caseRef.update({
-    commentCount: admin.firestore.FieldValue.increment(delta)
-  });
-};
-
-/**
- * 새로운 게시물이 생성될 때 실행되는 Firestore 트리거입니다.
- */
-export const onCaseCreate = functions.region('asia-northeast3')
-  .firestore.document('cases/{caseId}')
-  .onCreate(async (snapshot, context) => {
-    try {
-      const data = snapshot.data();
-      const authorId = data.authorId;
-      
-      if (authorId) {
-        await updateUserStats(authorId, 'post');
-      }
-    } catch (error) {
-      functions.logger.error(`[onCaseCreate] Failed for case ${context.params.caseId}`, error);
-    }
-  });
-
-/**
- * 게시물 문서의 투표 카운트(guiltyCount, innocentCount)를 증가시키는 함수
- */
-const updateCaseVoteCount = async (caseId: string, voteType: 'guilty' | 'innocent') => {
-  const db = getDb();
-  const caseRef = db.collection('cases').doc(caseId);
-  
-  if (voteType === 'guilty') {
-    await caseRef.update({
-      guiltyCount: admin.firestore.FieldValue.increment(1)
+  try {
+    await db.runTransaction(async (transaction) => {
+      const doc = await transaction.get(caseRef);
+      if (!doc.exists) return;
+      const current = doc.data()?.[field] || 0;
+      transaction.update(caseRef, { [field]: Math.max(0, current + delta) });
     });
-  } else if (voteType === 'innocent') {
-    await caseRef.update({
-      innocentCount: admin.firestore.FieldValue.increment(1)
-    });
+    await recalculateHotScore(caseId);
+  } catch (e) {
+    functions.logger.error(`[AtomicUpdate Error] ${caseId} ${field}`, e);
   }
 };
 
-/**
- * 새로운 투표가 생성될 때 실행되는 Firestore 트리거입니다.
- * 'cases/{caseId}/votes/{voteId}' 경로에 문서가 생성되면 hotScore를 업데이트하고 사용자 통계를 갱신합니다.
- */
-export const onVoteCreate = functions.region('asia-northeast3')
-  .firestore.document('cases/{caseId}/votes/{voteId}')
-  .onCreate(async (snapshot, context) => {
-    try {
-      const caseId = context.params.caseId;
-      const voteId = context.params.voteId; // voteId is userId
-      const voteData = snapshot.data();
-      const voteType = voteData.vote as 'guilty' | 'innocent';
-      
-      await updateCaseVoteCount(caseId, voteType);
-      await recalculateHotScore(caseId);
-      await updateUserStats(voteId, 'vote');
-    } catch (error) {
-      functions.logger.error(`[onVoteCreate] Failed for case ${context.params.caseId}`, error);
-    }
-  });
+export const onCaseCreate = functions.region('asia-northeast3').firestore.document('cases/{caseId}').onCreate(async (snapshot) => {
+  const authorId = snapshot.data().authorId;
+  if (authorId) await updateUserStats(authorId, 'post', 'create');
+});
 
-export const onVoteDelete = functions.region('asia-northeast3')
-  .firestore.document('cases/{caseId}/votes/{voteId}')
-  .onDelete(async (snapshot, context) => {
-    try {
-      const caseId = context.params.caseId;
-      await recalculateHotScore(caseId);
-    } catch (error) {
-      functions.logger.error(`[onVoteDelete] Failed for case ${context.params.caseId}`, error);
-    }
-  });
+export const onCaseDelete = functions.region('asia-northeast3').firestore.document('cases/{caseId}').onDelete(async (snapshot) => {
+  const data = snapshot.data();
+  if (data.authorId) await updateUserStats(data.authorId, 'post', 'delete', data.createdAt);
+});
 
-/**
- * 새로운 댓글이 생성될 때 실행되는 Firestore 트리거입니다.
- */
-export const onCommentCreate = functions.region('asia-northeast3')
-  .firestore.document('cases/{caseId}/comments/{commentId}')
-  .onCreate(async (snapshot, context) => {
-    try {
-      const caseId = context.params.caseId;
-      const data = snapshot.data();
-      const authorId = data.authorId;
+export const onVoteCreate = functions.region('asia-northeast3').firestore.document('cases/{caseId}/votes/{voteId}').onCreate(async (snapshot, context) => {
+  await updateUserStats(context.params.voteId, 'vote', 'create');
+  await recalculateHotScore(context.params.caseId);
+});
 
-      await updateCommentCount(caseId, 1);
-      await recalculateHotScore(caseId);
-      
-      if (authorId) {
-        await updateUserStats(authorId, 'comment');
-      }
-    } catch (error) {
-      functions.logger.error(`[onCommentCreate] Failed for case ${context.params.caseId}`, error);
-    }
-  });
+export const onVoteDelete = functions.region('asia-northeast3').firestore.document('cases/{caseId}/votes/{voteId}').onDelete(async (snapshot, context) => {
+  const data = snapshot.data();
+  await updateUserStats(context.params.voteId, 'vote', 'delete', data.createdAt);
+  // 단순히 숫자를 빼는 대신, 실제 개수를 다시 세어서 동기화 (오차 0%)
+  await syncCaseCounts(context.params.caseId);
+});
 
-/**
- * 댓글이 삭제될 때 실행되는 Firestore 트리거입니다.
- */
-export const onCommentDelete = functions.region('asia-northeast3')
-  .firestore.document('cases/{caseId}/comments/{commentId}')
-  .onDelete(async (snapshot, context) => {
-    try {
-      const caseId = context.params.caseId;
-      await updateCommentCount(caseId, -1);
-      await recalculateHotScore(caseId);
-    } catch (error) {
-      functions.logger.error(`[onCommentDelete] Failed for case ${context.params.caseId}`, error);
-    }
-  });
+export const onCommentCreate = functions.region('asia-northeast3').firestore.document('cases/{caseId}/comments/{commentId}').onCreate(async (snapshot, context) => {
+  const authorId = snapshot.data().authorId;
+  await updateCountAtomic(context.params.caseId, 'commentCount', 1);
+  if (authorId) await updateUserStats(authorId, 'comment', 'create');
+});
 
-/**
- * 대댓글 생성 트리거
- */
-export const onReplyCreate = functions.region('asia-northeast3')
-  .firestore.document('cases/{caseId}/comments/{commentId}/replies/{replyId}')
-  .onCreate(async (snapshot, context) => {
-    try {
-      const caseId = context.params.caseId;
-      const data = snapshot.data();
-      const authorId = data.authorId;
+export const onCommentDelete = functions.region('asia-northeast3').firestore.document('cases/{caseId}/comments/{commentId}').onDelete(async (snapshot, context) => {
+  const data = snapshot.data();
+  if (data.authorId) await updateUserStats(data.authorId, 'comment', 'delete', data.createdAt);
+  // 실제 개수 동기화
+  await syncCaseCounts(context.params.caseId);
+});
 
-      await updateCommentCount(caseId, 1);
-      await recalculateHotScore(caseId);
+export const onReplyCreate = functions.region('asia-northeast3').firestore.document('cases/{caseId}/comments/{commentId}/replies/{replyId}').onCreate(async (snapshot, context) => {
+  const authorId = snapshot.data().authorId;
+  await updateCountAtomic(context.params.caseId, 'commentCount', 1);
+  if (authorId) await updateUserStats(authorId, 'comment', 'create');
+});
 
-      if (authorId) {
-        await updateUserStats(authorId, 'comment');
-      }
-    } catch (error) {
-      functions.logger.error(`[onReplyCreate] Failed for case ${context.params.caseId}`, error);
-    }
-  });
-
-/**
- * 대댓글 삭제 트리거
- */
-export const onReplyDelete = functions.region('asia-northeast3')
-  .firestore.document('cases/{caseId}/comments/{commentId}/replies/{replyId}')
-  .onDelete(async (snapshot, context) => {
-    try {
-      const caseId = context.params.caseId;
-      await updateCommentCount(caseId, -1);
-      await recalculateHotScore(caseId);
-    } catch (error) {
-      functions.logger.error(`[onReplyDelete] Failed for case ${context.params.caseId}`, error);
-    }
-  });
+export const onReplyDelete = functions.region('asia-northeast3').firestore.document('cases/{caseId}/comments/{commentId}/replies/{replyId}').onDelete(async (snapshot, context) => {
+  const data = snapshot.data();
+  if (data.authorId) await updateUserStats(data.authorId, 'comment', 'delete', data.createdAt);
+  // 실제 개수 동기화
+  await syncCaseCounts(context.params.caseId);
+});

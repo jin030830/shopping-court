@@ -1,1140 +1,380 @@
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate, useLocation, useNavigationType } from 'react-router-dom';
 import { Asset, Text, Spacing } from '@toss/tds-mobile';
-import { useState, useEffect } from 'react';
-import { getAllCases, getComments, getReplies, type CaseDocument } from '../api/cases';
+import { useState, useEffect, useRef, useCallback, memo } from 'react';
+import { getCasesPaginated, getHotCases, type CaseDocument } from '../api/cases';
 import { Timestamp } from 'firebase/firestore';
 import { adaptive } from '@toss/tds-colors';
-import scaleIcon from '../assets/저울모양-다음에서-변환-png.svg';
-import hotFlameIcon from '../assets/핫게시판불모양.png';
-import pointMissionImage from '../assets/포인트미션창.png';
+import pointMissionImage from '../assets/pansascale.png';
+import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
+import { caseKeys } from '../constants/queryKeys';
 
-// 날짜 포맷팅 함수 (M/d HH:mm 형식)
+// 날짜 포맷팅 함수
 const formatDate = (timestamp: Timestamp): string => {
   const date = timestamp.toDate();
-  const month = date.getMonth() + 1;
-  const day = date.getDate();
-  const hours = date.getHours();
-  const minutes = date.getMinutes();
-  return `${month}/${day} ${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+  return `${date.getMonth() + 1}/${date.getDate()} ${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}`;
 };
+
+// 게시물 아이템 컴포넌트
+const CaseItem = memo(({ post, index, selectedTab, navigate }: any) => (
+  <div onClick={() => navigate(`/case/${post.id}`, { state: { fromTab: selectedTab } })}
+    style={{ backgroundColor: 'white', padding: '16px 20px', borderBottom: '1px solid #F0F0F0', cursor: 'pointer' }}>
+    {selectedTab === 'HOT 게시판' && (
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '4px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+          <Asset.Icon frameShape={Asset.frameShape.CleanW20} backgroundColor="transparent" name="icon-emoji-fire" aria-hidden={true} ratio="1/1" />
+          <Text display="block" color="#FF6B6B" typography="t6" fontWeight="bold">TOP {index + 1}</Text>
+        </div>
+        {post.createdAt && <Text color="#9E9E9E" typography="st13" fontWeight="regular" style={{ fontSize: '14px' }}>{formatDate(post.createdAt)}</Text>}
+      </div>
+    )}
+    <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', marginBottom: '4px' }}>
+      <Text display="block" color="#191F28" typography="t4" fontWeight="bold" style={{ flex: 1, textAlign: 'center', WebkitLineClamp: 2, display: '-webkit-box', WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{post.title}</Text>
+      {selectedTab === '재판 중' && post.createdAt && <Text color="#9E9E9E" typography="st13" fontWeight="regular" style={{ fontSize: '14px' }}>{formatDate(post.createdAt)}</Text>}
+    </div>
+    <div style={{ marginBottom: '8px', lineHeight: '1.5', color: '#191F28', fontSize: '14px', wordBreak: 'break-word' }}>
+      {post.content && post.content.length > 50 ? `${post.content.substring(0, 50)}...` : post.content}
+    </div>
+    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+      <StatItem icon="icon-user-two-mono" count={(post.guiltyCount || 0) + (post.innocentCount || 0)} />
+      <StatItem icon="icon-chat-bubble-mono" count={post.commentCount ?? 0} />
+    </div>
+  </div>
+));
+
+const StatItem = ({ icon, count }: any) => (
+  <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+    <Asset.Icon frameShape={{ width: 15, height: 15 }} backgroundColor="transparent" name={icon} color="#5e403b" aria-hidden={true} ratio="1/1" />
+    <Text color="#5e403b" typography="st13" fontWeight="medium" style={{ fontSize: '14px' }}>{count}</Text>
+  </div>
+);
 
 function HomePage() {
   const location = useLocation();
-  // 초기값: location.state > localStorage > 기본값 '재판 중'
-  const [selectedTab, setSelectedTab] = useState(() => {
-    const stateTab = (location.state as any)?.selectedTab;
-    const savedTab = localStorage.getItem('selectedTab');
-    return stateTab || savedTab || '재판 중';
-  });
-  const [allPosts, setAllPosts] = useState<CaseDocument[]>([]);
-  const [isPostsLoading, setIsPostsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
-
-  // location.state에서 탭 정보를 받아오면 탭 변경
-  // 또는 sessionStorage에서 가져오기 (토스 앱의 뒤로가기 버튼 대응)
-  useEffect(() => {
-    let newTab: string | null = null;
+  const navigationType = useNavigationType();
+  const [isFabExpanded, setIsFabExpanded] = useState(false);
+  
+  const [selectedTab, setSelectedTab] = useState(() => {
+    // 1. location.state에서 전달된 탭 (다른 페이지에서 돌아올 때)
+    const stateTab = (location.state as any)?.selectedTab;
+    if (stateTab) return stateTab;
     
-    // location.state에서 먼저 확인
-    if ((location.state as any)?.selectedTab) {
-      newTab = (location.state as any).selectedTab;
-    } 
-    // sessionStorage에서 확인 (토스 앱의 뒤로가기 버튼 대응)
-    else if (sessionStorage.getItem('caseDetailFromTab')) {
-      newTab = sessionStorage.getItem('caseDetailFromTab');
-      sessionStorage.removeItem('caseDetailFromTab'); // 사용 후 삭제
-    }
-    // 재판 완료 리스트 페이지에서 돌아온 경우
-    else if (sessionStorage.getItem('completedListFromTab')) {
-      newTab = sessionStorage.getItem('completedListFromTab');
-      sessionStorage.removeItem('completedListFromTab'); // 사용 후 삭제
+    // 2. sessionStorage에서 임시 저장된 탭 (뒤로가기 대응)
+    const tempTab = sessionStorage.getItem('caseDetailFromTab') || sessionStorage.getItem('completedListFromTab') || sessionStorage.getItem('pointMissionFromTab') || sessionStorage.getItem('createPostFromTab') || sessionStorage.getItem('myPostsFromTab');
+    if (tempTab) return tempTab;
+    
+    // 3. localStorage에서 마지막 선택된 탭 (새로고침 대응)
+    const lastTab = localStorage.getItem('lastSelectedTab');
+    if (lastTab && ['재판 중', 'HOT 게시판', '재판 완료'].includes(lastTab)) {
+      return lastTab;
     }
     
-    if (newTab) {
-      setSelectedTab(newTab);
-      localStorage.setItem('selectedTab', newTab); // localStorage에도 저장
-      // state를 초기화하여 다시 뒤로가기 해도 계속 같은 탭이 선택되지 않도록
-      window.history.replaceState({}, document.title);
-    }
-  }, [location.state]);
+    // 4. 기본값
+    return 'HOT 게시판';
+  });
 
-  // 탭이 변경될 때마다 localStorage에 저장
+  // Infinite Query for '재판 중'
+  const {
+    data: openCasesData,
+    fetchNextPage: fetchNextOpenCases,
+    hasNextPage: hasMoreOpenCases,
+    isFetchingNextPage: isFetchingNextOpenCases,
+    isLoading: isLoadingOpenCases,
+    error: openCasesError
+  } = useInfiniteQuery<{ cases: CaseDocument[], lastDoc: any }, Error>({
+    queryKey: caseKeys.list('OPEN'),
+    queryFn: ({ pageParam }) => getCasesPaginated({ status: 'OPEN', limitCount: 10, lastVisible: pageParam }),
+    getNextPageParam: (lastPage) => lastPage.cases.length === 10 ? lastPage.lastDoc : undefined,
+    initialPageParam: null,
+    enabled: selectedTab === '재판 중',
+    staleTime: 1000 * 10,
+    refetchInterval: 60000,
+    refetchOnWindowFocus: true, // [Optimization] 화면 복귀 시 즉시 최신화
+  });
+
+  // Query for 'HOT 게시판' (상위 3개)
+  const { data: hotCases, isLoading: isLoadingHot, error: hotError } = useQuery<CaseDocument[], Error>({
+    queryKey: caseKeys.list('HOT'),
+    queryFn: () => getHotCases(3),
+    enabled: selectedTab === 'HOT 게시판',
+    staleTime: 1000 * 10,
+    refetchInterval: 60000,
+    refetchOnWindowFocus: true,
+  });
+
+  // Query for '재판 완료' 대시보드
+  const { data: completedDashboard, isLoading: isLoadingCompleted, error: completedError } = useQuery<{ cases: CaseDocument[] }, Error>({
+    queryKey: caseKeys.list('CLOSED_DASHBOARD'),
+    queryFn: () => getCasesPaginated({ status: 'CLOSED', limitCount: 10 }) as any,
+    enabled: selectedTab === '재판 완료',
+    staleTime: 1000 * 10,
+    refetchInterval: 60000,
+    refetchOnWindowFocus: true,
+  });
+
+  const observer = useRef<IntersectionObserver | null>(null);
+  const lastElementRef = useCallback((node: any) => {
+    if (isLoadingOpenCases || isFetchingNextOpenCases) return;
+    if (observer.current) observer.current.disconnect();
+    observer.current = new IntersectionObserver(entries => {
+      if (entries[0].isIntersecting && hasMoreOpenCases) fetchNextOpenCases();
+    });
+    if (node) observer.current.observe(node);
+  }, [isLoadingOpenCases, isFetchingNextOpenCases, hasMoreOpenCases, fetchNextOpenCases]);
+
   useEffect(() => {
-    localStorage.setItem('selectedTab', selectedTab);
-  }, [selectedTab]);
-
-  useEffect(() => {
-    const fetchCases = async () => {
-      try {
-        setIsPostsLoading(true);
-        const cases = await getAllCases();
-        setAllPosts(cases);
-      } catch (err) {
-        setError('게시물을 불러오는 중 오류가 발생했습니다.');
-        console.error(err);
-      } finally {
-        setIsPostsLoading(false);
-      }
-    };
-
-    fetchCases();
+    const keys = ['caseDetailFromTab', 'completedListFromTab', 'pointMissionFromTab', 'createPostFromTab'];
+    keys.forEach(k => sessionStorage.removeItem(k));
+    window.history.replaceState({}, document.title);
   }, []);
 
+  // location이 변경될 때 sessionStorage에서 탭 정보 확인 (뒤로가기 대응)
+  useEffect(() => {
+    const myPostsFromTab = sessionStorage.getItem('myPostsFromTab');
+    if (myPostsFromTab) {
+      const stateTab = (location.state as any)?.selectedTab;
+      if (!stateTab || stateTab !== myPostsFromTab) {
+        setSelectedTab(myPostsFromTab);
+        // 사용 후 삭제
+        sessionStorage.removeItem('myPostsFromTab');
+      }
+    }
+  }, [location]);
+
+  useEffect(() => {
+    if (navigationType !== 'POP') window.scrollTo(0, 0);
+  }, [selectedTab, navigationType]);
+
+  const isLoading = isLoadingOpenCases || isLoadingHot || isLoadingCompleted;
+  const error = openCasesError || hotError || completedError;
+
   return (
-    <div style={{ 
-      backgroundColor: 'white', 
-      minHeight: '100vh',
-      width: '100%',
-      boxSizing: 'border-box'
-    }}>
-      {/* 포인트 미션 배너 */}
-      <div style={{
-        backgroundColor: '#E3F2FD',
-        padding: '12px 0',
-        width: '100%',
-        boxSizing: 'border-box',
-        marginTop: '14px'
-      }}>
-        <div style={{
-          margin: '0 20px',
-          width: 'calc(100% - 40px)',
-          height: '144px',
-          backgroundColor: '#3182F6',
-          borderRadius: '10px',
-          padding: '12px',
-          boxSizing: 'border-box',
-          position: 'relative',
-          overflow: 'hidden'
-        }}>
-          <div style={{
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '8px',
-            position: 'relative',
-            zIndex: 1,
-            height: '100%',
-            width: '100%'
-          }}>
-            <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
-              <Asset.Icon
-                frameShape={{ width: 49, height: 49 }}
-                backgroundColor="transparent"
-                name="icon-money-bag-point-blue-gradient"
-                aria-hidden={true}
-                ratio="1/1"
-              />
-              <div style={{ flex: 1 }}>
-                <Text
-                  display="block"
-                  color="white"
-                  typography="t2"
-                  fontWeight="bold"
-                  style={{ lineHeight: '1.4', fontSize: '18px' }}
-                >
-                  재판에 참여하고{'\n'}포인트를 모아보세요
-                </Text>
+    <div style={{ backgroundColor: 'white', minHeight: '100vh', width: '100%', boxSizing: 'border-box' }}>
+      <Banner navigate={navigate} selectedTab={selectedTab} />
+      
+      <div style={{ padding: '0 20px', backgroundColor: 'white', position: 'sticky', top: 0, zIndex: 100 }}>
+        <div style={{ display: 'flex', borderBottom: '1px solid #e5e5e5', justifyContent: 'space-between' }}>
+          {['재판 중', 'HOT 게시판', '재판 완료'].map(tab => (
+            <TabButton key={tab} label={tab} isSelected={selectedTab === tab} onClick={() => {
+              setSelectedTab(tab);
+              // 탭 변경 시 localStorage에 저장 (새로고침 대응)
+              localStorage.setItem('lastSelectedTab', tab);
+            }} />
+          ))}
+        </div>
+      </div>
+
+      {selectedTab === '재판 중' && <TabHeader title="재판 중인 글" subtitle="재판에 참여해보세요!" color="#0D47A1" iconSrc="https://static.toss.im/2d-emojis/png/4x/u2696.png" />}
+      {selectedTab === 'HOT 게시판' && <TabHeader title="실시간 HOT한 글" subtitle="재판에 참여해보세요!" color="#B71C1C" iconName="icon-fire-red-fill" />}
+      {selectedTab === '재판 완료' && <TabHeader title="재판 완료된 글" subtitle="어떤 경우가 합리적이었을까요?" color="#5e403b" isGavel />}
+
+      <div style={{ backgroundColor: 'white' }}>
+        {error ? (
+          <div style={{ padding: '40px', textAlign: 'center' }}><Text color="#D32F2F">게시물을 불러오는 중 오류가 발생했습니다. (인덱스 생성 중일 수 있습니다)</Text></div>
+        ) : selectedTab === '재판 완료' ? (
+          <CompletedPostListMain posts={completedDashboard?.cases || []} navigate={navigate} />
+        ) : (
+          <div>
+            {isLoading && <div style={{ padding: '40px', textAlign: 'center', minHeight: '80vh' }}><Text color="#6B7684">로딩 중...</Text></div>}
+            {selectedTab === '재판 중' && (openCasesData?.pages as any[])?.flatMap(p => p.cases).map((post, idx, arr) => (
+              <div key={post.id} ref={idx === arr.length - 1 ? lastElementRef : null}>
+                <CaseItem post={post} selectedTab={selectedTab} navigate={navigate} />
               </div>
-            </div>
-            
-            <div style={{ 
-              position: 'absolute',
-              bottom: '12px',
-              left: '12px',
-              cursor: 'pointer',
-              zIndex: 2
-            }}
-              onClick={() => navigate('/point-mission')}
-            >
-              <div style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '4px',
-                padding: '6px 12px',
-                backgroundColor: 'white',
-                borderRadius: '10px',
-                boxShadow: '0px 0px 4px 0px rgba(255, 255, 255, 1)',
-                width: 'fit-content'
-              }}>
+            ))}
+            {selectedTab === 'HOT 게시판' && hotCases?.map((post, idx) => (
+              <CaseItem key={post.id} post={post} index={idx} selectedTab={selectedTab} navigate={navigate} />
+            ))}
+            {isFetchingNextOpenCases && <div style={{ padding: '20px', textAlign: 'center' }}><Text color="#6B7684">더 불러오는 중...</Text></div>}
+          </div>
+        )}
+      </div>
+
+      {selectedTab !== '재판 완료' && <Fab isExpanded={isFabExpanded} setIsExpanded={setIsFabExpanded} navigate={navigate} selectedTab={selectedTab} />}
+      <Spacing size={24} />
+      <style>{` @keyframes slideUp { from { opacity: 0; transform: translateY(20px) scale(0.8); } to { opacity: 1; transform: translateY(0) scale(1); } } `}</style>
+    </div>
+  );
+}
+
+const TabButton = ({ label, isSelected, onClick }: any) => (
+  <button onClick={onClick} style={{ background: 'none', border: 'none', padding: '12px 0', cursor: 'pointer', position: 'relative', fontWeight: isSelected ? '600' : '400', color: isSelected ? '#191F28' : '#666', fontSize: '15px', flex: 1, textAlign: 'center' }}>
+    {label}
+    {isSelected && <div style={{ position: 'absolute', bottom: '-1px', left: 0, right: 0, height: '2px', backgroundColor: '#191F28' }} />}
+  </button>
+);
+
+const Banner = ({ navigate, selectedTab }: any) => (
+  <div style={{ backgroundColor: 'white', padding: '11px 20px', width: '100%', boxSizing: 'border-box' }}>
+    <div style={{ width: '100%', height: '147px', backgroundColor: '#FAF0E6', padding: '12px 12px', boxSizing: 'border-box', position: 'relative', overflow: 'hidden', borderRadius: '10px', boxShadow: '0px 4px 4px 0px rgba(0, 0, 0, 0.25)' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', position: 'relative', zIndex: 1, height: '100%' }}>
+        <Text display="block" color="#191F28" typography="t2" fontWeight="bold" style={{ lineHeight: '1.4', fontSize: '20px', marginLeft: '14px', marginTop: '8px' }}>재판에 참여하고{"\n"}포인트를 모아보세요</Text>
+        <div style={{ position: 'absolute', bottom: '8px', left: '14px', cursor: 'pointer', zIndex: 2 }} onClick={() => { sessionStorage.setItem('pointMissionFromTab', selectedTab); navigate('/point-mission', { state: { fromTab: selectedTab } }); }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '4px', padding: '8px 12px 8px 18px', backgroundColor: '#5E403B', borderRadius: '10px', boxShadow: '0px 0px 4px 0px rgba(255, 255, 255, 1)' }}>
+            <Text display="block" color="white" typography="t6" fontWeight="bold">미션 확인하기</Text>
+            <Asset.Icon frameShape={Asset.frameShape.CleanW16} name="icon-arrow-right-mono" color="white" ratio="1/1" />
+          </div>
+        </div>
+      </div>
+      <div style={{ position: 'absolute', bottom: '0px', right: '15px', width: '150px', height: '150px', backgroundImage: `url(${pointMissionImage})`, backgroundSize: 'contain', backgroundRepeat: 'no-repeat', backgroundPosition: 'bottom right', filter: 'drop-shadow(2px 4px 6px rgba(0, 0, 0, 0.3))' }} />
+    </div>
+  </div>
+);
+
+const TabHeader = ({ title, subtitle, color, icon, iconName, iconSrc, isGavel }: any) => (
+  <div style={{ padding: '0 20px', background: 'linear-gradient(180deg, #FAF0E6 0%, #ffffff 100%)', paddingTop: '16px' }}>
+    <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '16px' }}>
+      <div style={{ flex: 1, paddingTop: '13px' }}>
+        <Text display="block" color={color} typography="t3" fontWeight="bold" style={{ fontSize: '22px' }}>{title}</Text>
+        <Text display="block" color="#191F28" typography="t7" fontWeight="regular">{subtitle}</Text>
+      </div>
+      <div style={{ marginLeft: '16px' }}>
+        {isGavel ? <Asset.Icon frameShape={Asset.frameShape.CleanW60} name="icon-gavel" style={{ width: '80px', height: '80px' }} /> : iconSrc ? <Asset.Image frameShape={Asset.frameShape.CleanW60} src={iconSrc} style={{ width: '80px', height: '80px' }} /> : iconName ? <Asset.Icon frameShape={Asset.frameShape.CleanW60} name={iconName} style={{ width: '80px', height: '80px' }} /> : icon ? <img src={icon} alt={title} style={{ width: '80px', height: '80px', objectFit: 'contain' }} /> : null}
+      </div>
+    </div>
+    <div style={{ height: '1px', borderTop: '1px solid #F0F0F0', marginLeft: '-20px', marginRight: '-20px', width: 'calc(100% + 40px)' }} />
+  </div>
+);
+
+const Fab = ({ isExpanded, setIsExpanded, navigate, selectedTab }: any) => (
+  <div style={{ position: 'fixed', bottom: '36px', right: '32px', zIndex: 99999, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px' }}>
+    {isExpanded && (
+      <>
+        <FabItem onClick={() => { sessionStorage.setItem('myPostsFromTab', selectedTab); navigate('/my-posts', { state: { fromTab: selectedTab } }); setIsExpanded(false); }} icon="icon-user-mono" label="내가 쓴 글" delay="0.1s" />
+        <FabItem onClick={() => { setIsExpanded(false); sessionStorage.setItem('createPostFromTab', selectedTab); navigate('/create-post', { state: { fromTab: selectedTab } }); }} icon="icon-pencil-line-mono" label="글쓰기" />
+      </>
+    )}
+    <button onClick={() => setIsExpanded(!isExpanded)} style={{ width: '56px', height: '56px', borderRadius: '50%', backgroundColor: 'transparent', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}>
+      <Asset.Icon frameShape={Asset.frameShape.CircleXLarge} backgroundColor="#5e403b" name={isExpanded ? "icon-x-mono" : "icon-plus-thin-mono"} color="#fef6f1" scale={isExpanded ? 0.5 : 0.66} aria-hidden={true} />
+    </button>
+  </div>
+);
+
+const FabItem = ({ onClick, icon, label, delay }: any) => (
+  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', animation: `slideUp 0.3s ease-out ${delay || '0s'} both`, transformOrigin: 'bottom' }}>
+    <button onClick={onClick} style={{ width: '56px', height: '56px', borderRadius: '50%', backgroundColor: 'transparent', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}>
+      <Asset.Icon frameShape={Asset.frameShape.CircleXLarge} backgroundColor="#fef6f0" name={icon} color="#5e403b" scale={0.66} aria-hidden={true} />
+    </button>
+    <Text color="#5e403b" typography="st13" fontWeight="bold" style={{ marginTop: '2px', fontSize: '12px' }}>{label}</Text>
+  </div>
+);
+
+function CompletedPostListMain({ posts, navigate }: any) {
+  const processed = posts.map((p: any) => {
+    const vc = (p.guiltyCount || 0) + (p.innocentCount || 0);
+    return { ...p, verdict: vc > 0 ? (p.innocentCount > p.guiltyCount ? '무죄' : p.guiltyCount > p.innocentCount ? '유죄' : '보류') : '보류', hotScore: p.hotScore || (vc + (2 * (p.commentCount || 0))) };
+  });
+  // 대시보드용 정렬 (DB에서 limit 10으로 가져온 데이터 중 상위 5개씩 슬라이스)
+  // 화제의 재판 기록: 최신순 정렬 (createdAt 기준)
+  const hot = processed.sort((a: any, b: any) => (b.createdAt?.toMillis() || 0) - (a.createdAt?.toMillis() || 0)).slice(0, 5);
+  const prev = [...processed].sort((a: any, b: any) => (b.voteEndAt?.toMillis() || 0) - (a.voteEndAt?.toMillis() || 0)).slice(0, 5);
+
+  const renderCard = (p: any) => (
+    <div key={p.id} onClick={() => navigate(`/case/${p.id}`, { state: { fromTab: '재판 완료' } })} style={{ backgroundColor: '#F7F3EE', borderRadius: '10px', padding: '16px', minWidth: '172px', width: '172px', height: '211px', marginRight: '12px', cursor: 'pointer', display: 'flex', flexDirection: 'column', gap: '12px', boxSizing: 'border-box', position: 'relative' }}>
+      <div style={{ padding: '6px 12px', backgroundColor: p.verdict === '무죄' ? '#3182F628' : p.verdict === '유죄' ? '#F0445228' : '#4E596828', color: p.verdict === '무죄' ? '#1976D2' : p.verdict === '유죄' ? '#D32F2F' : '#6B7684', fontSize: '14px', fontWeight: '600', borderRadius: '5px', width: 'fit-content' }}>{p.verdict}</div>
+      <div style={{ position: 'absolute', top: '22px', right: '16px' }}><Asset.Icon frameShape={Asset.frameShape.CleanW24} name="icon-system-arrow-right-outlined" color="rgba(0, 19, 43, 0.38)" /></div>
+      <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <Text display="block" color="#191F28" typography="t4" fontWeight="bold" style={{ textAlign: 'center', WebkitLineClamp: 2, display: '-webkit-box', WebkitBoxOrient: 'vertical', overflow: 'hidden', lineHeight: '1.4', fontSize: '18px' }}>{p.title}</Text>
+      </div>
+    </div>
+  );
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '40px', backgroundColor: 'white', paddingBottom: '24px', paddingTop: '16px' }}>
+      <CompletedSection title="화제의 재판 기록" iconSrc="https://static.toss.im/2d-emojis/png/4x/u1F525.png" posts={hot} onMore={() => navigate('/completed-trending')} renderCard={renderCard} />
+      <CompletedSection title="이전 재판 기록" iconName="icon-document-folder-yellow" posts={prev} onMore={() => navigate('/completed-previous')} renderCard={renderCard} />
+      <style>{` div::-webkit-scrollbar { display: none; } `}</style>
+    </div>
+  );
+}
+
+const CompletedSection = ({ title, iconSrc, iconName, posts, onMore, renderCard }: any) => {
+  const [showInfoPopup, setShowInfoPopup] = useState(false);
+  const infoPopupRef = useRef<HTMLDivElement>(null);
+  const isTrending = title === '화제의 재판 기록';
+  
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (infoPopupRef.current && !infoPopupRef.current.contains(event.target as Node)) {
+        setShowInfoPopup(false);
+      }
+    };
+    if (showInfoPopup) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showInfoPopup]);
+  
+  return (
+    <div>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 20px', marginBottom: '16px', position: 'relative' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          {iconSrc ? <Asset.Image frameShape={Asset.frameShape.CleanW24} src={iconSrc} style={{ aspectRatio: '1/1' }} /> : <Asset.Icon frameShape={Asset.frameShape.CleanW24} name={iconName} ratio="1/1" />}
+          <Text display="block" color={adaptive.grey900} typography="t3" fontWeight="bold" style={{ fontSize: '22px' }}>{title}</Text>
+          {isTrending && (
+            <div ref={infoPopupRef} style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', marginLeft: '4px' }}>
+              <div 
+                onClick={() => setShowInfoPopup(!showInfoPopup)} 
+                style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+              >
                 <Asset.Icon
                   frameShape={Asset.frameShape.CleanW16}
                   backgroundColor="transparent"
-                  name="icon-twinkle-graident"
-                  aria-hidden={true}
-                  ratio="1/1"
-                />
-                <Text
-                  display="block"
-                  color="#3182F6"
-                  typography="t6"
-                  fontWeight="bold"
-                >
-                  미션 확인하기
-                </Text>
-                <Asset.Icon
-                  frameShape={Asset.frameShape.CleanW16}
-                  backgroundColor="transparent"
-                  name="icon-arrow-right-mono"
+                  name="icon-info-circle-mono"
                   color="#9E9E9E"
                   aria-hidden={true}
                   ratio="1/1"
                 />
               </div>
+              {showInfoPopup && (
+                <div style={{ 
+                  position: 'absolute', 
+                  left: '50%',
+                  bottom: '100%',
+                  transform: 'translateX(-50%)',
+                  marginBottom: '8px',
+                  backgroundColor: 'white', 
+                  padding: '8px 12px', 
+                  borderRadius: '8px', 
+                  boxShadow: '0px 2px 8px rgba(0, 0, 0, 0.15)', 
+                  zIndex: 1002, 
+                  whiteSpace: 'nowrap',
+                  fontSize: '13px',
+                  color: '#191F28',
+                  display: 'inline-block',
+                  lineHeight: '1.4'
+                }}>
+                  <Text color="#191F28" typography="t7" fontWeight="medium" style={{ fontSize: '13px', whiteSpace: 'nowrap', display: 'inline' }}>
+                    특히 많은 관심을 받았던 사건들이에요
+                  </Text>
+                  <div style={{
+                    position: 'absolute',
+                    bottom: '-6px',
+                    left: '50%',
+                    transform: 'translateX(-50%)',
+                    width: 0,
+                    height: 0,
+                    borderLeft: '6px solid transparent',
+                    borderRight: '6px solid transparent',
+                    borderTop: '6px solid white'
+                  }} />
+                </div>
+              )}
             </div>
-          </div>
-          
-          {/* 판사봉 이미지 (배경) */}
-          <div style={{
-            position: 'absolute',
-            bottom: '10px',
-            right: '15px',
-            zIndex: 0,
-            width: '100px',
-            height: '100px',
-            backgroundImage: `url(${pointMissionImage})`,
-            backgroundSize: 'contain',
-            backgroundRepeat: 'no-repeat',
-            backgroundPosition: 'bottom right',
-            filter: 'drop-shadow(2px 4px 6px rgba(0, 0, 0, 0.3))'
-          }}>
-          </div>
-        </div>
-      </div>
-
-      <Spacing size={12} />
-
-      {/* 탭 */}
-      <div style={{ padding: '0 20px', backgroundColor: 'white', paddingBottom: '12px' }}>
-        <div style={{ display: 'flex', borderBottom: '1px solid #e5e5e5', justifyContent: 'space-between' }}>
-          <button
-            onClick={() => setSelectedTab('재판 중')}
-            style={{
-              background: 'none',
-              border: 'none',
-              padding: '12px 0',
-              cursor: 'pointer',
-              position: 'relative',
-              fontWeight: selectedTab === '재판 중' ? '600' : '400',
-              color: selectedTab === '재판 중' ? '#191F28' : '#666',
-              fontSize: '15px',
-              flex: 1,
-              textAlign: 'center'
-            }}
-          >
-            재판 중
-            {selectedTab === '재판 중' && (
-              <div style={{
-                position: 'absolute',
-                bottom: '-1px',
-                left: 0,
-                right: 0,
-                height: '2px',
-                backgroundColor: '#191F28'
-              }} />
-            )}
-          </button>
-          <button
-            onClick={() => setSelectedTab('HOT 게시판')}
-            style={{
-              background: 'none',
-              border: 'none',
-              padding: '12px 0',
-              cursor: 'pointer',
-              position: 'relative',
-              fontWeight: selectedTab === 'HOT 게시판' ? '600' : '400',
-              color: selectedTab === 'HOT 게시판' ? '#191F28' : '#666',
-              fontSize: '15px',
-              flex: 1,
-              textAlign: 'center'
-            }}
-          >
-            HOT 게시판
-            {selectedTab === 'HOT 게시판' && (
-              <div style={{
-                position: 'absolute',
-                bottom: '-1px',
-                left: 0,
-                right: 0,
-                height: '2px',
-                backgroundColor: '#191F28'
-              }} />
-            )}
-          </button>
-          <button
-            onClick={() => setSelectedTab('재판 완료')}
-            style={{
-              background: 'none',
-              border: 'none',
-              padding: '12px 0',
-              cursor: 'pointer',
-              position: 'relative',
-              fontWeight: selectedTab === '재판 완료' ? '600' : '400',
-              color: selectedTab === '재판 완료' ? '#191F28' : '#666',
-              fontSize: '15px',
-              flex: 1,
-              textAlign: 'center'
-            }}
-          >
-            재판 완료
-            {selectedTab === '재판 완료' && (
-              <div style={{
-                position: 'absolute',
-                bottom: '-1px',
-                left: 0,
-                right: 0,
-                height: '2px',
-                backgroundColor: '#191F28'
-              }} />
-            )}
-          </button>
-        </div>
-      </div>
-
-      {/* 재판 중 탭일 때만 표시되는 섹션 */}
-      {selectedTab === '재판 중' && (
-        <div style={{ 
-          padding: '0 20px', 
-          marginBottom: '20px',
-          background: 'linear-gradient(180deg, #e8f3ff 0%, #ffffff 100%)',
-          paddingTop: '16px',
-          marginTop: '-12px'
-        }}>
-          <div style={{ 
-            display: 'flex', 
-            alignItems: 'flex-start', 
-            justifyContent: 'space-between',
-            marginBottom: '16px'
-          }}>
-            <div style={{ flex: 1 }}>
-              <Text 
-                display="block" 
-                color="#191F28ff" 
-                typography="t3" 
-                fontWeight="bold"
-                style={{ marginBottom: '8px', fontSize: '22px' }}
-              >
-                재판 중인 글
-              </Text>
-              <Text 
-                display="block" 
-                color="#191F28" 
-                typography="t7" 
-                fontWeight="regular"
-                style={{ marginBottom: '12px' }}
-              >
-                재판에 참여해보세요!
-              </Text>
-              <button
-                onClick={() => navigate('/create-post')}
-                style={{
-                  padding: '8px 16px',
-                  backgroundColor: '#E3F2FD',
-                  color: '#1976D2',
-                  border: 'none',
-                  borderRadius: '8px',
-                  fontSize: '14px',
-                  fontWeight: '600',
-                  cursor: 'pointer'
-                }}
-              >
-                글쓰기
-              </button>
-            </div>
-            <div style={{ marginLeft: '16px' }}>
-              <img 
-                src={scaleIcon} 
-                alt="저울" 
-                style={{ 
-                  width: '80px', 
-                  height: '80px',
-                  objectFit: 'contain'
-                }} 
-              />
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* HOT 게시판 탭일 때만 표시되는 섹션 */}
-      {selectedTab === 'HOT 게시판' && (
-        <div style={{ 
-          padding: '0 20px', 
-          marginBottom: '20px',
-          background: 'linear-gradient(180deg, #ffeeee 0%, #ffffff 100%)',
-          paddingTop: '16px',
-          marginTop: '-12px'
-        }}>
-          <div style={{ 
-            display: 'flex', 
-            alignItems: 'flex-start', 
-            justifyContent: 'space-between',
-            marginBottom: '16px'
-          }}>
-            <div style={{ flex: 1 }}>
-              <Text 
-                display="block" 
-                color="#191F28ff" 
-                typography="t3" 
-                fontWeight="bold"
-                style={{ marginBottom: '8px', fontSize: '22px' }}
-              >
-                실시간 HOT한 글
-              </Text>
-              <Text 
-                display="block" 
-                color="#191F28" 
-                typography="t7" 
-                fontWeight="regular"
-                style={{ marginBottom: '12px' }}
-              >
-                재판에 참여해보세요!
-              </Text>
-            </div>
-            <div style={{ marginLeft: '16px' }}>
-              <img 
-                src={hotFlameIcon} 
-                alt="핫게시판" 
-                style={{ 
-                  width: '80px', 
-                  height: '80px',
-                  objectFit: 'contain'
-                }} 
-              />
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* 재판 완료 탭일 때만 표시되는 섹션 */}
-      {selectedTab === '재판 완료' && (
-        <div style={{ 
-          padding: '0 20px', 
-          marginBottom: '20px',
-          background: 'linear-gradient(180deg, #fff4e5 0%, #ffffff 100%)',
-          paddingTop: '16px',
-          marginTop: '-12px'
-        }}>
-          <div style={{ 
-            display: 'flex', 
-            alignItems: 'flex-start', 
-            justifyContent: 'space-between',
-            marginBottom: '15px'
-          }}>
-            <div style={{ flex: 1 }}>
-              <Text 
-                display="block" 
-                color="#191F28ff" 
-                typography="t3" 
-                fontWeight="bold"
-                style={{ marginBottom: '8px', fontSize: '22px' }}
-              >
-                재판 완료된 글
-              </Text>
-              <Text 
-                display="block" 
-                color="#191F28" 
-                typography="t7" 
-                fontWeight="regular"
-                style={{ marginBottom: '12px' }}
-              >
-                어떤 경우가 합리적이었을까요?
-              </Text>
-            </div>
-            <div style={{ marginLeft: '16px' }}>
-              <Asset.Icon
-                frameShape={Asset.frameShape.CleanW60}
-                name="icon-gavel"
-                aria-hidden={true}
-              />
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* 게시글 목록 */}
-      {selectedTab === '재판 완료' ? (
-        <CompletedPostListMain 
-          posts={allPosts} 
-          navigate={navigate}
-          isLoading={isPostsLoading}
-          error={error}
-        />
-      ) : (
-        <div style={{ padding: '0 20px', backgroundColor: 'white' }}>
-          {isPostsLoading ? (
-            <div style={{ padding: '40px', textAlign: 'center' }}>
-              <Text color="#6B7684">게시물을 불러오는 중...</Text>
-            </div>
-          ) : error ? (
-            <div style={{ padding: '40px', textAlign: 'center' }}>
-              <Text color="#D32F2F">{error}</Text>
-            </div>
-          ) : (
-            <PostList 
-              posts={allPosts} 
-              selectedTab={selectedTab} 
-              navigate={navigate}
-            />
           )}
         </div>
-      )}
-
-      <Spacing size={24} />
+        <button onClick={onMore} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px' }}>
+          <Asset.Icon frameShape={Asset.frameShape.CleanW24} name="icon-arrow-left-big-mono" color="#9E9E9E" />
+        </button>
+      </div>
+    {posts.length > 0 ? (
+      <div style={{ overflowX: 'auto', padding: '0 20px', WebkitOverflowScrolling: 'touch' }}>
+        <div style={{ display: 'flex', flexDirection: 'row', gap: '0', paddingRight: '20px' }}>{posts.map(renderCard)}</div>
+      </div>
+    ) : <div style={{ padding: '20px', textAlign: 'center' }}><Text color="#6B7684">{title}이 없습니다.</Text></div>}
     </div>
   );
-}
-
-// PostList 컴포넌트를 별도로 분리
-interface PostListProps {
-  posts: CaseDocument[];
-  selectedTab: string;
-  navigate: (path: string, state?: any) => void;
-}
-
-function PostList({ posts, selectedTab, navigate }: PostListProps) {
-  const [postsWithDetails, setPostsWithDetails] = useState<any[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-
-  useEffect(() => {
-    const loadPostDetails = async () => {
-      setIsLoading(true);
-      try {
-        // 각 게시글의 실제 댓글 수를 조회
-        const postsWithData = await Promise.all(
-          posts.map(async (post) => {
-            // 실제 댓글 수 조회 (CaseDetailPage와 동일한 방식)
-            let actualCommentCount = 0;
-            try {
-              const comments = await getComments(post.id);
-              const repliesPromises = comments.map(comment => getReplies(post.id, comment.id));
-              const repliesArrays = await Promise.all(repliesPromises);
-              actualCommentCount = comments.length + repliesArrays.reduce((sum, replies) => sum + replies.length, 0);
-            } catch (error) {
-              console.error(`게시글 ${post.id}의 댓글 수 조회 실패:`, error);
-            }
-
-            // voteCount는 화면 표시에 필요하므로 유지합니다.
-            const voteCount = post.guiltyCount + post.innocentCount;
-            
-            // HOT 점수 계산: 투표수 + 2*댓글수 (실제 조회한 댓글 수 사용)
-            const hotScore = voteCount + (2 * actualCommentCount);
-            
-            // 재판 결과 결정 (innocent가 많으면 무죄, guilty가 많으면 유죄, 동률이면 보류)
-            let verdict: '무죄' | '유죄' | '보류' = '보류'; // 기본값을 보류로 설정
-            if (voteCount > 0) {
-              if (post.innocentCount > post.guiltyCount) {
-                verdict = '무죄';
-              } else if (post.guiltyCount > post.innocentCount) {
-                verdict = '유죄';
-              } else {
-                verdict = '보류'; // 동률인 경우
-              }
-            }
-            // voteCount === 0인 경우도 보류로 처리
-
-            return {
-              ...post,
-              commentCount: actualCommentCount, // 실제 조회한 댓글 수로 덮어쓰기
-              voteCount,
-              hotScore,
-              verdict
-            };
-          })
-        );
-
-        setPostsWithDetails(postsWithData);
-      } catch (error) {
-        console.error('게시물 상세 정보 처리 실패:', error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    loadPostDetails();
-  }, [posts]);
-
-  if (isLoading) {
-    return (
-      <div style={{ padding: '40px', textAlign: 'center' }}>
-        <Text color="#6B7684">게시물 정보를 불러오는 중...</Text>
-      </div>
-    );
-  }
-
-  // 탭별 게시물 필터링 및 정렬
-  let displayPosts = postsWithDetails;
-  
-  if (selectedTab === 'HOT 게시판') {
-    // 재판 중인 게시물만 필터링하고 HOT 점수로 정렬, 상위 5개만 표시
-    // HOT 점수가 0보다 큰 게시물만 표시 (투표나 댓글이 있는 게시물만)
-    displayPosts = postsWithDetails
-      .filter(post => post.status === 'OPEN' && post.hotScore > 0)
-      .sort((a, b) => b.hotScore - a.hotScore)
-      .slice(0, 5);
-  } else if (selectedTab === '재판 완료') {
-    // status가 'CLOSED'인 게시물만 필터링하고 완료일 최신순으로 정렬
-    displayPosts = postsWithDetails
-      .filter(post => post.status === 'CLOSED')
-      .sort((a, b) => {
-        const dateA = a.voteEndAt?.toMillis() || 0;
-        const dateB = b.voteEndAt?.toMillis() || 0;
-        return dateB - dateA;
-      });
-  } else {
-    // 재판 중: status가 'OPEN'인 게시물만 표시
-    displayPosts = postsWithDetails.filter(post => post.status === 'OPEN');
-  }
-
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', backgroundColor: 'white' }}>
-      {displayPosts.map((post, index) => {
-        // 재판 완료 탭일 경우 다른 레이아웃
-        if (selectedTab === '재판 완료') {
-          const formatDate = (timestamp: Timestamp | undefined) => {
-            if (!timestamp) return '';
-            const date = timestamp.toDate();
-            const year = date.getFullYear();
-            const month = String(date.getMonth() + 1).padStart(2, '0');
-            const day = String(date.getDate()).padStart(2, '0');
-            return `${year}.${month}.${day}`;
-          };
-
-          return (
-            <div 
-              key={post.id}
-              onClick={() => navigate(`/case/${post.id}`, { state: { fromTab: selectedTab } })}
-              style={{ 
-                backgroundColor: 'white', 
-                padding: '16px', 
-                borderRadius: '8px',
-                border: '1px solid #e5e5e5',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '12px'
-              }}
-            >
-              {/* 왼쪽: 무죄/유죄/보류 배지 */}
-              <div style={{
-                padding: '8px 16px',
-                backgroundColor: (post.verdict || '보류') === '무죄' ? '#E3F2FD' : (post.verdict || '보류') === '유죄' ? '#FFEBEE' : '#F2F4F6',
-                color: (post.verdict || '보류') === '무죄' ? '#1976D2' : (post.verdict || '보류') === '유죄' ? '#D32F2F' : '#6B7684',
-                fontSize: '14px',
-                fontWeight: '600',
-                borderRadius: '6px',
-                whiteSpace: 'nowrap',
-                minWidth: 'fit-content'
-              }}>
-                {post.verdict || '보류'}
-              </div>
-
-              {/* 가운데: 날짜와 제목 */}
-              <div style={{ flex: 1, minWidth: 0 }}>
-                {/* 판결 완료 날짜 */}
-                <div style={{ 
-                  fontSize: '12px', 
-                  color: '#6B7684',
-                  marginBottom: '4px'
-                }}>
-                  {formatDate(post.voteEndAt)}
-                </div>
-                {/* 제목 */}
-                <div style={{ 
-                  fontSize: '18px',
-                  lineHeight: '1.4', 
-                  color: '#191F28',
-                  fontWeight: '500',
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                  display: '-webkit-box',
-                  WebkitLineClamp: 2,
-                  WebkitBoxOrient: 'vertical'
-                }}>
-                  {post.title}
-                </div>
-              </div>
-
-              {/* 오른쪽: 화살표 아이콘 */}
-              <Asset.Icon
-                frameShape={Asset.frameShape.CleanW20}
-                name="icon-arrow-right-mono"
-                color="rgba(0, 19, 43, 0.38)"
-                aria-label="자세히 보기"
-              />
-            </div>
-          );
-        }
-
-        // 재판 중 / HOT 게시판 레이아웃
-        return (
-          <div 
-            key={post.id}
-            onClick={() => navigate(`/case/${post.id}`, { state: { fromTab: selectedTab } })}
-            style={{ 
-              backgroundColor: 'white', 
-              padding: '16px', 
-              borderTop: index === 0 ? '1px solid #F0F0F0' : 'none',
-              borderBottom: '1px solid #F0F0F0',
-              cursor: 'pointer'
-            }}
-          >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
-              {selectedTab === 'HOT 게시판' ? (
-                <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                  <Asset.Icon
-                    frameShape={Asset.frameShape.CleanW20}
-                    backgroundColor="transparent"
-                    name="icon-emoji-fire"
-                    aria-hidden={true}
-                    ratio="1/1"
-                  />
-                  <Text
-                    display="block"
-                    color="#FF6B6B"
-                    typography="t6"
-                    fontWeight="bold"
-                  >
-                    TOP {index + 1}
-                  </Text>
-                </div>
-              ) : (
-                <Text 
-                  display="block" 
-                  color="#191F28" 
-                  typography="t4" 
-                  fontWeight="bold"
-                  style={{ 
-                    flex: 1, 
-                    minWidth: 0, 
-                    overflow: 'hidden', 
-                    textOverflow: 'ellipsis',
-                    display: '-webkit-box',
-                    WebkitLineClamp: 2,
-                    WebkitBoxOrient: 'vertical',
-                    fontSize: '18px',
-                    lineHeight: '1.4'
-                  }}
-                >
-                  {post.title}
-                </Text>
-              )}
-              {post.createdAt && (
-                <Text color="#9E9E9E" typography="st13" fontWeight="regular" style={{ marginLeft: '8px', flexShrink: 0 }}>
-                  {formatDate(post.createdAt)}
-                </Text>
-              )}
-            </div>
-            {selectedTab === 'HOT 게시판' && (
-              <Text 
-                display="block" 
-                color="#191F28" 
-                typography="t4" 
-                fontWeight="bold"
-                style={{ 
-                  marginBottom: '4px',
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                  display: '-webkit-box',
-                  WebkitLineClamp: 2,
-                  WebkitBoxOrient: 'vertical',
-                  fontSize: '18px',
-                  lineHeight: '1.4'
-                }}
-              >
-                {post.title}
-              </Text>
-            )}
-            <Text 
-              display="block" 
-              color="#191F28ff" 
-              typography="t7" 
-              fontWeight="regular"
-              style={{ 
-                marginBottom: '8px',
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-                display: '-webkit-box',
-                WebkitLineClamp: 2,
-                WebkitBoxOrient: 'vertical',
-                lineHeight: '1.5',
-                maxHeight: '3em'
-              }}
-            >
-              {post.content}
-            </Text>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                <Asset.Icon
-                  frameShape={{ width: 18, height: 18 }}
-                  backgroundColor="transparent"
-                  name="icon-user-two-blue-tab"
-                  aria-hidden={true}
-                  ratio="1/1"
-                />
-                <Text color="#3182F6" typography="st13" fontWeight="medium">
-                  {(post.guiltyCount || 0) + (post.innocentCount || 0)}
-                </Text>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                <Asset.Icon
-                  frameShape={{ width: 18, height: 18 }}
-                  backgroundColor="transparent"
-                  name="icon-chat-square-two-mono"
-                  color="#3182F6"
-                  aria-hidden={true}
-                />
-                <Text color="#3182F6" typography="st13" fontWeight="medium">
-                  {post.commentCount ?? 0}
-                </Text>
-              </div>
-            </div>
-          </div>
-        );
-      })}
-    </div>
-  );
-}
-
-// 재판 완료 메인 컴포넌트 (첫 번째 화면)
-interface CompletedPostListMainProps {
-  posts: CaseDocument[];
-  navigate: (path: string, state?: any) => void;
-  isLoading: boolean;
-  error: string | null;
-}
-
-function CompletedPostListMain({ posts, navigate, isLoading, error }: CompletedPostListMainProps) {
-  const [postsWithDetails, setPostsWithDetails] = useState<any[]>([]);
-  const [isLoadingDetails, setIsLoadingDetails] = useState(true);
-
-  useEffect(() => {
-    const loadPostDetails = () => {
-      setIsLoadingDetails(true);
-      try {
-        const postsWithData = posts.map((post) => {
-          const voteCount = post.guiltyCount + post.innocentCount;
-          const hotScore = voteCount + (2 * (post.commentCount || 0));
-          let verdict: '무죄' | '유죄' | '보류' = '보류';
-          if (voteCount > 0) {
-            if (post.innocentCount > post.guiltyCount) {
-              verdict = '무죄';
-            } else if (post.guiltyCount > post.innocentCount) {
-              verdict = '유죄';
-            } else {
-              verdict = '보류';
-            }
-          }
-          return {
-            ...post,
-            voteCount,
-            hotScore,
-            verdict
-          };
-        });
-        setPostsWithDetails(postsWithData);
-      } catch (error) {
-        console.error('게시물 상세 정보 로드 실패:', error);
-      } finally {
-        setIsLoadingDetails(false);
-      }
-    };
-
-    loadPostDetails();
-  }, [posts]);
-
-  if (isLoading || isLoadingDetails) {
-    return (
-      <div style={{ padding: '40px', textAlign: 'center' }}>
-        <Text color="#6B7684">게시물 정보를 불러오는 중...</Text>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div style={{ padding: '40px', textAlign: 'center' }}>
-        <Text color="#D32F2F">{error}</Text>
-      </div>
-    );
-  }
-
-  const formatDate = (timestamp: Timestamp | undefined) => {
-    if (!timestamp) return '';
-    const date = timestamp.toDate();
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
-    return `${year}-${month}-${day}`;
-  };
-
-  // 화제의 재판 기록 (hotScore > 0)
-  const hotCompletedPosts = postsWithDetails
-    .filter(post => post.status === 'CLOSED' && post.hotScore > 0)
-    .sort((a, b) => b.hotScore - a.hotScore)
-    .slice(0, 5); // 최대 5개만 표시
-
-  // 이전 재판 기록 (모든 CLOSED 상태의 글 포함)
-  const previousCompletedPosts = postsWithDetails
-    .filter(post => post.status === 'CLOSED')
-    .sort((a, b) => {
-      const dateA = a.voteEndAt?.toMillis() || 0;
-      const dateB = b.voteEndAt?.toMillis() || 0;
-      return dateB - dateA;
-    })
-    .slice(0, 5); // 최대 5개만 표시
-
-  const renderPostCard = (post: any) => (
-    <div
-      key={post.id}
-      onClick={() => navigate(`/case/${post.id}`, { state: { fromTab: '재판 완료' } })}
-      style={{
-        backgroundColor: '#f2f4f6',
-        borderRadius: '10px',
-        padding: '16px',
-        minWidth: '172px',
-        width: '172px',
-        height: '211px',
-        marginRight: '12px',
-        cursor: 'pointer',
-        display: 'flex',
-        flexDirection: 'column',
-        gap: '12px',
-        boxSizing: 'border-box'
-      }}
-    >
-      {/* 배지 */}
-      <div style={{
-        padding: '4px 8px',
-        backgroundColor: (post.verdict || '보류') === '무죄' ? '#3182F628' : (post.verdict || '보류') === '유죄' ? '#F0445228' : '#4E596828',
-        color: (post.verdict || '보류') === '무죄' ? '#1976D2' : (post.verdict || '보류') === '유죄' ? '#D32F2F' : '#6B7684',
-        fontSize: '12px',
-        fontWeight: '600',
-        borderRadius: '4px',
-        width: 'fit-content'
-      }}>
-        {post.verdict || '보류'}
-      </div>
-
-      {/* 제목 */}
-      <div style={{
-        flex: 1,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        minHeight: 0
-      }}>
-        <Text
-          display="block"
-          color="#191F28"
-          typography="t4"
-          fontWeight="bold"
-          style={{
-            textAlign: 'center',
-            wordBreak: 'break-word',
-            overflow: 'hidden',
-            display: '-webkit-box',
-            WebkitLineClamp: 2,
-            WebkitBoxOrient: 'vertical',
-            lineHeight: '1.4',
-            fontSize: '18px'
-          }}
-        >
-          {post.title}
-        </Text>
-      </div>
-
-      {/* 날짜 */}
-      <div style={{
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        marginTop: 'auto'
-      }}>
-        <Text
-          display="block"
-          color="#6B7684"
-          typography="t7"
-          fontWeight="regular"
-        >
-          {formatDate(post.voteEndAt)}
-        </Text>
-        <Asset.Icon
-          frameShape={Asset.frameShape.CleanW24}
-          backgroundColor="transparent"
-          name="icon-system-arrow-right-outlined"
-          color="rgba(0, 19, 43, 0.38)"
-          aria-hidden={true}
-        />
-      </div>
-    </div>
-  );
-
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '61px', backgroundColor: 'white', paddingBottom: '24px' }}>
-      {/* 화제의 재판 기록 */}
-      <div>
-        <div style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          padding: '0 20px',
-          marginBottom: '16px'
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <Asset.Image
-              frameShape={Asset.frameShape.CleanW24}
-              backgroundColor="transparent"
-              src="https://static.toss.im/2d-emojis/png/4x/u1F525.png"
-              aria-hidden={true}
-              style={{ aspectRatio: '1/1' }}
-            />
-            <Text
-              display="block"
-              color={adaptive.grey900}
-              typography="t4"
-              fontWeight="bold"
-            >
-              화제의 재판 기록
-            </Text>
-          </div>
-          <button
-            onClick={() => navigate('/completed-trending')}
-            style={{
-              background: 'none',
-              border: 'none',
-              cursor: 'pointer',
-              padding: '4px',
-              display: 'flex',
-              alignItems: 'center'
-            }}
-          >
-            <Asset.Icon
-              frameShape={Asset.frameShape.CleanW20}
-              backgroundColor="transparent"
-              name="icon-arrow-right-circle-mono"
-              color={adaptive.grey500}
-              aria-hidden={true}
-              ratio="1/1"
-            />
-          </button>
-        </div>
-        {hotCompletedPosts.length > 0 ? (
-          <div style={{
-            overflowX: 'auto',
-            overflowY: 'hidden',
-            padding: '0 20px',
-            WebkitOverflowScrolling: 'touch',
-            scrollbarWidth: 'none',
-            msOverflowStyle: 'none'
-          }}
-          onWheel={(e) => {
-            const container = e.currentTarget;
-            container.scrollLeft += e.deltaY;
-            e.preventDefault();
-          }}
-          >
-            <div style={{
-              display: 'flex',
-              flexDirection: 'row',
-              gap: '0',
-              paddingRight: '20px'
-            }}>
-              {hotCompletedPosts.map(renderPostCard)}
-            </div>
-          </div>
-        ) : (
-          <div style={{ padding: '20px', textAlign: 'center' }}>
-            <Text color="#6B7684">화제의 재판 기록이 없습니다.</Text>
-          </div>
-        )}
-      </div>
-
-      {/* 이전 재판 기록 */}
-      <div>
-        <div style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          padding: '0 20px',
-          marginBottom: '16px'
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <Asset.Icon
-              frameShape={Asset.frameShape.CleanW24}
-              backgroundColor="transparent"
-              name="icon-document-folder-yellow"
-              aria-hidden={true}
-              ratio="1/1"
-            />
-            <Text
-              display="block"
-              color={adaptive.grey900}
-              typography="t4"
-              fontWeight="bold"
-            >
-              이전 재판 기록
-            </Text>
-          </div>
-          <button
-            onClick={() => navigate('/completed-previous')}
-            style={{
-              background: 'none',
-              border: 'none',
-              cursor: 'pointer',
-              padding: '4px',
-              display: 'flex',
-              alignItems: 'center'
-            }}
-          >
-            <Asset.Icon
-              frameShape={Asset.frameShape.CleanW20}
-              backgroundColor="transparent"
-              name="icon-arrow-right-circle-mono"
-              color={adaptive.grey500}
-              aria-hidden={true}
-              ratio="1/1"
-            />
-          </button>
-        </div>
-        {previousCompletedPosts.length > 0 ? (
-          <div style={{
-            overflowX: 'auto',
-            overflowY: 'hidden',
-            padding: '0 20px',
-            WebkitOverflowScrolling: 'touch',
-            scrollbarWidth: 'none',
-            msOverflowStyle: 'none'
-          }}
-          onWheel={(e) => {
-            const container = e.currentTarget;
-            container.scrollLeft += e.deltaY;
-            e.preventDefault();
-          }}
-          >
-            <div style={{
-              display: 'flex',
-              flexDirection: 'row',
-              gap: '0',
-              paddingRight: '20px'
-            }}>
-              {previousCompletedPosts.map(renderPostCard)}
-            </div>
-          </div>
-        ) : (
-          <div style={{ padding: '20px', textAlign: 'center' }}>
-            <Text color="#6B7684">이전 재판 기록이 없습니다.</Text>
-          </div>
-        )}
-      </div>
-      <style>{`
-        div::-webkit-scrollbar {
-          display: none;
-        }
-      `}</style>
-    </div>
-  );
-}
-
+};
 
 export default HomePage;

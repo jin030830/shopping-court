@@ -2,58 +2,138 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // [함수] 게시물 생성 시 초기값 검증 (조작 방지)
-    function isValidNewCase() {
-      let data = request.resource.data;
-      return data.hotScore == 0 &&
-             data.guiltyCount == 0 &&
-             data.innocentCount == 0 &&
-             data.commentCount == 0 &&
-             data.status == 'OPEN' &&
-             data.authorId == request.auth.uid;
+    // [함수] 데이터 타입 및 길이 검증
+    function isValidText(text, min, max) {
+      return text is string && text.size() >= min && text.size() <= max;
     }
 
-    // [함수] 생성 요청 데이터의 작성자가 본인인지 확인
-    function isAuthor() {
-      return request.resource.data.authorId == request.auth.uid;
+    // [함수] 쿼리 갯수 제한 검증
+    function isWithinLimit(maxLimit) {
+      return request.query.limit == null || request.query.limit <= maxLimit;
     }
-    
-    // [함수] 기존 데이터의 소유자가 본인인지 확인 (수정/삭제 시)
+
+    // [함수] 게시물 생성 시 검증
+    function isValidNewCase() {
+      let data = request.resource.data;
+      return 
+        data.get('hotScore', 0) == 0 &&
+        data.get('guiltyCount', 0) == 0 &&
+        data.get('innocentCount', 0) == 0 &&
+        data.get('commentCount', 0) == 0 &&
+        data.status == 'OPEN' &&
+        data.authorId == request.auth.uid &&
+        isValidText(data.title, 1, 100) &&
+        isValidText(data.content, 1, 3000);
+    }
+
+    // [함수] 작성자 본인 확인
     function isOwner() {
       return resource.data.authorId == request.auth.uid;
     }
 
-    // users 컬렉션: 본인 정보만 접근 가능
+    // [함수] 투표수 업데이트 검증 (정확히 +1만 허용)
+    function isValidVoteUpdate() {
+      let data = resource.data;
+      let resData = request.resource.data;
+      let affected = resData.diff(data).affectedKeys();
+      
+      let oldG = data.get('guiltyCount', 0);
+      let oldI = data.get('innocentCount', 0);
+      let newG = resData.get('guiltyCount', 0);
+      let newI = resData.get('innocentCount', 0);
+
+      // 투표수 필드 중 하나가 포함되어야 하며, 투표/점수/댓글수 외의 필드 조작은 불가
+      return affected.hasAny(['guiltyCount', 'innocentCount']) &&
+             !affected.hasAny(['hotScore', 'commentCount', 'authorId']) && (
+        (newG == oldG + 1 && newI == oldI) ||
+        (newI == oldI + 1 && newG == oldG)
+      );
+    }
+
+    // [함수] 좋아요 로직 검증
+    function isValidLikeUpdate(caseId) {
+       let hasVoted = exists(/databases/$(database)/documents/cases/$(caseId)/votes/$(request.auth.uid));
+       let data = resource.data;
+       let resData = request.resource.data;
+       
+       let currentLikedBy = data.get('likedBy', []);
+       let newLikedBy = resData.get('likedBy', []);
+       let currentLikes = data.get('likes', 0);
+       let newLikes = resData.get('likes', 0);
+
+       return hasVoted &&
+       resData.diff(data).affectedKeys().hasOnly(['likes', 'likedBy']) &&
+       !(request.auth.uid in currentLikedBy) &&
+       (request.auth.uid in newLikedBy) &&
+       newLikes == currentLikes + 1 &&
+       newLikedBy.size() == currentLikedBy.size() + 1;
+    }
+
+    // users 컬렉션
     match /users/{userId} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
+      allow read: if request.auth != null;
+      allow write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // reports 컬렉션
+    match /reports/{reportId} {
+      allow create: if request.auth != null;
+      // 보안을 위해 관리자 기능이 생기기 전까지는 읽기/수정/삭제 제한
+      allow read, update, delete: if false;
     }
 
     // cases 컬렉션
     match /cases/{caseId} {
-      allow read: if request.auth != null;
-      // 생성: 로그인 + 초기값 유효성 검사 통과 시
+      allow list: if isWithinLimit(20);
+      allow get: if true;
+      
       allow create: if request.auth != null && isValidNewCase();
-      // 수정/삭제: 작성자 본인만 가능
-      allow update, delete: if request.auth != null && isOwner();
+      
+      allow update: if request.auth != null && (
+        // 1. 작성자: 본인 글 수정 (단, 투표수/점수/댓글수 조작 불가)
+        (isOwner() && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['guiltyCount', 'innocentCount', 'commentCount', 'hotScore'])) ||
+        // 2. 일반 유저: 정해진 규칙에 따른 투표만 허용
+        isValidVoteUpdate()
+      );
+      
+      allow delete: if request.auth != null && isOwner();
 
-      // votes 서브컬렉션: 본인 명의의 투표만 가능
       match /votes/{userId} {
-        allow read, write: if request.auth != null && request.auth.uid == userId;
+        allow read: if true;
+        allow write: if request.auth != null && request.auth.uid == userId;
       }
 
       // comments 서브컬렉션
       match /comments/{commentId} {
-        allow read: if request.auth != null;
-        // 생성: 본인 명의로만 작성 가능
-        allow create: if request.auth != null && isAuthor();
-        // 수정/삭제: 본인 댓글만 가능
-        allow update, delete: if request.auth != null && isOwner();
+        allow list: if isWithinLimit(100);
+        allow get: if true;
+        
+        // 실제로 투표한 기록이 있는 유저만 댓글 작성 가능
+        allow create: if request.auth != null && 
+                     exists(/databases/$(database)/documents/cases/$(caseId)/votes/$(request.auth.uid)) &&
+                     request.resource.data.authorId == request.auth.uid && 
+                     isValidText(request.resource.data.content, 1, 500);
+        
+        allow update: if request.auth != null && (
+          (resource.data.authorId == request.auth.uid) || isValidLikeUpdate(caseId)
+        );
+        
+        allow delete: if request.auth != null && resource.data.authorId == request.auth.uid;
 
-        // replies 서브컬렉션
         match /replies/{replyId} {
-          allow read: if request.auth != null;
-          allow create: if request.auth != null && isAuthor();
-          allow update, delete: if request.auth != null && isOwner();
+          allow list: if isWithinLimit(100); 
+          allow get: if true;
+          
+          allow create: if request.auth != null && 
+                       exists(/databases/$(database)/documents/cases/$(caseId)/votes/$(request.auth.uid)) &&
+                       request.resource.data.authorId == request.auth.uid && 
+                       isValidText(request.resource.data.content, 1, 300);
+          
+          allow update: if request.auth != null && (
+            (resource.data.authorId == request.auth.uid) || isValidLikeUpdate(caseId)
+          );
+          
+          allow delete: if request.auth != null && resource.data.authorId == request.auth.uid;
         }
       }
     }

@@ -48,9 +48,9 @@ export async function loginWithToss(): Promise<TossLoginResult> {
     };
   } catch (error: any) {
     if (error?.message?.includes('cancel')) {
-      throw new Error('로그인이 취소되었습니다.');
+      throw new Error('로그인이 취소되었어요.');
     }
-    throw new Error(error?.message || '토스 로그인에 실패했습니다.');
+    throw new Error(error?.message || '토스 로그인에 실패했어요.');
   }
 }
 
@@ -87,7 +87,7 @@ export async function getCustomTokenFromServer(
       customToken: data.customToken,
     };
   } catch (error: any) {
-    throw new Error(error.message || '인증에 실패했습니다.');
+    throw new Error(error.message || '로그인에 실패했어요.');
   }
 }
 
