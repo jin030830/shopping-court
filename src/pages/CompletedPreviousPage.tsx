@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom';
-import { Asset, Text, Spacing } from '@toss/tds-mobile';
+import { Asset, Text } from '@toss/tds-mobile';
 import { useRef, useCallback, memo, useState, useEffect } from 'react';
 import { getCasesPaginated, type CaseDocument } from '../api/cases';
 import { adaptive } from '@toss/tds-colors';
