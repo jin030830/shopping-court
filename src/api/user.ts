@@ -153,8 +153,18 @@ export async function getUserData(firebaseUser: FirebaseUser): Promise<UserDocum
 }
 
 export async function claimMissionReward(_userId: string, missionType: string, _rewardPoints: number): Promise<void> {
-  const claimMissionRewardFn = httpsCallable(functions, 'claimMissionReward');
+  const claimMissionRewardFn = httpsCallable<{ missionType: string }, { success: boolean }>(functions, 'claimMissionReward');
   await claimMissionRewardFn({ missionType });
+}
+
+export async function warmUpClaimMissionReward(): Promise<void> {
+  try {
+    const claimMissionRewardFn = httpsCallable<{ missionType: string; isWarmUp: boolean }, { success: boolean }>(functions, 'claimMissionReward');
+    await claimMissionRewardFn({ missionType: '', isWarmUp: true });
+    console.log('Claim mission function warmed up');
+  } catch (error) {
+    console.warn('Mission warm-up failed:', error);
+  }
 }
 
 export async function exchangeGavel(): Promise<void> {
@@ -162,4 +172,16 @@ export async function exchangeGavel(): Promise<void> {
   const requestPromotionReward = httpsCallable<{ promotionCode: string }, { success: boolean }>(functions, 'requestPromotionReward');
   const result = await requestPromotionReward({ promotionCode: PROMOTION_CODE });
   if (!result.data.success) throw new Error("토스 포인트 지급에 실패했습니다.");
+}
+
+export async function warmUpExchangeGavel(): Promise<void> {
+  try {
+    const requestPromotionReward = httpsCallable<{ promotionCode: string; isWarmUp: boolean }, { success: boolean }>(functions, 'requestPromotionReward');
+    // 실제 포인트 지급이 일어나지 않도록 isWarmUp 플래그를 보냄
+    await requestPromotionReward({ promotionCode: '', isWarmUp: true });
+    console.log('Exchange function warmed up');
+  } catch (error) {
+    // Warm-up 실패는 무시 (핵심 로직이 아님)
+    console.warn('Warm-up failed:', error);
+  }
 }

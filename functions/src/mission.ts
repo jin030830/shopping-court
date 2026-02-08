@@ -45,7 +45,13 @@ const checkAndResetDailyStats = (userData: any, today: string): any => {
  * 미션 보상 수령 Callable Function
  */
 export const claimMissionReward = functions.region('asia-northeast3')
-  .https.onCall(async (data, context) => {
+  .https.onCall(async (data: { missionType: string; isWarmUp?: boolean }, context) => {
+    // 0. Warm-up 요청 처리
+    if (data.isWarmUp) {
+      console.log(`[Warm-up] claimMissionReward instance warmed up.`);
+      return { success: true, message: "warmed up" };
+    }
+
     // 1. 인증 확인
     if (!context.auth) {
       throw new functions.https.HttpsError('unauthenticated', '로그인이 필요합니다.');
@@ -100,21 +106,19 @@ export const claimMissionReward = functions.region('asia-northeast3')
           updateField = 'dailyStats.isLevel2Claimed';
         } else if (missionType === 'LEVEL_3') {
           // Level 3: 화제의 재판 등재 (게시물당 1회 보상)
-          // 1. 해당 유저의 모든 종료된 화제 게시글을 가져옴 (최대 20개)
-          // 참고: isHotListed 필드가 없는 옛날 글도 찾아야 하므로 쿼리에서 제외하고 메모리에서 필터링
+          // [Ultra-Safe] 인덱스 오류를 방지하기 위해 작성자 ID로만 조회 후 메모리에서 필터링
           const potentialCases = await db.collection('cases')
             .where('authorId', '==', userId)
-            .where('status', '==', 'CLOSED')
             .get();
 
-          // 2. hotScore > 0 이고, 아직 보상을 받지 않은(isHotListed !== true) 글을 찾음
+          // 조건: 종료됨(CLOSED) + 화제 점수 있음(>0) + 보상 미수령(isHotListed !== true)
           const targetCase = potentialCases.docs.find(doc => {
-            const data = doc.data();
-            return (data.hotScore > 0) && (data.isHotListed !== true);
+            const d = doc.data();
+            return d.status === 'CLOSED' && (d.hotScore || 0) > 0 && d.isHotListed !== true;
           });
 
           if (!targetCase) {
-            throw new functions.https.HttpsError('failed-precondition', '보상 받을 수 있는 화제의 재판 기록이 없습니다.');
+            throw new functions.https.HttpsError('failed-precondition', '보상 받을 수 있는 새로운 화제의 재판 기록이 없습니다.');
           }
 
           rewardPoints = 100;

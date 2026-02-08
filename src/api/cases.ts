@@ -220,6 +220,66 @@ export const getCasesByAuthor = async (userId: string): Promise<CaseDocument[]> 
 };
 
 /**
+ * 보상 받을 수 있는 '화제의 재판' 목록을 조회합니다. (Level 3 미션용)
+ * @param userId - 작성자 ID
+ * @returns 보상 미수령 화제 게시물 배열
+ */
+export const getUnclaimedHotCases = async (userId: string): Promise<CaseDocument[]> => {
+  if (!db) throw new Error('Firebase가 초기화되지 않았습니다.');
+  try {
+    const casesCollection = collection(db, 'cases');
+    // [Ultra-Safe] 인덱스 오류 방지 및 호환성 확보를 위해 단순 쿼리 후 메모리 필터링
+    const q = query(
+      casesCollection,
+      where('authorId', '==', userId),
+      orderBy('createdAt', 'desc')
+    );
+    const querySnapshot = await getDocs(q);
+    return querySnapshot.docs
+      .map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      } as CaseDocument))
+      .filter(caseItem => 
+        caseItem.status === 'CLOSED' && 
+        (caseItem.hotScore || 0) > 0 && 
+        caseItem.isHotListed !== true
+      );
+  } catch (error) {
+    console.error('❌ 보상 가능 화제 게시물 조회 실패:', error);
+    return [];
+  }
+};
+
+/**
+ * 'HOT 게시판' 상위 게시물을 조회합니다.
+ * @param limitCount - 가져올 개수
+ * @returns hotScore 기준 내림차순 정렬된 게시물 배열
+ */
+export const getHotCases = async (limitCount: number = 3): Promise<CaseDocument[]> => {
+  if (!db) throw new Error('Firebase가 초기화되지 않았습니다.');
+  try {
+    const casesCollection = collection(db, 'cases');
+    const q = query(
+      casesCollection,
+      where('status', '==', 'OPEN'),
+      where('hotScore', '>', 0),
+      orderBy('hotScore', 'desc'),
+      orderBy('createdAt', 'asc'), // [Optimization] 동점 시 작성 시간이 빠른 순으로 정렬
+      limit(limitCount)
+    );
+    const querySnapshot = await getDocs(q);
+    return querySnapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data()
+    } as CaseDocument));
+  } catch (error) {
+    console.error('❌ HOT 게시물 조회 실패:', error);
+    return [];
+  }
+};
+
+/**
  * 새로운 '고민'을 Firestore에 생성합니다.
  * @param caseData - 생성할 고민의 데이터
  * @returns 생성된 문서의 ID
