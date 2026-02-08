@@ -313,6 +313,86 @@ function CaseDetailPage() {
     }
   });
 
+  // [Mutation] 대댓글 작성 (낙관적 업데이트 적용)
+  const addReplyMutation = useMutation({
+    mutationFn: ({ commentId, replyData }: { commentId: string; replyData: { authorId: string; authorNickname: string; content: string; vote: VoteType } }) => 
+      addReply(id!, commentId, replyData),
+    onMutate: async ({ commentId, replyData }) => {
+      await queryClient.cancelQueries({ queryKey: ['case', id, 'comments'] });
+      if (user) {
+        await queryClient.cancelQueries({ queryKey: ['user', user.uid] });
+      }
+      
+      const previousComments = queryClient.getQueryData<CommentWithReplies[]>(['case', id, 'comments']);
+      const previousUserData = user ? queryClient.getQueryData<UserDocument | null>(['user', user.uid]) : null;
+      
+      const optimisticReply: ReplyDocument = {
+        id: 'temp-reply-' + Date.now(),
+        ...replyData,
+        createdAt: Timestamp.now(),
+        likes: 0,
+        likedBy: []
+      };
+
+      // 해당 댓글의 replies 배열에 낙관적 대댓글 추가
+      queryClient.setQueryData(['case', id, 'comments'], (old: CommentWithReplies[] | undefined) => {
+        if (!old) return old;
+        return old.map(comment => 
+          comment.id === commentId
+            ? { ...comment, replies: [...(comment.replies || []), optimisticReply] }
+            : comment
+        );
+      });
+      
+      // userData의 commentCount 낙관적 업데이트
+      if (user) {
+        const today = getTodayDateString();
+        queryClient.setQueryData<UserDocument | null>(['user', user.uid], (prev) => {
+          if (!prev) return prev;
+          
+          const rawDailyStats = prev.dailyStats || { 
+            voteCount: 0, 
+            commentCount: 0, 
+            postCount: 0, 
+            lastActiveDate: today, 
+            isLevel1Claimed: false, 
+            isLevel2Claimed: false 
+          };
+          
+          const isDateMismatched = rawDailyStats.lastActiveDate !== today;
+          const currentCommentCount = isDateMismatched ? 0 : (rawDailyStats.commentCount || 0);
+          
+          return {
+            ...prev,
+            dailyStats: {
+              ...rawDailyStats,
+              commentCount: currentCommentCount + 1,
+              lastActiveDate: today
+            }
+          };
+        });
+      }
+
+      return { previousComments, previousUserData };
+    },
+    onError: (_err, _variables, context) => {
+      queryClient.setQueryData(['case', id, 'comments'], context?.previousComments);
+      if (user && context?.previousUserData) {
+        queryClient.setQueryData(['user', user.uid], context.previousUserData);
+      }
+      alert('답글 추가에 실패했습니다.');
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ['case', id, 'comments'] });
+      // Cloud Functions 트리거 지연을 고려하여 1초 후 동기화
+      if (user) {
+        setTimeout(() => {
+          queryClient.invalidateQueries({ queryKey: ['user', user.uid] });
+        }, 1000);
+      }
+    }
+  });
+
   // [Mutation] 게시물 삭제
   const deletePostMutation = useMutation({
     mutationFn: () => deleteCase(id!),
@@ -391,22 +471,23 @@ function CaseDetailPage() {
   };
 
   const handleReplySubmit = async (commentId: string) => {
-    if (!id || !user || !userData || !isVerified || !hasVoted || !replyContent.trim()) return;
+    if (!id || !user || !userData || !isVerified || !hasVoted || !replyContent.trim() || addReplyMutation.isPending) return;
 
-    try {
-      const parentComment = comments.find(c => c.id === commentId);
-      const firebaseVote: VoteType = selectedVote === 'agree' ? 'innocent' : selectedVote === 'disagree' ? 'guilty' : parentComment?.vote || 'innocent';
+    const parentComment = comments.find(c => c.id === commentId);
+    const firebaseVote: VoteType = selectedVote === 'agree' ? 'innocent' : selectedVote === 'disagree' ? 'guilty' : parentComment?.vote || 'innocent';
 
-      await addReply(id, commentId, {
+    addReplyMutation.mutate({
+      commentId,
+      replyData: {
         authorId: user.uid,
         authorNickname: userData.nickname,
         content: replyContent,
         vote: firebaseVote,
-      });
-      setReplyContent('');
-      setReplyingTo(null);
-      queryClient.invalidateQueries({ queryKey: ['case', id, 'comments'] });
-    } catch (e) { console.error(e); }
+      }
+    });
+    
+    setReplyContent('');
+    setReplyingTo(null);
   };
 
   const handleLikeReply = async (commentId: string, replyId: string) => {
@@ -653,7 +734,7 @@ function CaseDetailPage() {
                       <textarea value={replyContent} onChange={(e) => setReplyContent(e.target.value)} placeholder="답글을 입력하세요..." style={{ width: '100%', minHeight: '60px', padding: '8px', border: '1px solid #E5E5E5', borderRadius: '4px', fontSize: '13px', marginBottom: '8px', boxSizing: 'border-box' }} />
                       <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
                         <button onClick={() => setReplyingTo(null)} style={{ padding: '6px 12px', backgroundColor: '#f0f0f0', border: 'none', borderRadius: '4px', fontSize: '13px' }}>취소</button>
-                        <button onClick={() => handleReplySubmit(comment.id)} style={{ padding: '6px 12px', backgroundColor: '#3182F6', color: 'white', border: 'none', borderRadius: '4px', fontSize: '13px' }}>답글 작성</button>
+                        <button onClick={() => handleReplySubmit(comment.id)} disabled={addReplyMutation.isPending} style={{ padding: '6px 12px', backgroundColor: '#3182F6', color: 'white', border: 'none', borderRadius: '4px', fontSize: '13px', cursor: addReplyMutation.isPending ? 'not-allowed' : 'pointer', opacity: addReplyMutation.isPending ? 0.6 : 1 }}>답글 작성</button>
                       </div>
                     </div>
                   )}
