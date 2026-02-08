@@ -44,7 +44,7 @@ const CountdownTimer = ({ voteEndAt, status }: CountdownTimerProps) => {
   if (!timeRemaining) return null;
 
   return (
-    <div style={{ position: 'absolute', bottom: '-25px', right: '0', fontSize: '13px', color: '#9E9E9E' }}>
+    <div style={{ position: 'absolute', bottom: '-30px', right: '0', fontSize: '13px', color: '#9E9E9E' }}>
       남은 재판 시간 {timeRemaining.days > 0 ? `${timeRemaining.days}일 ` : ''}
       {String(timeRemaining.hours).padStart(2, '0')} : {String(timeRemaining.minutes).padStart(2, '0')} : {String(timeRemaining.seconds).padStart(2, '0')}
     </div>
