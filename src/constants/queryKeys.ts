@@ -2,6 +2,8 @@ export const caseKeys = {
   all: ['case'] as const,
   lists: () => [...caseKeys.all, 'list'] as const,
   list: (status: string) => [...caseKeys.lists(), status] as const,
+  userLists: () => [...caseKeys.all, 'userList'] as const,
+  userList: (userId: string) => [...caseKeys.userLists(), userId] as const,
   details: () => [...caseKeys.all, 'detail'] as const,
   detail: (id: string) => [...caseKeys.details(), id] as const,
   votes: (id: string) => [...caseKeys.detail(id), 'vote'] as const,
