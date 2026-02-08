@@ -116,9 +116,9 @@ const MissionCard = memo(({
             }} />
           </div>
         )}
-        <div style={{ width: '100%', borderRadius: '12px', overflow: 'hidden', boxShadow: '0px 0px 2px 0px rgba(0, 0, 0, 0.25)', border: '1px solid #C9A86A', position: 'relative', backgroundColor: '#F7F3EE', padding: '4px' }}>
-          <div style={{ width: '100%', borderRadius: '10px', boxShadow: 'inset 0 0 0 1px #C9A86A', backgroundColor: '#F7F3EE', padding: '8px 14px', display: 'flex', flexDirection: 'column', gap: '0px', position: 'relative', boxSizing: 'border-box' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0px' }}>
+        <div style={{ width: '100%', borderRadius: '12px', overflow: 'hidden', boxShadow: '0px 0px 2px 0px rgba(0, 0, 0, 0.25)', border: '1px solid #C9A86A', position: 'relative', backgroundColor: '#F7F3EE', padding: '2px' }}>
+          <div style={{ width: '100%', borderRadius: '10px', boxShadow: 'inset 0 0 0 1px #C9A86A', backgroundColor: '#F7F3EE', padding: '8px 16px', display: 'flex', flexDirection: 'column', gap: '0px', position: 'relative', boxSizing: 'border-box' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0px', marginTop: '4px' }}>
               <Text display="block" color="#3A2E25" typography="st8" fontWeight="bold" style={{ fontSize: '18px' }}>
                 {title}
               </Text>
@@ -144,15 +144,15 @@ const MissionCard = memo(({
             </Text>
             
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0px', marginBottom: 'auto' }}>
-              <Text color={adaptive.grey800} typography="t6" fontWeight="bold" style={{ fontSize: '14px', marginBottom: '0px' }}>
+              <Text color={adaptive.grey800} typography="t6" fontWeight="bold" style={{ fontSize: '16px', marginBottom: '0px' }}>
                 {limitation}
               </Text>
               
               <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                <Text color={adaptive.grey700} typography="t7" fontWeight="medium" style={{ fontSize: '13px' }}>
+                <Text color={adaptive.grey700} typography="t7" fontWeight="medium" style={{ fontSize: '15px' }}>
                   보상 :{' '}
                 </Text>
-                <Text color={adaptive.grey700} typography="t7" fontWeight="bold" style={{ fontSize: '13px' }}>
+                <Text color={adaptive.grey700} typography="t7" fontWeight="bold" style={{ fontSize: '15px' }}>
                   판사봉 {reward}개
                 </Text>
               </div>
@@ -260,12 +260,12 @@ function PointMissionPage() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   
-  // [Optimization] 실시간 리스너 대신 React Query 사용 (비용 및 배터리 절감)
+  // [Optimization] 실시간 리스너 대신 React Query 사용
   const { data: userData, isLoading: isUserLoading } = useQuery<UserDocument | null, Error>({
     queryKey: ['user', user?.uid],
     queryFn: () => user ? getUserData(user) : null,
     enabled: !!user,
-    staleTime: 1000 * 60 * 5, // 5분간 캐시 유지
+    staleTime: 1000 * 60 * 5,
   });
 
   const [isClaiming, setIsClaiming] = useState(false);
@@ -296,19 +296,17 @@ function PointMissionPage() {
     sessionStorage.setItem('pointMissionFromTab', fromTab);
   }, [location.state]);
 
-  // 자정 경계 처리: 앱이 포커스될 때 날짜 갱신
+  // 자정 경계 처리
   useEffect(() => {
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
         const newToday = getTodayDateString();
         if (newToday !== today) {
           setToday(newToday);
-          // 날짜 변경 시 쿼리 무효화
           queryClient.invalidateQueries({ queryKey: ['user', user?.uid] });
         }
       }
     };
-
     document.addEventListener('visibilitychange', handleVisibilityChange);
     return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
   }, [today, user?.uid, queryClient]);
@@ -320,11 +318,9 @@ function PointMissionPage() {
         setShowInfoPopup(false);
       }
     };
-
     if (showInfoPopup) {
       document.addEventListener('mousedown', handleClickOutside);
     }
-
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
@@ -334,7 +330,6 @@ function PointMissionPage() {
   const checkHotCases = useCallback(async () => {
     if (!user) return;
     try {
-      // [Optimization] 보상 가능한(isHotListed: false) 화제 게시물만 쿼리로 가져옴 (Read 비용 절감)
       const unclaimedCases = await getUnclaimedHotCases(user.uid);
       setHotCases(unclaimedCases);
     } catch (error) {
@@ -348,8 +343,6 @@ function PointMissionPage() {
 
   const handleClaim = useCallback(async (missionType: string, gavel: number) => {
     if (!user || !userData || isClaiming) return;
-
-    // 팝업 표시
     setPendingMission({ missionType, gavel });
     setShowRewardPopup(true);
   }, [user, userData, isClaiming]);
@@ -360,17 +353,14 @@ function PointMissionPage() {
     setIsClaiming(true);
     setShowRewardPopup(false);
 
-    // 공식 가이드: 리워드 광고 표시 및 시청 완료 시 보상 지급
     showRewardAd(async () => {
       try {
         await claimMissionReward(user.uid, pendingMission.missionType, pendingMission.gavel);
         
-        // [Optimization] React Query 데이터 수동 업데이트 (즉각적인 UI 반영)
         queryClient.setQueryData(['user', user.uid], (prev: UserDocument | undefined) => {
           if (!prev) return prev;
           const newUserData = { ...prev };
           newUserData.points = (newUserData.points || 0) + pendingMission.gavel;
-          
           if (pendingMission.missionType === 'LEVEL_0') {
             newUserData.isLevel0Claimed = true;
           } else if (pendingMission.missionType === 'LEVEL_1') {
@@ -381,10 +371,8 @@ function PointMissionPage() {
           return newUserData;
         });
 
-        // 서버 데이터 강제 동기화 (백그라운드)
         queryClient.invalidateQueries({ queryKey: ['user', user.uid] });
 
-        // 보상 수령 성공 후 데이터 갱신 (특히 LEVEL_3 버튼 즉시 업데이트용)
         if (pendingMission.missionType === 'LEVEL_3') {
           await checkHotCases();
         }
@@ -415,10 +403,7 @@ function PointMissionPage() {
     setIsExchanging(true);
     try {
       await exchangeGavel();
-      
-      // [Optimization] 교환 성공 후 쿼리 무효화 (포인트 차감 반영)
-      queryClient.invalidateQueries({ queryKey: ['user', user.uid] });
-      
+      queryClient.invalidateQueries({ queryKey: ['user', user?.uid] });
       alert('5P가 지급되었습니다!');
     } catch (error: any) {
       console.error('교환 실패:', error);
@@ -432,7 +417,6 @@ function PointMissionPage() {
     return <div style={{ padding: '20px', textAlign: 'center' }}>로딩 중...</div>;
   }
 
-  // 데이터 구조 추출 및 가상 초기화
   const rawDailyStats = userData?.dailyStats || { voteCount: 0, commentCount: 0, postCount: 0, lastActiveDate: today, isLevel1Claimed: false, isLevel2Claimed: false };
   const isDateMismatched = rawDailyStats.lastActiveDate !== today;
 
@@ -472,10 +456,11 @@ function PointMissionPage() {
         </div>
         <div style={{ width: '100%', height: '1px', backgroundColor: '#ccb284', opacity: 0.6, marginBottom: '11px' }} />
         <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'flex-start', padding: '0 10px', marginBottom: '10px', gap: '80px' }}>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '11px', alignItems: 'center', marginTop: '8px' }}>
-            <Asset.Icon frameShape={Asset.frameShape.CleanW40} backgroundColor="transparent" name="icon-gavel" aria-hidden={true} ratio="1/1" />
+          {/* 왼쪽: 판사봉 정보 (develop 반영) */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '11px', alignItems: 'center', marginTop: '8px', justifyContent: 'flex-start' }}>
+            <Asset.Icon frameShape={{ width: 48, height: 48 }} backgroundColor="transparent" name="icon-gavel" aria-hidden={true} ratio="1/1" />
             <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-              <Text display="inline" color={adaptive.grey800} typography="t5" fontWeight="bold">
+              <Text display="inline" color={adaptive.grey800} typography="t5" fontWeight="bold" style={{ fontSize: '18px' }}>
                 판사봉 {currentGavel}
               </Text>
               <div ref={infoPopupRef} style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -527,6 +512,7 @@ function PointMissionPage() {
               size="small"
               onClick={handleExchange}
               disabled={!canExchange || isExchanging}
+              style={{ marginTop: '-6px' }}
             >
               {isExchanging ? '교환 중...' : '교환하기'}
             </TextButton>
@@ -561,11 +547,12 @@ function PointMissionPage() {
         <MissionCard level={3} title="핵심 기여 사건" description="많은 시민이 주목하는 재판 기록의 주인공이 되어보세요" reward={100} limitation="'화제의 재판 기록'에 등재" conditionMet={level3ConditionMet} isClaimed={isLevel3Claimed} missionType="LEVEL_3" buttonText="화제의 주인공" onClaim={handleClaim} isClaiming={isClaiming} unclaimedCount={unclaimedHotCases.length} />
       </div>
 
+      {/* 리워드 팝업 (develop 반영 + 최적화 유지) */}
       {showRewardPopup && (
         <div
           style={{
             position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-            backgroundColor: 'rgba(188, 188, 188, 0.8)',
+            backgroundColor: 'rgba(0, 0, 0, 0.6)',
             display: 'flex', alignItems: 'flex-end', justifyContent: 'center',
             zIndex: 10000, padding: '20px', paddingBottom: '40px'
           }}
@@ -580,11 +567,27 @@ function PointMissionPage() {
             onClick={(e) => e.stopPropagation()}
           >
             <div style={{ width: '40px', height: '4px', backgroundColor: '#E5E5E5', borderRadius: '2px', marginBottom: '24px', marginTop: '0px' }} />
-            <Text color={adaptive.grey800} typography="st5" fontWeight="bold" style={{ marginBottom: '16px', textAlign: 'center', fontSize: '24px' }}>광고 보고 포인트 받기!</Text>
+            <Text color={adaptive.grey800} typography="st5" fontWeight="bold" style={{ marginBottom: '18px', textAlign: 'center', fontSize: '24px' }}>광고 보고 포인트 받기!</Text>
             <div style={{ width: '282px', height: '246px', backgroundImage: `url(${missionBannerImage})`, backgroundSize: 'contain', backgroundRepeat: 'no-repeat', backgroundPosition: 'center', marginBottom: '24px' }} />
             <Spacing size={8} />
             <Button size="large" display="block" onClick={handleRewardConfirm} disabled={isClaiming} style={{ width: '100%', marginBottom: '8px' }}>포인트 받기</Button>
-            <Button size="large" color="light" display="block" onClick={handleRewardCancel} style={{ width: '100%' }}>돌아가기</Button>
+            {/* 돌아가기 버튼 (develop 스타일 반영) */}
+            <button
+              onClick={handleRewardCancel}
+              style={{ 
+                width: '100%', 
+                padding: '16px', 
+                backgroundColor: '#F2F4F6', 
+                color: '#191F28', 
+                border: 'none', 
+                borderRadius: '12px', 
+                fontSize: '16px', 
+                fontWeight: '600', 
+                cursor: 'pointer' 
+              }}
+            >
+              돌아가기
+            </button>
           </div>
         </div>
       )}

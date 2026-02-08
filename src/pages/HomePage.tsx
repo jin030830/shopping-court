@@ -6,7 +6,7 @@ import { Timestamp } from 'firebase/firestore';
 import { adaptive } from '@toss/tds-colors';
 import scaleIcon from '../assets/scale.svg';
 import hotFlameIcon from '../assets/fire.png';
-import pointMissionImage from '../assets/pansabanner.png';
+import pointMissionImage from '../assets/pansascale.png';
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 
 // 날짜 포맷팅 함수
@@ -178,7 +178,7 @@ const Banner = ({ navigate, selectedTab }: any) => (
           </div>
         </div>
       </div>
-      <div style={{ position: 'absolute', bottom: '25px', right: '25px', width: '150px', height: '150px', backgroundImage: `url(${pointMissionImage})`, backgroundSize: 'contain', backgroundRepeat: 'no-repeat', backgroundPosition: 'bottom right', filter: 'drop-shadow(2px 4px 6px rgba(0, 0, 0, 0.3))' }} />
+      <div style={{ position: 'absolute', bottom: '0px', right: '25px', width: '150px', height: '150px', backgroundImage: `url(${pointMissionImage})`, backgroundSize: 'contain', backgroundRepeat: 'no-repeat', backgroundPosition: 'bottom right', filter: 'drop-shadow(2px 4px 6px rgba(0, 0, 0, 0.3))' }} />
     </div>
   </div>
 );

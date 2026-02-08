@@ -1,13 +1,17 @@
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useState, useEffect } from 'react';
-import { Asset, Text, Spacing, Modal } from '@toss/tds-mobile';
+import { Asset, Text, Spacing, Modal, Button } from '@toss/tds-mobile';
+import { adaptive } from '@toss/tds-colors';
 import { useAuth } from '../hooks/useAuth';
 import { createCase, type CaseData } from '../api/cases';
+import { useTossAd } from '../hooks/useTossAd';
+import missionBannerImage from '../assets/missionbanner.jpeg';
 
 function CreatePostPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const { user, userData, isLoading, login } = useAuth();
+  const { show: showAd } = useTossAd('ait-ad-test-interstitial-id');
 
   // 뒤로가기 핸들러
   const handleBack = () => {
@@ -29,6 +33,7 @@ function CreatePostPage() {
   const [showGuideModal, setShowGuideModal] = useState(false);
   const [hasShownGuide, setHasShownGuide] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [showAdPopup, setShowAdPopup] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false); // 중복 제출 방지용 상태
 
   // 가이드 확인 처리
@@ -46,7 +51,7 @@ function CreatePostPage() {
 
   // TDS Modal 배경색 강제 설정
   useEffect(() => {
-    if (showGuideModal || showSuccessModal) {
+    if (showGuideModal || showSuccessModal || showAdPopup) {
       const applyOverlayStyle = () => {
         // 모든 가능한 오버레이 요소 찾기
         const selectors = [
@@ -85,7 +90,7 @@ function CreatePostPage() {
         observer.disconnect();
       };
     }
-  }, [showGuideModal, showSuccessModal]);
+  }, [showGuideModal, showSuccessModal, showAdPopup]);
 
   useEffect(() => {
     // state로 전달된 fromTab이 있으면 sessionStorage에도 저장 (새로고침/뒤로가기 대비)
@@ -103,11 +108,11 @@ function CreatePostPage() {
   }, [isLoading, user, userData, login]);
 
   const handleSubmit = async () => {
-    if (isSubmitting) return; // 이미 제출 중이면 무시
+    if (isSubmitting) return;
 
     if (!user || !userData) {
       alert('로그인이 필요합니다.');
-      navigate('/login', { state: { from: location } });
+      login();
       return;
     }
 
@@ -116,23 +121,39 @@ function CreatePostPage() {
       return;
     }
 
-    setIsSubmitting(true); // 제출 시작
+    // 광고 안내 팝업 표시
+    setShowAdPopup(true);
+  };
 
-    const caseData: CaseData = {
-      title: title.trim(),
-      content: content.trim(),
-      authorId: user.uid,
-      authorNickname: userData.nickname,
-    };
+  const handleAdConfirm = async () => {
+    if (isSubmitting) return;
+    
+    setIsSubmitting(true);
+    setShowAdPopup(false);
 
-    try {
-      await createCase(caseData);
-      setShowSuccessModal(true);
-    } catch (error) {
-      console.error('고민 등록 실패:', error);
-      alert('고민을 등록하는 데 실패했습니다. 다시 시도해주세요.');
-      setIsSubmitting(false); // 실패 시에만 다시 제출 가능하게 복구
-    }
+    // 전면 광고 노출
+    showAd(async () => {
+      const caseData: CaseData = {
+        title: title.trim(),
+        content: content.trim(),
+        authorId: user!.uid,
+        authorNickname: userData!.nickname,
+      };
+
+      try {
+        await createCase(caseData);
+        setShowSuccessModal(true);
+      } catch (error) {
+        console.error('고민 등록 실패:', error);
+        alert('고민을 등록하는 데 실패했습니다. 다시 시도해주세요.');
+      } finally {
+        setIsSubmitting(false);
+      }
+    });
+  };
+
+  const handleAdCancel = () => {
+    setShowAdPopup(false);
   };
 
   return (
@@ -320,7 +341,7 @@ function CreatePostPage() {
           className="custom-modal-overlay"
         />
         <Modal.Content>
-          <div style={{ padding: '24px', backgroundColor: 'white', borderRadius: '16px' }}>
+          <div style={{ padding: '24px 24px 14px 24px', backgroundColor: 'white', borderRadius: '16px' }}>
             <Text
               display="block"
               color="#191F28ff"
@@ -341,7 +362,7 @@ function CreatePostPage() {
               ※ 모두 선택 사항이에요!
             </Text>
             
-            <div style={{ marginBottom: '24px' }}>
+            <div style={{ marginBottom: '10px' }}>
               <Text
                 display="block"
                 color="#191F28"
@@ -463,6 +484,108 @@ function CreatePostPage() {
           </div>
         </Modal.Content>
       </Modal>
+
+      {/* 광고 안내 팝업 */}
+      {showAdPopup && (
+        <div
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.6)',
+            display: 'flex',
+            alignItems: 'flex-end',
+            justifyContent: 'center',
+            zIndex: 10000,
+            padding: '20px',
+            paddingBottom: '40px'
+          }}
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              handleAdCancel();
+            }
+          }}
+        >
+          <div
+            style={{
+              width: '352px',
+              maxWidth: '90%',
+              backgroundColor: 'white',
+              borderRadius: '20px',
+              padding: '24px',
+              paddingTop: '12px',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              position: 'relative'
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* 드래그 핸들 */}
+            <div
+              style={{
+                width: '40px',
+                height: '4px',
+                backgroundColor: '#E5E5E5',
+                borderRadius: '2px',
+                marginBottom: '24px',
+                marginTop: '0px'
+              }}
+            />
+
+            {/* 제목 */}
+            <Text color={adaptive.grey800} typography="st5" fontWeight="bold" style={{ marginBottom: '8px', textAlign: 'center', fontSize: '24px' }}>
+              광고 5초보고 등록하기!
+            </Text>
+
+            {/* 이미지 */}
+            <div
+              style={{
+                width: '282px',
+                height: '246px',
+                backgroundImage: `url(${missionBannerImage})`,
+                backgroundSize: 'contain',
+                backgroundRepeat: 'no-repeat',
+                backgroundPosition: 'center',
+                marginBottom: '24px'
+              }}
+            />
+
+            <Spacing size={8} />
+
+            {/* 등록하기 버튼 */}
+            <Button
+              size="large"
+              display="block"
+              onClick={handleAdConfirm}
+              disabled={isSubmitting}
+              style={{ width: '100%', marginBottom: '8px' }}
+            >
+              등록하기
+            </Button>
+
+            {/* 돌아가기 버튼 */}
+            <button
+              onClick={handleAdCancel}
+              style={{ 
+                width: '100%', 
+                padding: '16px', 
+                backgroundColor: '#F2F4F6', 
+                color: '#191F28', 
+                border: 'none', 
+                borderRadius: '12px', 
+                fontSize: '16px', 
+                fontWeight: '600', 
+                cursor: 'pointer' 
+              }}
+            >
+              돌아가기
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

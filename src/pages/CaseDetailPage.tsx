@@ -892,7 +892,7 @@ function CaseDetailPage() {
 
           {/* 댓글 목록 렌더링 (이전과 동일) */}
           {sortedComments.length > 0 && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
               {sortedComments.map((comment) => (
                 <div key={comment.id}>
                   {/* ... 댓글 내용 ... */}
@@ -1091,10 +1091,10 @@ function CaseDetailPage() {
       {showVoteConfirm && pendingVoteType && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0, 0, 0, 0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '20px' }} onClick={handleVoteCancel}>
           <div style={{ backgroundColor: 'white', borderRadius: '16px', padding: '24px', width: '100%', maxWidth: '400px', boxSizing: 'border-box' }} onClick={(e) => e.stopPropagation()}>
-            <Text display="block" color="#191F28ff" typography="t4" fontWeight="bold" textAlign="center" style={{ marginBottom: '12px' }}>'{pendingVoteType === 'agree' ? '무죄' : '유죄'}'로 하시겠어요?</Text>
-            <Text display="block" color="#191F28" typography="t7" fontWeight="regular" textAlign="center" style={{ marginBottom: '24px' }}>한 번 재판 완료하면 수정할 수 없어요!</Text>
+            <Text display="block" color="#191F28" typography="t4" fontWeight="bold" textAlign="center" style={{ marginBottom: '12px', fontSize: '20px' }}>'{pendingVoteType === 'agree' ? '무죄' : '유죄'}'로 하시겠어요?</Text>
+            <Text display="block" color="#191F28" typography="t7" fontWeight="regular" textAlign="center" style={{ marginBottom: '24px', fontSize: '14px' }}>한 번 재판 완료하면 수정할 수 없어요!</Text>
             <div style={{ display: 'flex', gap: '12px' }}>
-              <button onClick={handleVoteCancel} style={{ flex: 1, padding: '12px', backgroundColor: '#f0f0f0', color: '#191F28', border: 'none', borderRadius: '8px', fontSize: '15px', fontWeight: '600', cursor: 'pointer' }}>닫기</button>
+              <button onClick={handleVoteCancel} style={{ flex: 1, padding: '12px', backgroundColor: '#F2F4F6', color: '#191F28', border: 'none', borderRadius: '8px', fontSize: '15px', fontWeight: '600', cursor: 'pointer' }}>닫기</button>
               <button onClick={handleVoteConfirm} style={{ flex: 1, padding: '12px', backgroundColor: '#3182F6', color: 'white', border: 'none', borderRadius: '8px', fontSize: '15px', fontWeight: '600', cursor: 'pointer' }}>완료</button>
             </div>
           </div>
