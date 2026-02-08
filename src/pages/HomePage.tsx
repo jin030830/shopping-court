@@ -73,7 +73,8 @@ function HomePage() {
     queryFn: ({ pageParam }) => getCasesPaginated({ status: 'OPEN', limitCount: 10, lastVisible: pageParam }),
     getNextPageParam: (lastPage) => lastPage.cases.length === 10 ? lastPage.lastDoc : undefined,
     initialPageParam: null,
-    enabled: selectedTab === '재판 중'
+    enabled: selectedTab === '재판 중',
+    staleTime: 1000 * 60, // [Optimization] 1분간 데이터 신선도 유지
   });
 
   // Query for 'HOT 게시판' (상위 3개)
@@ -81,7 +82,8 @@ function HomePage() {
     queryKey: ['cases', 'HOT'],
     // [Optimization] 서버 사이드 정렬 및 Limit 적용 (읽기 비용 20 -> 3으로 감소)
     queryFn: () => getHotCases(3),
-    enabled: selectedTab === 'HOT 게시판'
+    enabled: selectedTab === 'HOT 게시판',
+    staleTime: 1000 * 60, // [Optimization] 1분간 캐시 유지
   });
 
   // Query for '재판 완료' 대시보드
@@ -89,7 +91,8 @@ function HomePage() {
     queryKey: ['cases', 'CLOSED', 'dashboard'],
     // [Chore] 대시보드용이므로 limit을 10으로 축소하여 비용 절감
     queryFn: () => getCasesPaginated({ status: 'CLOSED', limitCount: 10 }) as any,
-    enabled: selectedTab === '재판 완료'
+    enabled: selectedTab === '재판 완료',
+    staleTime: 1000 * 60 * 5, // 재판 완료 데이터는 상대적으로 덜 변하므로 5분 설정
   });
 
   const observer = useRef<IntersectionObserver | null>(null);
