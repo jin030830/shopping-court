@@ -18,10 +18,12 @@ import {
   updateReply,
   deleteReply,
   deleteCase,
+  reportContent,
   type CaseDocument,
   type CommentDocument,
   type ReplyDocument,
-  type VoteType
+  type VoteType,
+  type ReportData
 } from '../api/cases';
 import { getTodayDateString, type UserDocument } from '../api/user';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -312,7 +314,33 @@ function CaseDetailPage() {
     }
   });
 
+  // [Mutation] 신고하기
+  const reportMutation = useMutation({
+    mutationFn: (reportData: Omit<ReportData, 'createdAt'>) => reportContent(reportData),
+    onSuccess: () => {
+      alert('신고가 접수되었어요!');
+    },
+    onError: () => {
+      alert('신고 접수에 실패했어요. 다시 시도해주세요.');
+    }
+  });
+
   // --- 비즈니스 로직 핸들러 ---
+
+  const handleReport = (targetType: 'case' | 'comment' | 'reply', targetId: string, commentId?: string, replyId?: string) => {
+    if (!user) { login(); return; }
+    
+    reportMutation.mutate({
+      reporterId: user.uid,
+      targetType,
+      targetId,
+      caseId: id!,
+      commentId,
+      replyId
+    });
+    
+    setShowPostMenu(false);
+  };
 
   const handleLikeComment = async (commentId: string) => {
     if (!id || !user || !isVerified || post?.status === 'CLOSED') return;
@@ -406,7 +434,7 @@ function CaseDetailPage() {
                       <button onClick={() => { setShowDeleteConfirm(true); setShowPostMenu(false); }} style={{ width: '100%', padding: '12px 16px', border: 'none', background: 'none', textAlign: 'left', cursor: 'pointer', fontSize: '14px', color: '#D32F2F' }}>삭제</button>
                     </>
                   ) : (
-                    <button onClick={() => { alert('신고가 접수되었어요!'); setShowPostMenu(false); }} style={{ width: '100%', padding: '12px 16px', border: 'none', background: 'none', textAlign: 'left', cursor: 'pointer', fontSize: '14px', color: '#D32F2F' }}>신고하기</button>
+                    <button onClick={() => handleReport('case', id!)} style={{ width: '100%', padding: '12px 16px', border: 'none', background: 'none', textAlign: 'left', cursor: 'pointer', fontSize: '14px', color: '#D32F2F' }}>신고하기</button>
                   )}
                 </div>
               )}
@@ -474,7 +502,7 @@ function CaseDetailPage() {
                   queryClient.invalidateQueries({ queryKey: caseKeys.lists() });
                   queryClient.invalidateQueries({ queryKey: caseKeys.userLists() });
                 }) }}
-                onReport={() => alert('신고가 접수되었어요!')}
+                onReport={(type, targetId, cid, rid) => handleReport(type, targetId, cid, rid)}
                 isReplying={replyingTo === comment.id}
                 replyContent={replyContent}
                 onReplyContentChange={setReplyContent}
