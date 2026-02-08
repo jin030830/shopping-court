@@ -64,12 +64,13 @@ function CaseDetailPage() {
     }
   };
 
-  // [Query] 게시물 상세 정보
+  // [Query] 게시물 상세 정보 (진입 시마다 최신화)
   const { data: post, isInitialLoading: isLoadingPost } = useQuery<CaseDocument | null, Error>({
     queryKey: caseKeys.detail(id!),
     queryFn: () => (id ? getCase(id) : Promise.resolve(null)),
     enabled: !!id,
-    staleTime: 1000 * 60 * 5,
+    staleTime: 0, 
+    refetchOnWindowFocus: true,
   });
 
   // [Query] 댓글 및 대댓글 통합 정보
@@ -79,14 +80,15 @@ function CaseDetailPage() {
       if (!id) return [];
       const commentsData = await getComments(id);
       return await Promise.all(
-        commentsData.map(async (comment) => {
+        commentsData.map(async (comment: CommentDocument) => {
           const replies = await getReplies(id, comment.id);
           return { ...comment, replies };
         })
       );
     },
     enabled: !!id,
-    staleTime: 1000 * 60 * 2,
+    staleTime: 0,
+    refetchOnWindowFocus: true,
   });
 
   // [Query] 현재 사용자의 투표 상태 확인
@@ -100,7 +102,6 @@ function CaseDetailPage() {
   const hasVoted = !!userVoteData;
   const selectedVote = userVoteData === 'innocent' ? 'agree' : userVoteData === 'guilty' ? 'disagree' : null;
   
-  // 재판 완료 상태이면 투표 불가 (내가 쓴 글인지 여부와 관계없이)
   const isVoteDisabled = hasVoted || post?.status === 'CLOSED';
 
   // UI States
@@ -135,7 +136,7 @@ function CaseDetailPage() {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [showPostMenu]);
 
-  // [Mutation] 투표하기 (게시물 카운트 + 유저 활동량 동시 낙관적 업데이트)
+  // [Mutation] 투표하기
   const addVoteMutation = useMutation({
     mutationFn: ({ voteType }: { voteType: VoteType }) => addVote(id!, user!.uid, voteType),
     onMutate: async ({ voteType }) => {
@@ -145,7 +146,6 @@ function CaseDetailPage() {
       const previousPost = queryClient.getQueryData<CaseDocument>(caseKeys.detail(id!));
       const previousUserData = user ? queryClient.getQueryData<UserDocument | null>(['user', user.uid]) : null;
 
-      // 1. 게시물 상세 카운트 업데이트
       queryClient.setQueryData(caseKeys.detail(id!), (old: CaseDocument | undefined) => {
         if (!old) return old;
         return {
@@ -155,7 +155,6 @@ function CaseDetailPage() {
         };
       });
 
-      // 2. 홈 화면 목록 카운트 업데이트
       queryClient.setQueriesData({ queryKey: caseKeys.lists() }, (oldData: any) => {
         if (!oldData) return oldData;
         const updateCase = (c: any) => c.id === id ? { ...c, guiltyCount: voteType === 'guilty' ? (c.guiltyCount || 0) + 1 : (c.guiltyCount || 0), innocentCount: voteType === 'innocent' ? (c.innocentCount || 0) + 1 : (c.innocentCount || 0) } : c;
@@ -163,10 +162,9 @@ function CaseDetailPage() {
         return Array.isArray(oldData) ? oldData.map(updateCase) : oldData;
       });
 
-      // 3. 유저 일일 활동량(voteCount) 업데이트
       if (user) {
         const today = getTodayDateString();
-        queryClient.setQueryData<UserDocument | null>(['user', user.uid], (prev) => {
+        queryClient.setQueryData<UserDocument | null>(['user', user.uid], (prev: UserDocument | null | undefined) => {
           if (!prev) return prev;
           const stats = prev.dailyStats || { voteCount: 0, commentCount: 0, postCount: 0, lastActiveDate: today, isLevel1Claimed: false, isLevel2Claimed: false };
           const isNewDay = stats.lastActiveDate !== today;
@@ -187,17 +185,16 @@ function CaseDetailPage() {
     }
   });
 
-  // [Mutation] 댓글 작성 (상세 + 목록 + 유저 활동량 동시 업데이트)
+  // [Mutation] 댓글 작성
   const addCommentMutation = useMutation({
     mutationFn: (commentData: { authorId: string; authorNickname: string; content: string; vote: VoteType }) => addComment(id!, commentData),
-    onMutate: async (newCommentData) => {
+    onMutate: async (newCommentData: any) => {
       await queryClient.cancelQueries({ queryKey: caseKeys.all });
       if (user) await queryClient.cancelQueries({ queryKey: ['user', user.uid] });
 
       const previousComments = queryClient.getQueryData<CommentWithReplies[]>(caseKeys.comments(id!));
       const previousUserData = user ? queryClient.getQueryData<UserDocument | null>(['user', user.uid]) : null;
       
-      // 1. 댓글 리스트 추가
       const optimisticComment: CommentWithReplies = {
         id: 'temp-' + Date.now(),
         ...newCommentData,
@@ -208,7 +205,6 @@ function CaseDetailPage() {
       };
       queryClient.setQueryData(caseKeys.comments(id!), (old: CommentWithReplies[] | undefined) => [optimisticComment, ...(old || [])]);
 
-      // 2. 홈 목록 댓글수 업데이트
       queryClient.setQueriesData({ queryKey: caseKeys.lists() }, (oldData: any) => {
         if (!oldData) return oldData;
         const updateCount = (c: any) => c.id === id ? { ...c, commentCount: (c.commentCount || 0) + 1 } : c;
@@ -216,10 +212,11 @@ function CaseDetailPage() {
         return Array.isArray(oldData) ? oldData.map(updateCount) : oldData;
       });
 
-      // 3. 유저 일일 활동량(commentCount) 업데이트
+      await queryClient.invalidateQueries({ queryKey: caseKeys.userLists() });
+
       if (user) {
         const today = getTodayDateString();
-        queryClient.setQueryData<UserDocument | null>(['user', user.uid], (prev) => {
+        queryClient.setQueryData<UserDocument | null>(['user', user.uid], (prev: UserDocument | null | undefined) => {
           if (!prev) return prev;
           const stats = prev.dailyStats || { voteCount: 0, commentCount: 0, postCount: 0, lastActiveDate: today, isLevel1Claimed: false, isLevel2Claimed: false };
           const isNewDay = stats.lastActiveDate !== today;
@@ -233,7 +230,7 @@ function CaseDetailPage() {
       setNewComment('');
       return { previousComments, previousUserData };
     },
-    onError: (_err, _vars, context) => {
+    onError: (_err: any, _vars: any, context: any) => {
       queryClient.setQueryData(caseKeys.comments(id!), context?.previousComments);
       if (user) queryClient.setQueryData(['user', user.uid], context?.previousUserData);
     },
@@ -245,23 +242,21 @@ function CaseDetailPage() {
     }
   });
 
-  // [Mutation] 답글 작성 (낙관적 업데이트 결합)
+  // [Mutation] 답글 작성
   const addReplyMutation = useMutation({
     mutationFn: ({ commentId, replyData }: { commentId: string; replyData: any }) => addReply(id!, commentId, replyData),
-    onMutate: async ({ commentId, replyData }) => {
+    onMutate: async ({ commentId, replyData }: any) => {
       await queryClient.cancelQueries({ queryKey: caseKeys.all });
       if (user) await queryClient.cancelQueries({ queryKey: ['user', user.uid] });
 
       const previousComments = queryClient.getQueryData<CommentWithReplies[]>(caseKeys.comments(id!));
       const previousUserData = user ? queryClient.getQueryData<UserDocument | null>(['user', user.uid]) : null;
 
-      // 1. 상세 페이지에 답글 즉시 추가
       queryClient.setQueryData(caseKeys.comments(id!), (old: CommentWithReplies[] | undefined) => {
         if (!old) return old;
-        return old.map(comment => comment.id === commentId ? { ...comment, replies: [...(comment.replies || []), { id: 'temp-reply-' + Date.now(), ...replyData, createdAt: Timestamp.now(), likes: 0, likedBy: [] }] } : comment);
+        return old.map((comment: CommentWithReplies) => comment.id === commentId ? { ...comment, replies: [...(comment.replies || []), { id: 'temp-reply-' + Date.now(), ...replyData, createdAt: Timestamp.now(), likes: 0, likedBy: [] }] } : comment);
       });
 
-      // 2. 홈 화면 목록의 전체 댓글수 즉시 증가
       queryClient.setQueriesData({ queryKey: caseKeys.lists() }, (oldData: any) => {
         if (!oldData) return oldData;
         const updateCount = (c: any) => c.id === id ? { ...c, commentCount: (c.commentCount || 0) + 1 } : c;
@@ -269,10 +264,9 @@ function CaseDetailPage() {
         return Array.isArray(oldData) ? oldData.map(updateCount) : oldData;
       });
 
-      // 3. 유저 일일 활동량 업데이트
       if (user) {
         const today = getTodayDateString();
-        queryClient.setQueryData<UserDocument | null>(['user', user.uid], (prev) => {
+        queryClient.setQueryData<UserDocument | null>(['user', user.uid], (prev: UserDocument | null | undefined) => {
           if (!prev) return prev;
           const stats = prev.dailyStats || { voteCount: 0, commentCount: 0, postCount: 0, lastActiveDate: today, isLevel1Claimed: false, isLevel2Claimed: false };
           const isNewDay = stats.lastActiveDate !== today;
@@ -287,7 +281,7 @@ function CaseDetailPage() {
       setReplyingTo(null);
       return { previousComments, previousUserData };
     },
-    onError: (_err, _vars, context) => {
+    onError: (_err: any, _vars: any, context: any) => {
       queryClient.setQueryData(caseKeys.comments(id!), context?.previousComments);
       if (user) queryClient.setQueryData(['user', user.uid], context?.previousUserData);
     },
@@ -322,18 +316,8 @@ function CaseDetailPage() {
 
   const handleLikeComment = async (commentId: string) => {
     if (!id || !user || !isVerified || post?.status === 'CLOSED') return;
-    
-    // 투표 안한 경우
-    if (!hasVoted) {
-      alert('투표 후 공감할 수 있어요!');
-      return;
-    }
-    
-    // 이미 공감한 경우
-    if (likedComments.has(commentId)) {
-      alert('이미 공감한 댓글이에요!');
-      return;
-    }
+    if (!hasVoted) { alert('투표 후 공감할 수 있어요!'); return; }
+    if (likedComments.has(commentId)) { alert('이미 공감한 댓글이에요!'); return; }
     
     try {
       await addCommentLike(id, commentId);
@@ -346,20 +330,10 @@ function CaseDetailPage() {
 
   const handleLikeReply = async (commentId: string, replyId: string) => {
     if (!id || !user || !isVerified || post?.status === 'CLOSED') return;
-    
-    // 투표 안한 경우
-    if (!hasVoted) {
-      alert('투표 후 공감할 수 있어요!');
-      return;
-    }
+    if (!hasVoted) { alert('투표 후 공감할 수 있어요!'); return; }
     
     const likeKey = `${commentId}_${replyId}`;
-    
-    // 이미 공감한 경우
-    if (likedComments.has(likeKey)) {
-      alert('이미 공감한 댓글이에요!');
-      return;
-    }
+    if (likedComments.has(likeKey)) { alert('이미 공감한 댓글이에요!'); return; }
     
     try {
       await addReplyLike(id, commentId, replyId);
@@ -383,8 +357,6 @@ function CaseDetailPage() {
   }, [comments, sortBy]);
 
   // --- 얼리 리턴 (순서 조정) ---
-  
-  // 1. 삭제 완료 화면 우선
   if (showDeleteComplete) {
     return (
       <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'white', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', zIndex: 2000 }}>
@@ -397,7 +369,6 @@ function CaseDetailPage() {
     );
   }
 
-  // 2. 삭제 중 화면
   if (isDeleting) {
     return (
       <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'white', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', zIndex: 2000 }}>
@@ -408,10 +379,7 @@ function CaseDetailPage() {
     );
   }
 
-  // 3. 로딩 중
   if (isLoadingPost) return <FullPageLoading />;
-  
-  // 4. 게시물 없음 (삭제된 경우)
   if (!post) return <NotFoundView onBack={handleBack} />;
 
   return (
@@ -469,7 +437,7 @@ function CaseDetailPage() {
       <div style={{ padding: '0 13px', width: '100%', boxSizing: 'border-box' }}>
         <div style={{ backgroundColor: 'white', padding: '20px 13px', borderRadius: '12px', width: '100%', boxSizing: 'border-box', maxWidth: '100%', overflow: 'hidden' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-            <h4 style={{ color: '#191F28', fontSize: '17px', fontWeight: '600', margin: 0 }}>전체 댓글 {comments.length + comments.reduce((s, c) => s + c.replies.length, 0)}</h4>
+            <h4 style={{ color: '#191F28', fontSize: '17px', fontWeight: '600', margin: 0 }}>전체 댓글 {comments.length + comments.reduce((s: number, c: any) => s + c.replies.length, 0)}</h4>
             <SortButtons sortBy={sortBy} onSortChange={setSortBy} />
           </div>
 
@@ -493,16 +461,24 @@ function CaseDetailPage() {
                 selectedVote={selectedVote}
                 onLike={handleLikeComment}
                 onReply={setReplyingTo}
-                onEdit={(cid, content) => updateComment(id!, cid, content).then(() => queryClient.invalidateQueries({ queryKey: caseKeys.comments(id!) }))}
-                onDelete={(cid) => { if(window.confirm('댓글을 삭제하시겠어요?')) deleteComment(id!, cid).then(() => queryClient.invalidateQueries({ queryKey: caseKeys.comments(id!) })) }}
+                onEdit={(cid: string, content: string) => updateComment(id!, cid, content).then(() => queryClient.invalidateQueries({ queryKey: caseKeys.comments(id!) }))}
+                onDelete={(cid: string) => { if(window.confirm('댓글을 삭제하시겠어요?')) deleteComment(id!, cid).then(() => { 
+                  queryClient.invalidateQueries({ queryKey: caseKeys.comments(id!) });
+                  queryClient.invalidateQueries({ queryKey: caseKeys.lists() });
+                  queryClient.invalidateQueries({ queryKey: caseKeys.userLists() });
+                }) }}
                 onLikeReply={handleLikeReply}
-                onEditReply={(cid, rid, content) => updateReply(id!, cid, rid, content).then(() => queryClient.invalidateQueries({ queryKey: caseKeys.comments(id!) }))}
-                onDeleteReply={(cid, rid) => { if(window.confirm('답글을 삭제하시겠어요?')) deleteReply(id!, cid, rid).then(() => queryClient.invalidateQueries({ queryKey: caseKeys.comments(id!) })) }}
+                onEditReply={(cid: string, rid: string, content: string) => updateReply(id!, cid, rid, content).then(() => queryClient.invalidateQueries({ queryKey: caseKeys.comments(id!) }))}
+                onDeleteReply={(cid: string, rid: string) => { if(window.confirm('답글을 삭제하시겠어요?')) deleteReply(id!, cid, rid).then(() => { 
+                  queryClient.invalidateQueries({ queryKey: caseKeys.comments(id!) });
+                  queryClient.invalidateQueries({ queryKey: caseKeys.lists() });
+                  queryClient.invalidateQueries({ queryKey: caseKeys.userLists() });
+                }) }}
                 onReport={() => alert('신고가 접수되었어요!')}
                 isReplying={replyingTo === comment.id}
                 replyContent={replyContent}
                 onReplyContentChange={setReplyContent}
-                onReplySubmit={(cid) => {
+                onReplySubmit={(cid: string) => {
                   if (!replyContent.trim() || !user || !userData || !userVoteData) return;
                   addReplyMutation.mutate({ 
                     commentId: cid, 
