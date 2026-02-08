@@ -2,6 +2,10 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { Asset, Text, Spacing } from '@toss/tds-mobile';
 import { useRef, useCallback, memo, useEffect } from 'react';
 import { caseKeys } from '../constants/queryKeys';
+import { getCasesByAuthorPaginated, type CaseDocument } from '../api/cases';
+import { adaptive } from '@toss/tds-colors';
+import { useAuth } from '../hooks/useAuth';
+import { useInfiniteQuery } from '@tanstack/react-query';
 
 const MyPostItem = memo(({ post, navigate, showVerdict }: any) => {
   let v: '무죄' | '유죄' | '보류' = '보류';
