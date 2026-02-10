@@ -43,6 +43,7 @@ function AppRoutes() {
       <Suspense fallback={<LoadingFallback />}>
         <Routes>
           <Route path="/" element={<HomePage />} />
+          <Route path="/hot" element={<HomePage defaultTab="HOT 게시판" />} />
           <Route path="/case/:id" element={<CaseDetailPage />} />
           <Route 
             path="/create-post" 
