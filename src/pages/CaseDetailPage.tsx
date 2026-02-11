@@ -415,7 +415,7 @@ function CaseDetailPage() {
 
   const sortedComments = useMemo(() => {
     return [...comments].sort((a, b) => {
-      if (sortBy === 'latest') return (b.createdAt?.toMillis() || 0) - (a.createdAt?.toMillis() || 0);
+      if (sortBy === 'latest') return (a.createdAt?.toMillis() || 0) - (b.createdAt?.toMillis() || 0);
       return (b.likes || 0) - (a.likes || 0);
     });
   }, [comments, sortBy]);
