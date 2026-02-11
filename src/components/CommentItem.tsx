@@ -63,28 +63,45 @@ const CommentItem = memo(({
       <div style={{ padding: '12px 16px', backgroundColor: '#fff', borderRadius: '8px', border: '1px solid #e0e0e0', position: 'relative', marginBottom: '8px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '6px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            {comment.authorId === post.authorId ? (
-              <div style={{ padding: '3px 6px', backgroundColor: '#FFB33128', borderRadius: '4px', height: 'fit-content', whiteSpace: 'nowrap', fontSize: '11px', fontWeight: '600' }}>
-                <span style={{ color: '#B45309', fontSize: '11px', fontWeight: '600' }}>작성자</span>
+            {(comment as any).isDeleted ? (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                <Asset.Icon 
+                  frameShape={Asset.frameShape.CleanW16} 
+                  name="icon-info-circle-mono" 
+                  color="#B0B8C1" 
+                  ratio="1/1" 
+                  style={{ transform: 'rotate(180deg)' }}
+                />
+                <Text color="#B0B8C1" typography="t7" fontWeight="medium" style={{ fontSize: '13px' }}>삭제된 댓글</Text>
               </div>
             ) : (
-              <div style={{ padding: '3px 6px', backgroundColor: comment.vote === 'innocent' ? '#E3F2FD' : '#FFEBEE', color: comment.vote === 'innocent' ? '#1976D2' : '#D32F2F', fontSize: '11px', fontWeight: '600', borderRadius: '4px', height: 'fit-content', whiteSpace: 'nowrap' }}>{comment.vote === 'innocent' ? '무죄' : '유죄'}</div>
+              <>
+                {comment.authorId === post.authorId ? (
+                  <div style={{ padding: '3px 6px', backgroundColor: '#FFB33128', borderRadius: '4px', height: 'fit-content', whiteSpace: 'nowrap', fontSize: '11px', fontWeight: '600' }}>
+                    <span style={{ color: '#B45309', fontSize: '11px', fontWeight: '600' }}>작성자</span>
+                  </div>
+                ) : (
+                  <div style={{ padding: '3px 6px', backgroundColor: comment.vote === 'innocent' ? '#E3F2FD' : '#FFEBEE', color: comment.vote === 'innocent' ? '#1976D2' : '#D32F2F', fontSize: '11px', fontWeight: '600', borderRadius: '4px', height: 'fit-content', whiteSpace: 'nowrap' }}>{comment.vote === 'innocent' ? '무죄' : '유죄'}</div>
+                )}
+                <Text color="#6B7684" typography="t7" fontWeight="medium" style={{ fontSize: '13px' }}>{getAuthorLabel(comment.authorId, comment.authorNickname)}</Text>
+              </>
             )}
-            <Text color="#6B7684" typography="t7" fontWeight="medium" style={{ fontSize: '13px' }}>{getAuthorLabel(comment.authorId, comment.authorNickname)}</Text>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', backgroundColor: '#f2f4f6', borderRadius: '20px', padding: '4px 8px', gap: '0' }}>
-            <button onClick={() => onLike(comment.id)} disabled={post.status === 'CLOSED'} style={{ background: 'none', border: 'none', cursor: post.status === 'CLOSED' ? 'not-allowed' : 'pointer', padding: '4px 8px', display: 'flex', alignItems: 'center', gap: '4px', opacity: post.status === 'CLOSED' ? 0.5 : 1 }}>
-              <Asset.Icon frameShape={{ width: 14, height: 14 }} backgroundColor="transparent" name="icon-thumb-up-mono" color="#9E9E9E" aria-hidden={true} ratio="1/1" />
-            </button>
-            <div style={{ width: '1px', height: '16px', backgroundColor: '#9E9E9E', opacity: 0.3 }} />
-            <button onClick={() => { if (post.status === 'CLOSED') return; if (!hasVoted) { alert('투표 후 댓글을 작성할 수 있어요!'); return; } onReply(comment.id); }} disabled={post.status === 'CLOSED'} style={{ background: 'none', border: 'none', cursor: post.status === 'CLOSED' ? 'not-allowed' : 'pointer', padding: '4px 8px', display: 'flex', alignItems: 'center', opacity: post.status === 'CLOSED' ? 0.5 : 1 }}>
-              <Asset.Icon frameShape={{ width: 14, height: 14 }} backgroundColor="transparent" name="icon-chat-square-two-mono" color="#9E9E9E" aria-hidden={true} ratio="1/1" />
-            </button>
-            <div style={{ width: '1px', height: '16px', backgroundColor: '#9E9E9E', opacity: 0.3 }} />
-            <button onClick={() => { if (post.status === 'CLOSED') return; setShowMenu(!showMenu); }} disabled={post.status === 'CLOSED'} style={{ background: 'none', border: 'none', padding: '4px 8px', display: 'flex', alignItems: 'center', cursor: post.status === 'CLOSED' ? 'not-allowed' : 'pointer', opacity: post.status === 'CLOSED' ? 0.5 : 1 }}>
-              <Asset.Icon frameShape={{ width: 14, height: 14 }} backgroundColor="transparent" name="icon-dots-vertical-1-mono" color="#9E9E9E" aria-hidden={true} ratio="1/1" />
-            </button>
-          </div>
+          {!(comment as any).isDeleted && (
+            <div style={{ display: 'flex', alignItems: 'center', backgroundColor: '#f2f4f6', borderRadius: '20px', padding: '4px 8px', gap: '0' }}>
+              <button onClick={() => onLike(comment.id)} disabled={post.status === 'CLOSED'} style={{ background: 'none', border: 'none', cursor: post.status === 'CLOSED' ? 'not-allowed' : 'pointer', padding: '4px 8px', display: 'flex', alignItems: 'center', gap: '4px', opacity: post.status === 'CLOSED' ? 0.5 : 1 }}>
+                <Asset.Icon frameShape={{ width: 14, height: 14 }} backgroundColor="transparent" name="icon-thumb-up-mono" color="#9E9E9E" aria-hidden={true} ratio="1/1" />
+              </button>
+              <div style={{ width: '1px', height: '16px', backgroundColor: '#9E9E9E', opacity: 0.3 }} />
+              <button onClick={() => { if (post.status === 'CLOSED') return; if (!hasVoted) { alert('투표 후 댓글을 작성할 수 있어요!'); return; } onReply(comment.id); }} disabled={post.status === 'CLOSED'} style={{ background: 'none', border: 'none', cursor: post.status === 'CLOSED' ? 'not-allowed' : 'pointer', padding: '4px 8px', display: 'flex', alignItems: 'center', opacity: post.status === 'CLOSED' ? 0.5 : 1 }}>
+                <Asset.Icon frameShape={{ width: 14, height: 14 }} backgroundColor="transparent" name="icon-chat-square-two-mono" color="#9E9E9E" aria-hidden={true} ratio="1/1" />
+              </button>
+              <div style={{ width: '1px', height: '16px', backgroundColor: '#9E9E9E', opacity: 0.3 }} />
+              <button onClick={() => { if (post.status === 'CLOSED') return; setShowMenu(!showMenu); }} disabled={post.status === 'CLOSED'} style={{ background: 'none', border: 'none', padding: '4px 8px', display: 'flex', alignItems: 'center', cursor: post.status === 'CLOSED' ? 'not-allowed' : 'pointer', opacity: post.status === 'CLOSED' ? 0.5 : 1 }}>
+                <Asset.Icon frameShape={{ width: 14, height: 14 }} backgroundColor="transparent" name="icon-dots-vertical-1-mono" color="#9E9E9E" aria-hidden={true} ratio="1/1" />
+              </button>
+            </div>
+          )}
         </div>
 
         {editingId === comment.id ? (
@@ -97,13 +114,15 @@ const CommentItem = memo(({
           </div>
         ) : (
           <>
-            <Text display="block" color="#191F28" typography="t6" fontWeight="regular" style={{ marginBottom: '4px', whiteSpace: 'pre-wrap' }}>{comment.content}</Text>
+            <Text display="block" color={(comment as any).isDeleted ? "#B0B8C1" : "#191F28"} typography="t6" fontWeight="regular" style={{ marginBottom: '4px', whiteSpace: 'pre-wrap', fontStyle: (comment as any).isDeleted ? 'italic' : 'normal' }}>{comment.content}</Text>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <Text display="block" color="#9E9E9E" typography="t7" fontWeight="regular" style={{ fontSize: '13px' }}>{formatDate(comment.createdAt)}</Text>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                <Asset.Icon frameShape={{ width: 15, height: 15 }} backgroundColor="transparent" name="icon-thumb-up-line-mono" color="#D32F2F" aria-hidden={true} ratio="1/1" />
-                <Text color="#D32F2F" typography="st13" fontWeight="medium" style={{ fontSize: '13px' }}>{comment.likes || 0}</Text>
-              </div>
+              {!(comment as any).isDeleted && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  <Asset.Icon frameShape={{ width: 15, height: 15 }} backgroundColor="transparent" name="icon-thumb-up-line-mono" color="#D32F2F" aria-hidden={true} ratio="1/1" />
+                  <Text color="#D32F2F" typography="st13" fontWeight="medium" style={{ fontSize: '13px' }}>{comment.likes || 0}</Text>
+                </div>
+              )}
             </div>
           </>
         )}
@@ -199,4 +218,3 @@ const CommentItem = memo(({
 });
 
 export default CommentItem;
-
