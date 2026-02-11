@@ -36,10 +36,9 @@ service cloud.firestore {
       allow read: if request.auth != null;
       allow write: if request.auth != null && request.auth.uid == userId;
 
-      // activities 서브컬렉션 권한 추가
+      // activities 서브컬렉션 권한 (생성, 수정, 삭제 모두 허용)
       match /activities/{activityId} {
-        allow read: if request.auth != null && request.auth.uid == userId;
-        allow write: if request.auth != null && request.auth.uid == userId;
+        allow read, write: if request.auth != null && request.auth.uid == userId;
       }
     }
 
@@ -58,9 +57,9 @@ service cloud.firestore {
       allow create: if request.auth != null && isValidNewCase();
       
       allow update: if request.auth != null && (
-        // 작성자 본인 확인 (기존 리소스 기반)
+        // 1. 작성자: 본인 글 수정 (단, 투표수/점수/댓글수 조작 불가)
         (resource.data.authorId == request.auth.uid && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['guiltyCount', 'innocentCount', 'commentCount', 'hotScore'])) ||
-        // 일반 유저: 투표
+        // 2. 일반 유저: 정해진 규칙에 따른 투표만 허용
         isValidVoteUpdate()
       );
       
@@ -83,7 +82,9 @@ service cloud.firestore {
                      isValidText(request.resource.data.content, 1, 500);
         
         allow update: if request.auth != null && (
-          (resource.data.authorId == request.auth.uid) || isValidLikeUpdate(caseId)
+          // 작성자 본인 확인 (resource.data는 수정 전 데이터를 의미함)
+          (resource.data.authorId == request.auth.uid) || 
+          isValidLikeUpdate(caseId)
         );
         
         allow delete: if request.auth != null && resource.data.authorId == request.auth.uid;
@@ -92,14 +93,14 @@ service cloud.firestore {
           allow list: if isWithinLimit(100); 
           allow get: if true;
           
-          // 작성자 본인이거나, 실제로 투표한 기록이 있는 유저만 답글 작성 가능
           allow create: if request.auth != null && 
                        (isCaseOwner(caseId) || exists(/databases/$(database)/documents/cases/$(caseId)/votes/$(request.auth.uid))) &&
                        request.resource.data.authorId == request.auth.uid && 
                        isValidText(request.resource.data.content, 1, 300);
           
           allow update: if request.auth != null && (
-            (resource.data.authorId == request.auth.uid) || isValidLikeUpdate(caseId)
+            (resource.data.authorId == request.auth.uid) || 
+            isValidLikeUpdate(caseId)
           );
           
           allow delete: if request.auth != null && resource.data.authorId == request.auth.uid;

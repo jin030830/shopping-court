@@ -641,39 +641,27 @@ export const deleteComment = async (caseId: string, commentId: string): Promise<
   if (!auth?.currentUser) throw new Error('로그인이 필요합니다.');
   
   const userId = auth.currentUser.uid;
-  const caseRef = doc(db, 'cases', caseId);
   const commentRef = doc(db, 'cases', caseId, 'comments', commentId);
   const userActivityRef = doc(db, 'users', userId, 'activities', commentId);
 
   try {
     await runTransaction(db, async (transaction) => {
-      const caseDoc = await transaction.get(caseRef);
-      if (!caseDoc.exists) return;
-      const caseData = caseDoc.data() as CaseDocument;
-
       // 1. 댓글 상태 업데이트
+      // [보안] 게시물 직접 수정을 제거하여 보안 규칙 충돌 방지
       transaction.update(commentRef, {
         content: '삭제된 댓글입니다.',
         isDeleted: true,
         updatedAt: serverTimestamp()
       });
 
-      // 2. 본인 활동 기록 삭제 (카운트 동기화의 핵심)
+      // 2. 본인 활동 기록 삭제 (미션 카운트 차감 보장)
       transaction.delete(userActivityRef);
-
-      // 3. 게시물 카운트 및 점수 업데이트 (백엔드 트리거 미실행 대비)
-      const newCommentCount = Math.max(0, (caseData.commentCount || 0) - 1);
-      const newHotScore = ((caseData.guiltyCount || 0) + (caseData.innocentCount || 0)) + (newCommentCount * 2);
-
-      transaction.update(caseRef, {
-        commentCount: newCommentCount,
-        hotScore: newHotScore
-      });
     });
 
     console.log(`✅ 댓글이 삭제 처리되었습니다. ID: ${commentId}`);
-  } catch (error) {
+  } catch (error: any) {
     console.error('❌ 댓글 삭제 처리 중 오류 발생:', error);
+    alert(`댓글 삭제에 실패했습니다: ${error.code || error.message}`);
     throw error;
   }
 };
@@ -694,7 +682,7 @@ export const updateReply = async (caseId: string, commentId: string, replyId: st
 };
 
 /**
- * 대댓글을 삭제합니다. (전체 카운트 동기화 포함)
+ * 대댓글을 삭제합니다. (활동 기록 정리 및 카운트 동기화)
  * @param caseId - 고민 ID
  * @param commentId - 댓글 ID
  * @param replyId - 대댓글 ID
@@ -704,24 +692,21 @@ export const deleteReply = async (caseId: string, commentId: string, replyId: st
   if (!auth?.currentUser) throw new Error('로그인이 필요합니다.');
 
   const userId = auth.currentUser.uid;
-  const caseRef = doc(db, 'cases', caseId);
   const replyRef = doc(db, 'cases', caseId, 'comments', commentId, 'replies', replyId);
   const userActivityRef = doc(db, 'users', userId, 'activities', replyId);
 
   try {
     await runTransaction(db, async (transaction) => {
-      // 1. 대댓글 및 활동 기록 삭제
+      // 1. 대댓글 실제 삭제 및 활동 기록 삭제
       transaction.delete(replyRef);
       transaction.delete(userActivityRef);
 
-      // 2. 게시물의 전체 댓글 카운트 1 차감
-      transaction.update(caseRef, {
-        commentCount: increment(-1)
-      });
+      // [보안] 게시물 카운트 차감은 백엔드 트리거에 위임합니다.
     });
     console.log('✅ 대댓글 및 활동 기록 정리 완료.');
-  } catch (error) {
+  } catch (error: any) {
     console.error('❌ 대댓글 삭제 중 오류 발생:', error);
+    alert(`답글 삭제에 실패했습니다: ${error.code || error.message}`);
     throw error;
   }
 };
