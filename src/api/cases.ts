@@ -473,17 +473,31 @@ export const getComments = async (caseId: string): Promise<CommentDocument[]> =>
 export const addComment = async (caseId: string, commentData: CommentData): Promise<string> => {
   if (!db) throw new Error('Firebase가 초기화되지 않았습니다.');
   
+  const caseRef = doc(db, 'cases', caseId);
   const commentsCollection = collection(db, 'cases', caseId, 'comments');
+  const newCommentRef = doc(commentsCollection);
 
-  // 댓글 추가
-  const docRef = await addDoc(commentsCollection, {
-    ...commentData,
-    likes: 0,
-    likedBy: [],
-    createdAt: serverTimestamp(),
-  });
+  try {
+    await runTransaction(db, async (transaction) => {
+      // 1. 댓글 데이터 생성
+      transaction.set(newCommentRef, {
+        ...commentData,
+        likes: 0,
+        likedBy: [],
+        createdAt: serverTimestamp(),
+      });
 
-  return docRef.id;
+      // 2. 게시물의 전체 댓글 카운트 1 증가
+      transaction.update(caseRef, {
+        commentCount: increment(1)
+      });
+    });
+
+    return newCommentRef.id;
+  } catch (error) {
+    console.error('❌ 댓글 추가 중 오류 발생:', error);
+    throw error;
+  }
 };
 
 /**
@@ -546,16 +560,31 @@ export const getReplies = async (caseId: string, commentId: string): Promise<Rep
 export const addReply = async (caseId: string, commentId: string, replyData: ReplyData): Promise<string> => {
   if (!db) throw new Error('Firebase가 초기화되지 않았습니다.');
   
+  const caseRef = doc(db, 'cases', caseId);
   const repliesCollection = collection(db, 'cases', caseId, 'comments', commentId, 'replies');
+  const newReplyRef = doc(repliesCollection);
 
-  const docRef = await addDoc(repliesCollection, {
-    ...replyData,
-    likes: 0,
-    likedBy: [],
-    createdAt: serverTimestamp(),
-  });
+  try {
+    await runTransaction(db, async (transaction) => {
+      // 1. 대댓글 데이터 생성
+      transaction.set(newReplyRef, {
+        ...replyData,
+        likes: 0,
+        likedBy: [],
+        createdAt: serverTimestamp(),
+      });
 
-  return docRef.id;
+      // 2. 게시물의 전체 댓글 카운트 1 증가
+      transaction.update(caseRef, {
+        commentCount: increment(1)
+      });
+    });
+
+    return newReplyRef.id;
+  } catch (error) {
+    console.error('❌ 대댓글 추가 중 오류 발생:', error);
+    throw error;
+  }
 };
 
 /**
@@ -573,41 +602,72 @@ export const updateComment = async (caseId: string, commentId: string, content: 
 };
 
 /**
- * 댓글을 삭제합니다.
+ * 댓글을 삭제합니다. (하위 대댓글 포함 및 카운트 동기화)
  * @param caseId - 고민 ID
  * @param commentId - 댓글 ID
  */
 export const deleteComment = async (caseId: string, commentId: string): Promise<void> => {
   if (!db) throw new Error('Firebase가 초기화되지 않았습니다.');
+  
+  const caseRef = doc(db, 'cases', caseId);
   const commentRef = doc(db, 'cases', caseId, 'comments', commentId);
-  await deleteDoc(commentRef);
+  const repliesCollection = collection(db, 'cases', caseId, 'comments', commentId, 'replies');
+
+  try {
+    // 1. 하위 대댓글 목록 조회
+    const replySnap = await getDocs(repliesCollection);
+    const replyDocs = replySnap.docs;
+    const totalToDelete = 1 + replyDocs.length; // 부모 댓글 + 대댓글 개수
+
+    await runTransaction(db, async (transaction) => {
+      // 2. 부모 댓글 삭제
+      transaction.delete(commentRef);
+
+      // 3. 모든 대댓글 삭제
+      replyDocs.forEach((replyDoc) => {
+        transaction.delete(replyDoc.ref);
+      });
+
+      // 4. 게시물의 전체 댓글 카운트 차감
+      transaction.update(caseRef, {
+        commentCount: increment(-totalToDelete)
+      });
+    });
+
+    console.log(`✅ 댓글 및 대댓글(${replyDocs.length}개) 삭제 완료. ID: ${commentId}`);
+  } catch (error) {
+    console.error('❌ 댓글 삭제 중 오류 발생:', error);
+    throw error;
+  }
 };
 
 /**
- * 대댓글을 수정합니다.
- * @param caseId - 고민 ID
- * @param commentId - 댓글 ID
- * @param replyId - 대댓글 ID
- * @param content - 수정할 내용
- */
-export const updateReply = async (caseId: string, commentId: string, replyId: string, content: string): Promise<void> => {
-  if (!db) throw new Error('Firebase가 초기화되지 않았습니다.');
-  const replyRef = doc(db, 'cases', caseId, 'comments', commentId, 'replies', replyId);
-  await updateDoc(replyRef, {
-    content,
-  });
-};
-
-/**
- * 대댓글을 삭제합니다.
+ * 대댓글을 삭제합니다. (전체 카운트 동기화 포함)
  * @param caseId - 고민 ID
  * @param commentId - 댓글 ID
  * @param replyId - 대댓글 ID
  */
 export const deleteReply = async (caseId: string, commentId: string, replyId: string): Promise<void> => {
   if (!db) throw new Error('Firebase가 초기화되지 않았습니다.');
+  
+  const caseRef = doc(db, 'cases', caseId);
   const replyRef = doc(db, 'cases', caseId, 'comments', commentId, 'replies', replyId);
-  await deleteDoc(replyRef);
+
+  try {
+    await runTransaction(db, async (transaction) => {
+      // 1. 대댓글 삭제
+      transaction.delete(replyRef);
+
+      // 2. 게시물의 전체 댓글 카운트 1 차감
+      transaction.update(caseRef, {
+        commentCount: increment(-1)
+      });
+    });
+    console.log('✅ 대댓글이 성공적으로 삭제되었습니다.');
+  } catch (error) {
+    console.error('❌ 대댓글 삭제 중 오류 발생:', error);
+    throw error;
+  }
 };
 
 /**
