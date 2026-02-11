@@ -38,7 +38,13 @@ export const syncCaseCounts = async (caseId: string) => {
 
     const guiltyCount = votesSnap.docs.filter(d => d.data().vote === 'guilty').length;
     const innocentCount = votesSnap.docs.filter(d => d.data().vote === 'innocent').length;
-    const commentCount = commentsSnap.size + filteredReplies.length;
+    
+    // [수정] 삭제되지 않은 댓글만 카운트 (메모리 필터링이 대댓글 구조상 안전함)
+    // 참고: 쿼리로 where('isDeleted', '!=', true)를 쓰려면 복합 인덱스가 필요할 수 있어 메모리 방식 유지
+    const activeCommentsCount = commentsSnap.docs.filter(d => !d.data().isDeleted).length;
+    
+    // 대댓글은 isDeleted 개념이 없다면 그대로, 있다면 필터링 (현재 구조상 대댓글은 즉시 삭제됨)
+    const commentCount = activeCommentsCount + filteredReplies.length;
 
     const voteCount = guiltyCount + innocentCount;
     const hotScore = voteCount + (commentCount * 2);
@@ -56,43 +62,6 @@ export const syncCaseCounts = async (caseId: string) => {
 };
 
 /**
- * 주어진 caseId에 대한 hotScore를 다시 계산하고 업데이트하는 함수
- */
-const recalculateHotScore = async (caseId: string): Promise<void> => {
-  const db = getDb();
-  const caseRef = db.collection('cases').doc(caseId);
-  const caseDoc = await caseRef.get();
-  const data = caseDoc.data();
-  if (!data) return;
-
-  const guiltyCount = Math.max(0, data.guiltyCount || 0);
-  const innocentCount = Math.max(0, data.innocentCount || 0);
-  const commentCount = Math.max(0, data.commentCount || 0);
-  
-  const hotScore = (guiltyCount + innocentCount) + (commentCount * 2);
-  await caseRef.update({ guiltyCount, innocentCount, commentCount, hotScore });
-};
-
-/**
- * 게시물 문서의 수치를 안전하게 증감시키는 트랜잭션 함수
- */
-const updateCountAtomic = async (caseId: string, field: string, delta: number) => {
-  const db = getDb();
-  const caseRef = db.collection('cases').doc(caseId);
-  try {
-    await db.runTransaction(async (transaction) => {
-      const doc = await transaction.get(caseRef);
-      if (!doc.exists) return;
-      const current = doc.data()?.[field] || 0;
-      transaction.update(caseRef, { [field]: Math.max(0, current + delta) });
-    });
-    await recalculateHotScore(caseId);
-  } catch (e) {
-    functions.logger.error(`[AtomicUpdate Error] ${caseId} ${field}`, e);
-  }
-};
-
-/**
  * 사용자 활동 통계를 업데이트하는 함수
  * (신버전 앱은 activities 카운트, 구버전 앱은 단순 증감 지원)
  */
@@ -105,6 +74,7 @@ const updateUserStats = async (
 ) => {
   const db = getDb();
   const userRef = db.collection('users').doc(userId);
+  // 공통 KST 날짜 헬퍼 사용
   const today = getTodayDateString();
 
   try {
@@ -113,8 +83,10 @@ const updateUserStats = async (
     // 1. 신버전 앱 대응: activities 컬렉션 조회
     if (!forceIncrement) {
       const activitiesCollection = userRef.collection('activities');
-      const startOfToday = new Date(today);
-      const startOfTodayTimestamp = admin.firestore.Timestamp.fromDate(startOfToday);
+      
+      // KST 기준 오늘 00:00:00의 UTC Timestamp 계산
+      const kstTodayStart = new Date(today + "T00:00:00+09:00");
+      const startOfTodayTimestamp = admin.firestore.Timestamp.fromDate(kstTodayStart);
 
       const snapshot = await activitiesCollection
         .where('type', '==', type)
@@ -188,27 +160,19 @@ export const onCaseDelete = functions.region('asia-northeast3').firestore.docume
 });
 
 export const onVoteCreate = functions.region('asia-northeast3').firestore.document('cases/{caseId}/votes/{voteId}').onCreate(async (snapshot, context) => {
-  // 구버전 대응: 일단 +1 시도. 신버전 유저라면 뒤이어 실행될 onActivityCreate가 최종 보정함.
-  await updateUserStats(context.params.voteId, 'vote', 'create', undefined, true);
-  await recalculateHotScore(context.params.caseId);
+  // 게시물 투표수 즉시 동기화
+  await syncCaseCounts(context.params.caseId);
 });
 
 export const onVoteDelete = functions.region('asia-northeast3').firestore.document('cases/{caseId}/votes/{voteId}').onDelete(async (snapshot, context) => {
-  const data = snapshot.data();
-  await updateUserStats(context.params.voteId, 'vote', 'delete', data.createdAt);
   await syncCaseCounts(context.params.caseId);
 });
 
 export const onCommentCreate = functions.region('asia-northeast3').firestore.document('cases/{caseId}/comments/{commentId}').onCreate(async (snapshot, context) => {
-  const authorId = snapshot.data().authorId;
-  await updateCountAtomic(context.params.caseId, 'commentCount', 1);
-  if (authorId) await updateUserStats(authorId, 'comment', 'create', undefined, true);
+  await syncCaseCounts(context.params.caseId);
 });
 
 export const onCommentDelete = functions.region('asia-northeast3').firestore.document('cases/{caseId}/comments/{commentId}').onDelete(async (snapshot, context) => {
-  const data = snapshot.data();
-  // 구버전 앱: 문서 실제 삭제 시 대응
-  if (data.authorId) await updateUserStats(data.authorId, 'comment', 'delete', data.createdAt);
   await syncCaseCounts(context.params.caseId);
 });
 
@@ -216,22 +180,57 @@ export const onCommentUpdate = functions.region('asia-northeast3').firestore.doc
   const newData = change.after.data();
   const oldData = change.before.data();
 
-  // 신버전 앱: isDeleted: true로 상태가 변경될 때 대응
-  if (!oldData.isDeleted && newData.isDeleted === true) {
-    if (newData.authorId) await updateUserStats(newData.authorId, 'comment', 'delete', newData.createdAt);
-    // [중요] 상태 변경이므로 syncCaseCounts를 통해 게시물의 숫자를 다시 맞춤
+  // 삭제 상태 변경 시 게시물 수치 재동기화 (Soft Delete 대응)
+  if (oldData.isDeleted !== newData.isDeleted) {
     await syncCaseCounts(context.params.caseId);
   }
 });
 
 export const onReplyCreate = functions.region('asia-northeast3').firestore.document('cases/{caseId}/comments/{commentId}/replies/{replyId}').onCreate(async (snapshot, context) => {
-  const authorId = snapshot.data().authorId;
-  await updateCountAtomic(context.params.caseId, 'commentCount', 1);
-  if (authorId) await updateUserStats(authorId, 'comment', 'create', undefined, true);
+  await syncCaseCounts(context.params.caseId);
 });
 
 export const onReplyDelete = functions.region('asia-northeast3').firestore.document('cases/{caseId}/comments/{commentId}/replies/{replyId}').onDelete(async (snapshot, context) => {
-  const data = snapshot.data();
-  if (data.authorId) await updateUserStats(data.authorId, 'comment', 'delete', data.createdAt);
   await syncCaseCounts(context.params.caseId);
+});
+
+/**
+ * [관리용] 기존 데이터 마이그레이션 시 생성된 activities의 날짜를 
+ * 실제 원본 투표/댓글 생성 시간으로 보정합니다.
+ */
+export const fixActivitiesTimestamp = functions.region('asia-northeast3').https.onCall(async (data, context) => {
+  const db = admin.firestore();
+  const activitiesSnap = await db.collectionGroup('activities').get();
+  
+  let fixedCount = 0;
+  
+  for (const docSnap of activitiesSnap.docs) {
+    const activityData = docSnap.data();
+    const { type, caseId, createdAt } = activityData;
+    const userId = docSnap.ref.parent.parent?.id;
+    
+    if (!userId || !caseId) continue;
+
+    let originalDoc: admin.firestore.DocumentSnapshot | null = null;
+    
+    if (type === 'vote') {
+      originalDoc = await db.collection('cases').doc(caseId).collection('votes').doc(userId).get();
+    } else if (type === 'comment') {
+      originalDoc = await db.collection('cases').doc(caseId).collection('comments').doc(docSnap.id).get();
+    } else if (type === 'post') {
+      originalDoc = await db.collection('cases').doc(caseId).get();
+    }
+
+    if (originalDoc && originalDoc.exists) {
+      const originalCreatedAt = originalDoc.data()?.createdAt;
+      if (originalCreatedAt) {
+        if (!createdAt || !createdAt.isEqual(originalCreatedAt)) {
+          await docSnap.ref.update({ createdAt: originalCreatedAt });
+          fixedCount++;
+        }
+      }
+    }
+  }
+
+  return { success: true, fixedCount };
 });

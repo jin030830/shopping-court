@@ -30,7 +30,21 @@ const MyPostItem = memo(({ post, navigate, showVerdict }: any) => {
         <Text display="block" color="#191F28" typography="t4" fontWeight="bold" style={{ flex: 1, textAlign: 'center', WebkitLineClamp: 2, display: '-webkit-box', WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{post.title}</Text>
         {!showVerdict && post.status === 'OPEN' && <Text color="#9E9E9E" typography="st13" style={{ fontSize: '14px' }}>{ds}</Text>}
       </div>
-      <div style={{ marginBottom: '8px', lineHeight: '1.5', color: '#191F28', fontSize: '14px', wordBreak: 'break-word' }}>{post.content && post.content.length > 50 ? `${post.content.substring(0, 50)}...` : post.content}</div>
+      <div style={{ 
+        marginBottom: '8px', 
+        lineHeight: '1.5', 
+        color: '#191F28', 
+        fontSize: '14px', 
+        wordBreak: 'break-word',
+        display: '-webkit-box',
+        WebkitLineClamp: 2,
+        WebkitBoxOrient: 'vertical',
+        overflow: 'hidden',
+        textOverflow: 'ellipsis',
+        whiteSpace: 'pre-wrap'
+      }}>
+        {post.content}
+      </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><Asset.Icon frameShape={{ width: 15, height: 15 }} name="icon-user-two-mono" color="#5e403b" /><Text color="#5e403b" typography="st13" style={{ fontSize: '14px' }}>{(post.guiltyCount || 0) + (post.innocentCount || 0)}</Text></div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '3px' }}><Asset.Icon frameShape={{ width: 15, height: 15 }} name="icon-chat-bubble-mono" color="#5E403Bff" /><Text color="#5e403b" typography="st13" style={{ fontSize: '14px' }}>{post.commentCount ?? 0}</Text></div>

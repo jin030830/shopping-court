@@ -31,8 +31,20 @@ const CaseItem = memo(({ post, index, selectedTab, navigate }: any) => (
       <Text display="block" color="#191F28" typography="t4" fontWeight="bold" style={{ flex: 1, textAlign: 'center', WebkitLineClamp: 2, display: '-webkit-box', WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{post.title}</Text>
       {selectedTab === '재판 중' && post.createdAt && <Text color="#9E9E9E" typography="st13" fontWeight="regular" style={{ fontSize: '14px' }}>{formatDate(post.createdAt)}</Text>}
     </div>
-    <div style={{ marginBottom: '8px', lineHeight: '1.5', color: '#191F28', fontSize: '14px', wordBreak: 'break-word', whiteSpace: 'pre-wrap' }}>
-      {post.content && post.content.length > 50 ? `${post.content.substring(0, 50)}...` : post.content}
+    <div style={{ 
+      marginBottom: '8px', 
+      lineHeight: '1.5', 
+      color: '#191F28', 
+      fontSize: '14px', 
+      wordBreak: 'break-word', 
+      whiteSpace: 'pre-wrap',
+      display: '-webkit-box',
+      WebkitLineClamp: 2,
+      WebkitBoxOrient: 'vertical',
+      overflow: 'hidden',
+      textOverflow: 'ellipsis'
+    }}>
+      {post.content}
     </div>
     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
       <StatItem icon="icon-user-two-mono" count={(post.guiltyCount || 0) + (post.innocentCount || 0)} />

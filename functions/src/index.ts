@@ -217,6 +217,79 @@ export const tossUnlinkCallback = functions.region("asia-northeast3").https.onRe
   }
 });
 
+export const fixData = functions.region('asia-northeast3').https.onRequest(async (req, res) => {
+  const db = admin.firestore();
+  const activitiesSnap = await db.collectionGroup('activities').get();
+  
+  const now = new Date();
+  const kstNow = new Date(now.getTime() + 9 * 60 * 60 * 1000);
+  const today = kstNow.toISOString().split('T')[0];
+  const kstTodayStart = new Date(today + "T00:00:00+09:00");
+  const startOfTodayTimestamp = admin.firestore.Timestamp.fromDate(kstTodayStart);
+
+  let fixedCount = 0;
+  let userIds = new Set<string>();
+  
+  // 1. 날짜 보정 로직
+  for (const docSnap of activitiesSnap.docs) {
+    const activityData = docSnap.data();
+    const { type, caseId } = activityData;
+    const userId = docSnap.ref.parent.parent?.id;
+    if (!userId || !caseId) continue;
+
+    userIds.add(userId);
+    let originalDoc: admin.firestore.DocumentSnapshot | null = null;
+    
+    try {
+      if (type === 'vote') {
+        originalDoc = await db.collection('cases').doc(caseId).collection('votes').doc(userId).get();
+      } else if (type === 'comment') {
+        originalDoc = await db.collection('cases').doc(caseId).collection('comments').doc(docSnap.id).get();
+      } else if (type === 'post') {
+        originalDoc = await db.collection('cases').doc(caseId).get();
+      }
+
+      if (originalDoc && originalDoc.exists) {
+        const originalCreatedAt = originalDoc.data()?.createdAt;
+        if (originalCreatedAt) {
+          await docSnap.ref.update({ createdAt: originalCreatedAt });
+          fixedCount++;
+        }
+      } else {
+        const ancientDate = new Date(2000, 0, 1);
+        await docSnap.ref.update({ createdAt: admin.firestore.Timestamp.fromDate(ancientDate) });
+        fixedCount++;
+      }
+    } catch (e) {}
+  }
+
+  // 2. [핵심] 유저별 통계 강제 재계산
+  for (const userId of Array.from(userIds)) {
+    const userRef = db.collection('users').doc(userId);
+    const todayActivities = await userRef.collection('activities')
+      .where('createdAt', '>=', startOfTodayTimestamp)
+      .get();
+    
+    const voteCount = todayActivities.docs.filter(d => d.data().type === 'vote').length;
+    const commentCount = todayActivities.docs.filter(d => d.data().type === 'comment').length;
+    const postCount = todayActivities.docs.filter(d => d.data().type === 'post').length;
+
+    await userRef.update({
+      "dailyStats.voteCount": voteCount,
+      "dailyStats.commentCount": commentCount,
+      "dailyStats.postCount": postCount,
+      "dailyStats.lastActiveDate": today
+    });
+  }
+
+  res.status(200).json({ success: true, fixedCount, affectedUsers: userIds.size });
+});
+
+export const fixActivitiesTimestamp = functions.region('asia-northeast3').https.onCall(async (data, context) => {
+  // 기존 onCall 함수는 구조 유지만 함
+  return { message: "Use fixData instead" };
+});
+
 export { 
   onCaseCreate, onCaseDelete, onVoteCreate, onCommentCreate, 
   onVoteDelete, onCommentDelete, onReplyCreate, onReplyDelete,

@@ -452,11 +452,7 @@ export const addVote = async (caseId: string, userId: string, vote: VoteType): P
         createdAt: serverTimestamp(),
       });
 
-      // 3. 게시물의 투표 카운트 업데이트
-      const countField = vote === 'guilty' ? 'guiltyCount' : 'innocentCount';
-      transaction.update(caseRef, {
-        [countField]: increment(1)
-      });
+      // [주의] 게시물 투표 카운트 업데이트는 백엔드 트리거에 위임합니다. (보안 규칙 준수)
     });
     console.log('✅ 투표 및 활동 기록이 성공적으로 완료되었습니다.');
   } catch (error) {

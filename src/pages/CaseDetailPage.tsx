@@ -110,14 +110,6 @@ function CaseDetailPage() {
   // UI States
   const [newComment, setNewComment] = useState('');
   const [sortBy, setSortBy] = useState<'latest' | 'likes'>('latest');
-  const [likedComments, setLikedComments] = useState<Set<string>>(() => {
-    if (!id || !user || !isVerified) return new Set();
-    try {
-      const storageKey = `liked_comments_${id}_${user.uid}`;
-      const savedLikes = localStorage.getItem(storageKey);
-      return savedLikes ? new Set(JSON.parse(savedLikes)) : new Set();
-    } catch (e) { return new Set(); }
-  });
   const [replyingTo, setReplyingTo] = useState<string | null>(null);
   const [replyContent, setReplyContent] = useState('');
   const [showPostMenu, setShowPostMenu] = useState(false);
@@ -148,7 +140,12 @@ function CaseDetailPage() {
 
       const previousPost = queryClient.getQueryData<CaseDocument>(caseKeys.detail(id!));
       const previousUserData = user ? queryClient.getQueryData<UserDocument | null>(['user', user.uid]) : null;
+      const previousUserVote = queryClient.getQueryData<VoteType | null>(caseKeys.userVote(id!, user?.uid || ''));
 
+      // 1. 투표 종류 즉시 반영 (진행바 노출 조건)
+      queryClient.setQueryData(caseKeys.userVote(id!, user?.uid || ''), voteType);
+
+      // 2. 게시물 카운트 낙관적 업데이트 (UI 가시성)
       queryClient.setQueryData(caseKeys.detail(id!), (old: CaseDocument | undefined) => {
         if (!old) return old;
         return {
@@ -165,26 +162,20 @@ function CaseDetailPage() {
         return Array.isArray(oldData) ? oldData.map(updateCase) : oldData;
       });
 
-      if (user) {
-        const today = getTodayDateString();
-        queryClient.setQueryData<UserDocument | null>(['user', user.uid], (prev: UserDocument | null | undefined) => {
-          if (!prev) return prev;
-          const stats = prev.dailyStats || { voteCount: 0, commentCount: 0, postCount: 0, lastActiveDate: today, isLevel1Claimed: false, isLevel2Claimed: false };
-          const isNewDay = stats.lastActiveDate !== today;
-          return {
-            ...prev,
-            dailyStats: { ...stats, voteCount: (isNewDay ? 0 : stats.voteCount) + 1, lastActiveDate: today }
-          };
-        });
-      }
-
-      return { previousPost, previousUserData };
+      return { previousPost, previousUserData, previousUserVote };
+    },
+    onError: (_err, _vars, context) => {
+      // 에러 발생 시 원복
+      if (context?.previousPost) queryClient.setQueryData(caseKeys.detail(id!), context.previousPost);
+      if (context?.previousUserData) queryClient.setQueryData(['user', user?.uid], context.previousUserData);
+      if (context?.previousUserVote !== undefined) queryClient.setQueryData(caseKeys.userVote(id!, user?.uid || ''), context.previousUserVote);
     },
     onSettled: () => {
+      // 백엔드 트리거가 숫자를 다 올릴 때까지 충분히 대기 후 무효화 (중복 방지 핵심)
       setTimeout(() => {
         queryClient.invalidateQueries({ queryKey: caseKeys.all, refetchType: 'all' });
         if (user) queryClient.invalidateQueries({ queryKey: ['user', user.uid] });
-      }, 500);
+      }, 2000); 
     }
   });
 
@@ -346,14 +337,16 @@ function CaseDetailPage() {
   const handleLikeComment = async (commentId: string) => {
     if (!id || !user || !isVerified || post?.status === 'CLOSED') return;
     if (!hasVoted) { alert('투표 후 공감할 수 있어요!'); return; }
-    if (likedComments.has(commentId)) { alert('이미 공감한 댓글이에요!'); return; }
+    
+    const comment = comments.find(c => c.id === commentId);
+    if (comment?.likedBy?.includes(user.uid)) {
+      alert('이미 공감한 댓글이에요!');
+      return;
+    }
     
     try {
       await addCommentLike(id, commentId);
       queryClient.invalidateQueries({ queryKey: caseKeys.comments(id!) });
-      const nextLikes = new Set(likedComments).add(commentId);
-      setLikedComments(nextLikes);
-      localStorage.setItem(`liked_comments_${id}_${user.uid}`, JSON.stringify(Array.from(nextLikes)));
     } catch (e) { console.error(e); }
   };
 
@@ -361,15 +354,16 @@ function CaseDetailPage() {
     if (!id || !user || !isVerified || post?.status === 'CLOSED') return;
     if (!hasVoted) { alert('투표 후 공감할 수 있어요!'); return; }
     
-    const likeKey = `${commentId}_${replyId}`;
-    if (likedComments.has(likeKey)) { alert('이미 공감한 댓글이에요!'); return; }
+    const comment = comments.find(c => c.id === commentId);
+    const reply = comment?.replies?.find(r => r.id === replyId);
+    if (reply?.likedBy?.includes(user.uid)) {
+      alert('이미 공감한 댓글이에요!');
+      return;
+    }
     
     try {
       await addReplyLike(id, commentId, replyId);
       queryClient.invalidateQueries({ queryKey: caseKeys.comments(id!) });
-      const nextLikes = new Set(likedComments).add(likeKey);
-      setLikedComments(nextLikes);
-      localStorage.setItem(`liked_comments_${id}_${user.uid}`, JSON.stringify(Array.from(nextLikes)));
     } catch (e) { console.error(e); }
   };
 
@@ -410,9 +404,21 @@ function CaseDetailPage() {
   };
 
   // --- 데이터 가공 ---
-  const totalVotes = useMemo(() => (post?.innocentCount || 0) + (post?.guiltyCount || 0), [post]);
-  const agreePercent = useMemo(() => totalVotes > 0 ? Math.round(((post?.innocentCount || 0) / totalVotes) * 100) : 50, [post, totalVotes]);
-  const disagreePercent = useMemo(() => totalVotes > 0 ? Math.round(((post?.guiltyCount || 0) / totalVotes) * 100) : 50, [post, totalVotes]);
+  const totalVotes = useMemo(() => {
+    const counts = (post?.innocentCount || 0) + (post?.guiltyCount || 0);
+    // [UI 보정] 내가 투표를 했다면 DB에 아직 반영 전이라도 최소 1명으로 계산하여 진행바 유지
+    return hasVoted ? Math.max(counts, 1) : counts;
+  }, [post, hasVoted]);
+
+  const agreePercent = useMemo(() => {
+    if (totalVotes === 0) return 50;
+    const innocent = post?.innocentCount || 0;
+    // 내가 무죄에 투표했는데 DB에 반영 전이면 +1 해서 계산
+    const displayInnocent = (userVoteData === 'innocent' && innocent === 0) ? 1 : innocent;
+    return Math.round((displayInnocent / totalVotes) * 100);
+  }, [post, totalVotes, userVoteData]);
+
+  const disagreePercent = useMemo(() => 100 - agreePercent, [agreePercent]);
 
   const sortedComments = useMemo(() => {
     return [...comments].sort((a, b) => {
