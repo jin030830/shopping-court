@@ -642,6 +642,21 @@ export const deleteComment = async (caseId: string, commentId: string): Promise<
 };
 
 /**
+ * 대댓글을 수정합니다.
+ * @param caseId - 고민 ID
+ * @param commentId - 댓글 ID
+ * @param replyId - 대댓글 ID
+ * @param content - 수정할 내용
+ */
+export const updateReply = async (caseId: string, commentId: string, replyId: string, content: string): Promise<void> => {
+  if (!db) throw new Error('Firebase가 초기화되지 않았습니다.');
+  const replyRef = doc(db, 'cases', caseId, 'comments', commentId, 'replies', replyId);
+  await updateDoc(replyRef, {
+    content,
+  });
+};
+
+/**
  * 대댓글을 삭제합니다. (전체 카운트 동기화 포함)
  * @param caseId - 고민 ID
  * @param commentId - 댓글 ID
