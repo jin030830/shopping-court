@@ -188,27 +188,22 @@ export const onCaseDelete = functions.region('asia-northeast3').firestore.docume
 });
 
 export const onVoteCreate = functions.region('asia-northeast3').firestore.document('cases/{caseId}/votes/{voteId}').onCreate(async (snapshot, context) => {
-  // 구버전 대응: 일단 +1 시도. 신버전 유저라면 뒤이어 실행될 onActivityCreate가 최종 보정함.
-  await updateUserStats(context.params.voteId, 'vote', 'create', undefined, true);
+  // 유저 통계 업데이트는 onActivityCreate에서 전담하므로 여기서는 게시물 점수만 재계산합니다.
   await recalculateHotScore(context.params.caseId);
 });
 
 export const onVoteDelete = functions.region('asia-northeast3').firestore.document('cases/{caseId}/votes/{voteId}').onDelete(async (snapshot, context) => {
-  const data = snapshot.data();
-  await updateUserStats(context.params.voteId, 'vote', 'delete', data.createdAt);
+  // 활동 기록 삭제는 onActivityDelete에서 전담하므로 여기서는 게시물 수치만 동기화합니다.
   await syncCaseCounts(context.params.caseId);
 });
 
 export const onCommentCreate = functions.region('asia-northeast3').firestore.document('cases/{caseId}/comments/{commentId}').onCreate(async (snapshot, context) => {
-  const authorId = snapshot.data().authorId;
   await updateCountAtomic(context.params.caseId, 'commentCount', 1);
-  if (authorId) await updateUserStats(authorId, 'comment', 'create', undefined, true);
+  // 유저 통계 업데이트는 onActivityCreate에서 전담합니다.
 });
 
 export const onCommentDelete = functions.region('asia-northeast3').firestore.document('cases/{caseId}/comments/{commentId}').onDelete(async (snapshot, context) => {
-  const data = snapshot.data();
-  // 구버전 앱: 문서 실제 삭제 시 대응
-  if (data.authorId) await updateUserStats(data.authorId, 'comment', 'delete', data.createdAt);
+  // 활동 기록 삭제는 onActivityDelete에서 전담합니다.
   await syncCaseCounts(context.params.caseId);
 });
 
@@ -216,22 +211,18 @@ export const onCommentUpdate = functions.region('asia-northeast3').firestore.doc
   const newData = change.after.data();
   const oldData = change.before.data();
 
-  // 신버전 앱: isDeleted: true로 상태가 변경될 때 대응
+  // 신버전 앱: isDeleted: true로 상태가 변경될 때 대응 (통계 차감은 onActivityDelete에서 처리되므로 여기서는 게시물 수치만 동기화)
   if (!oldData.isDeleted && newData.isDeleted === true) {
-    if (newData.authorId) await updateUserStats(newData.authorId, 'comment', 'delete', newData.createdAt);
-    // [중요] 상태 변경이므로 syncCaseCounts를 통해 게시물의 숫자를 다시 맞춤
     await syncCaseCounts(context.params.caseId);
   }
 });
 
 export const onReplyCreate = functions.region('asia-northeast3').firestore.document('cases/{caseId}/comments/{commentId}/replies/{replyId}').onCreate(async (snapshot, context) => {
-  const authorId = snapshot.data().authorId;
   await updateCountAtomic(context.params.caseId, 'commentCount', 1);
-  if (authorId) await updateUserStats(authorId, 'comment', 'create', undefined, true);
+  // 유저 통계 업데이트는 onActivityCreate에서 전담합니다.
 });
 
 export const onReplyDelete = functions.region('asia-northeast3').firestore.document('cases/{caseId}/comments/{commentId}/replies/{replyId}').onDelete(async (snapshot, context) => {
-  const data = snapshot.data();
-  if (data.authorId) await updateUserStats(data.authorId, 'comment', 'delete', data.createdAt);
+  // 활동 기록 삭제는 onActivityDelete에서 전담합니다.
   await syncCaseCounts(context.params.caseId);
 });
