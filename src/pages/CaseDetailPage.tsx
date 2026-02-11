@@ -102,6 +102,7 @@ function CaseDetailPage() {
   });
 
   const hasVoted = !!userVoteData;
+  const isAuthor = user?.uid === post?.authorId;
   const selectedVote = userVoteData === 'innocent' ? 'agree' : userVoteData === 'guilty' ? 'disagree' : null;
   
   const isVoteDisabled = hasVoted || post?.status === 'CLOSED';
@@ -469,10 +470,10 @@ function CaseDetailPage() {
             <SortButtons sortBy={sortBy} onSortChange={setSortBy} />
           </div>
 
-          {hasVoted && post.status === 'OPEN' ? (
+          {(hasVoted || isAuthor) && post.status === 'OPEN' ? (
             <CommentInput value={newComment} onChange={setNewComment} onSubmit={() => {
               if (addCommentMutation.isPending || !newComment.trim()) return;
-              addCommentMutation.mutate({ authorId: user!.uid, authorNickname: userData!.nickname, content: newComment, vote: userVoteData! });
+              addCommentMutation.mutate({ authorId: user!.uid, authorNickname: userData!.nickname, content: newComment, vote: userVoteData || 'innocent' });
             }} isPending={addCommentMutation.isPending} />
           ) : !hasVoted && post.status === 'OPEN' ? (
             <VoteRequiredMessage />
