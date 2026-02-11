@@ -650,33 +650,36 @@ export const deleteComment = async (caseId: string, commentId: string): Promise<
   const caseRef = doc(db, 'cases', caseId);
   const commentRef = doc(db, 'cases', caseId, 'comments', commentId);
   const userActivityRef = doc(db, 'users', userId, 'activities', commentId);
-  const repliesCollection = collection(db, 'cases', caseId, 'comments', commentId, 'replies');
 
   try {
-    // 1. 하위 대댓글 목록 조회
-    const replySnap = await getDocs(repliesCollection);
-    const replyDocs = replySnap.docs;
-    const totalToDelete = 1 + replyDocs.length; // 부모 댓글 + 대댓글 개수
-
     await runTransaction(db, async (transaction) => {
-      // 2. 부모 댓글 및 활동 기록 삭제
-      transaction.delete(commentRef);
-      transaction.delete(userActivityRef);
+      const caseDoc = await transaction.get(caseRef);
+      if (!caseDoc.exists) return;
+      const caseData = caseDoc.data() as CaseDocument;
 
-      // 3. 모든 대댓글 삭제
-      replyDocs.forEach((replyDoc) => {
-        transaction.delete(replyDoc.ref);
+      // 1. 댓글 상태 업데이트
+      transaction.update(commentRef, {
+        content: '삭제된 댓글입니다.',
+        isDeleted: true,
+        updatedAt: serverTimestamp()
       });
 
-      // 4. 게시물의 전체 댓글 카운트 차감
+      // 2. 본인 활동 기록 삭제 (카운트 동기화의 핵심)
+      transaction.delete(userActivityRef);
+
+      // 3. 게시물 카운트 및 점수 업데이트 (백엔드 트리거 미실행 대비)
+      const newCommentCount = Math.max(0, (caseData.commentCount || 0) - 1);
+      const newHotScore = ((caseData.guiltyCount || 0) + (caseData.innocentCount || 0)) + (newCommentCount * 2);
+
       transaction.update(caseRef, {
-        commentCount: increment(-totalToDelete)
+        commentCount: newCommentCount,
+        hotScore: newHotScore
       });
     });
 
-    console.log(`✅ 댓글 및 대댓글(${replyDocs.length}개) 삭제 완료. ID: ${commentId}`);
+    console.log(`✅ 댓글이 삭제 처리되었습니다. ID: ${commentId}`);
   } catch (error) {
-    console.error('❌ 댓글 삭제 중 오류 발생:', error);
+    console.error('❌ 댓글 삭제 처리 중 오류 발생:', error);
     throw error;
   }
 };

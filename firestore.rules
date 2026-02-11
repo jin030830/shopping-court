@@ -26,53 +26,21 @@ service cloud.firestore {
         isValidText(data.content, 1, 3000);
     }
 
-    // [함수] 작성자 본인 확인
-    function isOwner() {
-      return resource.data.authorId == request.auth.uid;
-    }
-
-    // [함수] 투표수 업데이트 검증 (정확히 +1만 허용)
-    function isValidVoteUpdate() {
-      let data = resource.data;
-      let resData = request.resource.data;
-      let affected = resData.diff(data).affectedKeys();
-      
-      let oldG = data.get('guiltyCount', 0);
-      let oldI = data.get('innocentCount', 0);
-      let newG = resData.get('guiltyCount', 0);
-      let newI = resData.get('innocentCount', 0);
-
-      // 투표수 필드 중 하나가 포함되어야 하며, 투표/점수/댓글수 외의 필드 조작은 불가
-      return affected.hasAny(['guiltyCount', 'innocentCount']) &&
-             !affected.hasAny(['hotScore', 'commentCount', 'authorId']) && (
-        (newG == oldG + 1 && newI == oldI) ||
-        (newI == oldI + 1 && newG == oldG)
-      );
-    }
-
-    // [함수] 좋아요 로직 검증
-    function isValidLikeUpdate(caseId) {
-       let hasVoted = exists(/databases/$(database)/documents/cases/$(caseId)/votes/$(request.auth.uid));
-       let data = resource.data;
-       let resData = request.resource.data;
-       
-       let currentLikedBy = data.get('likedBy', []);
-       let newLikedBy = resData.get('likedBy', []);
-       let currentLikes = data.get('likes', 0);
-       let newLikes = resData.get('likes', 0);
-
-       return hasVoted &&
-       resData.diff(data).affectedKeys().hasOnly(['likes', 'likedBy']) &&
-       !(request.auth.uid in currentLikedBy) &&
-       (request.auth.uid in newLikedBy) &&
-       newLikes == currentLikes + 1 &&
-       newLikedBy.size() == currentLikedBy.size() + 1;
+    // [함수] 게시글 작성자 본인 확인
+    function isCaseOwner(caseId) {
+      return get(/databases/$(database)/documents/cases/$(caseId)).data.authorId == request.auth.uid;
     }
 
     // users 컬렉션
     match /users/{userId} {
       allow read: if request.auth != null;
       allow write: if request.auth != null && request.auth.uid == userId;
+
+      // activities 서브컬렉션 권한 추가
+      match /activities/{activityId} {
+        allow read: if request.auth != null && request.auth.uid == userId;
+        allow write: if request.auth != null && request.auth.uid == userId;
+      }
     }
 
     // reports 컬렉션
@@ -90,13 +58,13 @@ service cloud.firestore {
       allow create: if request.auth != null && isValidNewCase();
       
       allow update: if request.auth != null && (
-        // 1. 작성자: 본인 글 수정 (단, 투표수/점수/댓글수 조작 불가)
-        (isOwner() && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['guiltyCount', 'innocentCount', 'commentCount', 'hotScore'])) ||
-        // 2. 일반 유저: 정해진 규칙에 따른 투표만 허용
+        // 작성자 본인 확인 (기존 리소스 기반)
+        (resource.data.authorId == request.auth.uid && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['guiltyCount', 'innocentCount', 'commentCount', 'hotScore'])) ||
+        // 일반 유저: 투표
         isValidVoteUpdate()
       );
       
-      allow delete: if request.auth != null && isOwner();
+      allow delete: if request.auth != null && resource.data.authorId == request.auth.uid;
 
       match /votes/{userId} {
         allow read: if true;
@@ -108,9 +76,9 @@ service cloud.firestore {
         allow list: if isWithinLimit(100);
         allow get: if true;
         
-        // 실제로 투표한 기록이 있는 유저만 댓글 작성 가능
+        // 작성자 본인이거나, 실제로 투표한 기록이 있는 유저만 댓글 작성 가능
         allow create: if request.auth != null && 
-                     exists(/databases/$(database)/documents/cases/$(caseId)/votes/$(request.auth.uid)) &&
+                     (isCaseOwner(caseId) || exists(/databases/$(database)/documents/cases/$(caseId)/votes/$(request.auth.uid))) &&
                      request.resource.data.authorId == request.auth.uid && 
                      isValidText(request.resource.data.content, 1, 500);
         
@@ -124,8 +92,9 @@ service cloud.firestore {
           allow list: if isWithinLimit(100); 
           allow get: if true;
           
+          // 작성자 본인이거나, 실제로 투표한 기록이 있는 유저만 답글 작성 가능
           allow create: if request.auth != null && 
-                       exists(/databases/$(database)/documents/cases/$(caseId)/votes/$(request.auth.uid)) &&
+                       (isCaseOwner(caseId) || exists(/databases/$(database)/documents/cases/$(caseId)/votes/$(request.auth.uid))) &&
                        request.resource.data.authorId == request.auth.uid && 
                        isValidText(request.resource.data.content, 1, 300);
           
