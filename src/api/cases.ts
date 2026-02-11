@@ -505,7 +505,7 @@ export const addComment = async (caseId: string, commentData: CommentData): Prom
         createdAt: serverTimestamp(),
       });
 
-      // 2. 유저 하위 활동 기록
+      // 2. 유저 하위 활동 기록 (보안 규칙 허용 범위)
       transaction.set(activityRef, {
         type: 'comment',
         caseId,
@@ -513,10 +513,7 @@ export const addComment = async (caseId: string, commentData: CommentData): Prom
         createdAt: serverTimestamp(),
       });
 
-      // 3. 게시물의 전체 댓글 카운트 1 증가
-      transaction.update(caseRef, {
-        commentCount: increment(1)
-      });
+      // [주의] 게시물 카운트 업데이트는 백엔드 트리거에 위임합니다.
     });
 
     return newCommentRef.id;
@@ -601,7 +598,7 @@ export const addReply = async (caseId: string, commentId: string, replyData: Rep
         createdAt: serverTimestamp(),
       });
 
-      // 2. 유저 하위 활동 기록
+      // 2. 유저 하위 활동 기록 (보안 규칙 허용 범위)
       transaction.set(activityRef, {
         type: 'comment',
         caseId,
@@ -610,10 +607,7 @@ export const addReply = async (caseId: string, commentId: string, replyData: Rep
         createdAt: serverTimestamp(),
       });
 
-      // 3. 게시물의 전체 댓글 카운트 1 증가
-      transaction.update(caseRef, {
-        commentCount: increment(1)
-      });
+      // [주의] 게시물 카운트 업데이트는 백엔드 트리거에 위임합니다. (보안 규칙 준수)
     });
 
     return newReplyRef.id;
