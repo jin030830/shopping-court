@@ -337,14 +337,16 @@ function CaseDetailPage() {
   const handleLikeComment = async (commentId: string) => {
     if (!id || !user || !isVerified || post?.status === 'CLOSED') return;
     if (!hasVoted) { alert('투표 후 공감할 수 있어요!'); return; }
-    if (likedComments.has(commentId)) { alert('이미 공감한 댓글이에요!'); return; }
+    
+    const comment = comments.find(c => c.id === commentId);
+    if (comment?.likedBy?.includes(user.uid)) {
+      alert('이미 공감한 댓글이에요!');
+      return;
+    }
     
     try {
       await addCommentLike(id, commentId);
       queryClient.invalidateQueries({ queryKey: caseKeys.comments(id!) });
-      const nextLikes = new Set(likedComments).add(commentId);
-      setLikedComments(nextLikes);
-      localStorage.setItem(`liked_comments_${id}_${user.uid}`, JSON.stringify(Array.from(nextLikes)));
     } catch (e) { console.error(e); }
   };
 
@@ -352,15 +354,16 @@ function CaseDetailPage() {
     if (!id || !user || !isVerified || post?.status === 'CLOSED') return;
     if (!hasVoted) { alert('투표 후 공감할 수 있어요!'); return; }
     
-    const likeKey = `${commentId}_${replyId}`;
-    if (likedComments.has(likeKey)) { alert('이미 공감한 댓글이에요!'); return; }
+    const comment = comments.find(c => c.id === commentId);
+    const reply = comment?.replies?.find(r => r.id === replyId);
+    if (reply?.likedBy?.includes(user.uid)) {
+      alert('이미 공감한 댓글이에요!');
+      return;
+    }
     
     try {
       await addReplyLike(id, commentId, replyId);
       queryClient.invalidateQueries({ queryKey: caseKeys.comments(id!) });
-      const nextLikes = new Set(likedComments).add(likeKey);
-      setLikedComments(nextLikes);
-      localStorage.setItem(`liked_comments_${id}_${user.uid}`, JSON.stringify(Array.from(nextLikes)));
     } catch (e) { console.error(e); }
   };
 
