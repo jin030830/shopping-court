@@ -102,6 +102,7 @@ function CaseDetailPage() {
   });
 
   const hasVoted = !!userVoteData;
+  const isAuthor = user?.uid === post?.authorId;
   const selectedVote = userVoteData === 'innocent' ? 'agree' : userVoteData === 'guilty' ? 'disagree' : null;
   
   const isVoteDisabled = hasVoted || post?.status === 'CLOSED';
@@ -442,7 +443,7 @@ function CaseDetailPage() {
           </div>
 
           <h2 style={{ color: '#191F28', fontSize: '20px', fontWeight: '700', marginBottom: '6px', textAlign: 'center'}}>{post.title}</h2>
-          <p style={{ color: '#191F28', fontSize: '15px', fontWeight: '400', marginBottom: '20px', lineHeight: '1.6', textAlign: 'left', paddingLeft: '8px' }}>{post.content}</p>
+          <p style={{ color: '#191F28', fontSize: '15px', fontWeight: '400', marginBottom: '20px', lineHeight: '1.6', textAlign: 'left', paddingLeft: '8px', whiteSpace: 'pre-wrap' }}>{post.content}</p>
 
           <div style={{ position: 'relative', marginBottom: '26px' }}>
             <div style={{ display: 'flex', gap: '12px' }}>
@@ -469,10 +470,10 @@ function CaseDetailPage() {
             <SortButtons sortBy={sortBy} onSortChange={setSortBy} />
           </div>
 
-          {hasVoted && post.status === 'OPEN' ? (
+          {(hasVoted || isAuthor) && post.status === 'OPEN' ? (
             <CommentInput value={newComment} onChange={setNewComment} onSubmit={() => {
               if (addCommentMutation.isPending || !newComment.trim()) return;
-              addCommentMutation.mutate({ authorId: user!.uid, authorNickname: userData!.nickname, content: newComment, vote: userVoteData! });
+              addCommentMutation.mutate({ authorId: user!.uid, authorNickname: userData!.nickname, content: newComment, vote: userVoteData || 'innocent' });
             }} isPending={addCommentMutation.isPending} />
           ) : !hasVoted && post.status === 'OPEN' ? (
             <VoteRequiredMessage />

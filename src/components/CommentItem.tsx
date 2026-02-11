@@ -95,7 +95,7 @@ const CommentItem = memo(({
           </div>
         ) : (
           <>
-            <Text display="block" color="#191F28" typography="t6" fontWeight="regular" style={{ marginBottom: '4px' }}>{comment.content}</Text>
+            <Text display="block" color="#191F28" typography="t6" fontWeight="regular" style={{ marginBottom: '4px', whiteSpace: 'pre-wrap' }}>{comment.content}</Text>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <Text display="block" color="#9E9E9E" typography="t7" fontWeight="regular" style={{ fontSize: '13px' }}>{formatDate(comment.createdAt)}</Text>
               <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
@@ -166,7 +166,7 @@ const CommentItem = memo(({
               </div>
             ) : (
               <>
-                <Text display="block" color="#191F28" typography="t6" fontWeight="regular" style={{ marginBottom: '4px' }}>{reply.content}</Text>
+                <Text display="block" color="#191F28" typography="t6" fontWeight="regular" style={{ marginBottom: '4px', whiteSpace: 'pre-wrap' }}>{reply.content}</Text>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <Text display="block" color="#9E9E9E" typography="t7" fontWeight="regular" style={{ fontSize: '13px' }}>{formatDate(reply.createdAt)}</Text>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>

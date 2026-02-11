@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "granite dev",
     "build": "granite build",
+    "build:vercel": "tsc -b && vite build --outDir dist/web",
     "lint": "eslint .",
     "preview": "vite preview",
     "deploy": "ait deploy"
