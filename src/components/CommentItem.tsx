@@ -63,7 +63,13 @@ const CommentItem = memo(({
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             {(comment as any).isDeleted ? (
               <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                <Asset.Icon frameShape={Asset.frameShape.CleanW16} name="icon-info-circle-mono" color="#B0B8C1" ratio="1/1" />
+                <Asset.Icon 
+                  frameShape={Asset.frameShape.CleanW16} 
+                  name="icon-info-circle-mono" 
+                  color="#B0B8C1" 
+                  ratio="1/1" 
+                  style={{ transform: 'rotate(180deg)' }}
+                />
                 <Text color="#B0B8C1" typography="t7" fontWeight="medium" style={{ fontSize: '13px' }}>삭제된 댓글</Text>
               </div>
             ) : (

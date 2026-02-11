@@ -490,7 +490,6 @@ export const getComments = async (caseId: string): Promise<CommentDocument[]> =>
 export const addComment = async (caseId: string, commentData: CommentData): Promise<string> => {
   if (!db) throw new Error('Firebase가 초기화되지 않았습니다.');
   
-  const caseRef = doc(db, 'cases', caseId);
   const commentsCollection = collection(db, 'cases', caseId, 'comments');
   const newCommentRef = doc(commentsCollection);
   const activityRef = doc(db, 'users', commentData.authorId, 'activities', newCommentRef.id);
