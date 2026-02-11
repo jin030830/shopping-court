@@ -193,19 +193,16 @@ export const onVoteCreate = functions.region('asia-northeast3').firestore.docume
 });
 
 export const onVoteDelete = functions.region('asia-northeast3').firestore.document('cases/{caseId}/votes/{voteId}').onDelete(async (snapshot, context) => {
-  const data = snapshot.data();
   // 활동 기록 삭제는 onActivityDelete에서 전담하므로 여기서는 게시물 수치만 동기화합니다.
   await syncCaseCounts(context.params.caseId);
 });
 
 export const onCommentCreate = functions.region('asia-northeast3').firestore.document('cases/{caseId}/comments/{commentId}').onCreate(async (snapshot, context) => {
-  const authorId = snapshot.data().authorId;
   await updateCountAtomic(context.params.caseId, 'commentCount', 1);
   // 유저 통계 업데이트는 onActivityCreate에서 전담합니다.
 });
 
 export const onCommentDelete = functions.region('asia-northeast3').firestore.document('cases/{caseId}/comments/{commentId}').onDelete(async (snapshot, context) => {
-  const data = snapshot.data();
   // 활동 기록 삭제는 onActivityDelete에서 전담합니다.
   await syncCaseCounts(context.params.caseId);
 });
@@ -221,13 +218,11 @@ export const onCommentUpdate = functions.region('asia-northeast3').firestore.doc
 });
 
 export const onReplyCreate = functions.region('asia-northeast3').firestore.document('cases/{caseId}/comments/{commentId}/replies/{replyId}').onCreate(async (snapshot, context) => {
-  const authorId = snapshot.data().authorId;
   await updateCountAtomic(context.params.caseId, 'commentCount', 1);
   // 유저 통계 업데이트는 onActivityCreate에서 전담합니다.
 });
 
 export const onReplyDelete = functions.region('asia-northeast3').firestore.document('cases/{caseId}/comments/{commentId}/replies/{replyId}').onDelete(async (snapshot, context) => {
-  const data = snapshot.data();
   // 활동 기록 삭제는 onActivityDelete에서 전담합니다.
   await syncCaseCounts(context.params.caseId);
 });

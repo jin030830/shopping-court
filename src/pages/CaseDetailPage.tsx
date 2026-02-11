@@ -409,9 +409,21 @@ function CaseDetailPage() {
   };
 
   // --- 데이터 가공 ---
-  const totalVotes = useMemo(() => (post?.innocentCount || 0) + (post?.guiltyCount || 0), [post]);
-  const agreePercent = useMemo(() => totalVotes > 0 ? Math.round(((post?.innocentCount || 0) / totalVotes) * 100) : 50, [post, totalVotes]);
-  const disagreePercent = useMemo(() => totalVotes > 0 ? Math.round(((post?.guiltyCount || 0) / totalVotes) * 100) : 50, [post, totalVotes]);
+  const totalVotes = useMemo(() => {
+    const counts = (post?.innocentCount || 0) + (post?.guiltyCount || 0);
+    // [UI 보정] 내가 투표를 했다면 DB에 아직 반영 전이라도 최소 1명으로 계산하여 진행바 유지
+    return hasVoted ? Math.max(counts, 1) : counts;
+  }, [post, hasVoted]);
+
+  const agreePercent = useMemo(() => {
+    if (totalVotes === 0) return 50;
+    const innocent = post?.innocentCount || 0;
+    // 내가 무죄에 투표했는데 DB에 반영 전이면 +1 해서 계산
+    const displayInnocent = (userVoteData === 'innocent' && innocent === 0) ? 1 : innocent;
+    return Math.round((displayInnocent / totalVotes) * 100);
+  }, [post, totalVotes, userVoteData]);
+
+  const disagreePercent = useMemo(() => 100 - agreePercent, [agreePercent]);
 
   const sortedComments = useMemo(() => {
     return [...comments].sort((a, b) => {
