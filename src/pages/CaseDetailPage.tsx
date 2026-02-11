@@ -110,14 +110,6 @@ function CaseDetailPage() {
   // UI States
   const [newComment, setNewComment] = useState('');
   const [sortBy, setSortBy] = useState<'latest' | 'likes'>('latest');
-  const [likedComments, setLikedComments] = useState<Set<string>>(() => {
-    if (!id || !user || !isVerified) return new Set();
-    try {
-      const storageKey = `liked_comments_${id}_${user.uid}`;
-      const savedLikes = localStorage.getItem(storageKey);
-      return savedLikes ? new Set(JSON.parse(savedLikes)) : new Set();
-    } catch (e) { return new Set(); }
-  });
   const [replyingTo, setReplyingTo] = useState<string | null>(null);
   const [replyContent, setReplyContent] = useState('');
   const [showPostMenu, setShowPostMenu] = useState(false);
