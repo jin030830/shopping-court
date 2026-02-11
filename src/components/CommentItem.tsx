@@ -32,12 +32,14 @@ interface CommentItemProps {
   onReplyContentChange: (content: string) => void;
   onReplySubmit: (commentId: string) => void;
   onCancelReply: () => void;
+  getAuthorLabel: (authorId: string, authorNickname: string) => string;
 }
 
 const CommentItem = memo(({ 
   comment, post, user, hasVoted, onLike, onReply, onEdit, onDelete,
   onLikeReply, onEditReply, onDeleteReply, onReport,
-  isReplying, replyContent, onReplyContentChange, onReplySubmit, onCancelReply
+  isReplying, replyContent, onReplyContentChange, onReplySubmit, onCancelReply,
+  getAuthorLabel
 }: CommentItemProps) => {
   const [editingId, setEditingCommentId] = useState<string | null>(null);
   const [editContent, setEditContent] = useState('');
@@ -68,7 +70,7 @@ const CommentItem = memo(({
             ) : (
               <div style={{ padding: '3px 6px', backgroundColor: comment.vote === 'innocent' ? '#E3F2FD' : '#FFEBEE', color: comment.vote === 'innocent' ? '#1976D2' : '#D32F2F', fontSize: '11px', fontWeight: '600', borderRadius: '4px', height: 'fit-content', whiteSpace: 'nowrap' }}>{comment.vote === 'innocent' ? '무죄' : '유죄'}</div>
             )}
-            <Text color="#6B7684" typography="t7" fontWeight="medium" style={{ fontSize: '13px' }}>{comment.authorId === post.authorId ? '피고인' : '배심원'} {comment.authorNickname.replace(/^배심원/, '')}님</Text>
+            <Text color="#6B7684" typography="t7" fontWeight="medium" style={{ fontSize: '13px' }}>{getAuthorLabel(comment.authorId, comment.authorNickname)}</Text>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', backgroundColor: '#f2f4f6', borderRadius: '20px', padding: '4px 8px', gap: '0' }}>
             <button onClick={() => onLike(comment.id)} disabled={post.status === 'CLOSED'} style={{ background: 'none', border: 'none', cursor: post.status === 'CLOSED' ? 'not-allowed' : 'pointer', padding: '4px 8px', display: 'flex', alignItems: 'center', gap: '4px', opacity: post.status === 'CLOSED' ? 0.5 : 1 }}>
@@ -95,7 +97,7 @@ const CommentItem = memo(({
           </div>
         ) : (
           <>
-            <Text display="block" color="#191F28" typography="t6" fontWeight="regular" style={{ marginBottom: '4px' }}>{comment.content}</Text>
+            <Text display="block" color="#191F28" typography="t6" fontWeight="regular" style={{ marginBottom: '4px', whiteSpace: 'pre-wrap' }}>{comment.content}</Text>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <Text display="block" color="#9E9E9E" typography="t7" fontWeight="regular" style={{ fontSize: '13px' }}>{formatDate(comment.createdAt)}</Text>
               <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
@@ -143,7 +145,7 @@ const CommentItem = memo(({
                 ) : (
                   <div style={{ padding: '3px 6px', backgroundColor: reply.vote === 'innocent' ? '#E3F2FD' : '#FFEBEE', color: reply.vote === 'innocent' ? '#1976D2' : '#D32F2F', fontSize: '11px', fontWeight: '600', borderRadius: '4px', height: 'fit-content', whiteSpace: 'nowrap' }}>{reply.vote === 'innocent' ? '무죄' : '유죄'}</div>
                 )}
-                <Text color="#6B7684" typography="t7" fontWeight="medium" style={{ fontSize: '13px' }}>{reply.authorId === post.authorId ? '피고인' : '배심원'} {reply.authorNickname.replace(/^배심원/, '')}님</Text>
+                <Text color="#6B7684" typography="t7" fontWeight="medium" style={{ fontSize: '13px' }}>{getAuthorLabel(reply.authorId, reply.authorNickname)}</Text>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', backgroundColor: '#f2f4f6', borderRadius: '20px', padding: '4px 8px', gap: '0' }}>
                 <button onClick={() => onLikeReply(comment.id, reply.id)} disabled={post.status === 'CLOSED'} style={{ background: 'none', border: 'none', cursor: post.status === 'CLOSED' ? 'not-allowed' : 'pointer', padding: '4px', display: 'flex', alignItems: 'center', gap: '4px', opacity: post.status === 'CLOSED' ? 0.5 : 1 }}>
@@ -166,7 +168,7 @@ const CommentItem = memo(({
               </div>
             ) : (
               <>
-                <Text display="block" color="#191F28" typography="t6" fontWeight="regular" style={{ marginBottom: '4px' }}>{reply.content}</Text>
+                <Text display="block" color="#191F28" typography="t6" fontWeight="regular" style={{ marginBottom: '4px', whiteSpace: 'pre-wrap' }}>{reply.content}</Text>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <Text display="block" color="#9E9E9E" typography="t7" fontWeight="regular" style={{ fontSize: '13px' }}>{formatDate(reply.createdAt)}</Text>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>

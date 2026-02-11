@@ -31,7 +31,7 @@ const CaseItem = memo(({ post, index, selectedTab, navigate }: any) => (
       <Text display="block" color="#191F28" typography="t4" fontWeight="bold" style={{ flex: 1, textAlign: 'center', WebkitLineClamp: 2, display: '-webkit-box', WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{post.title}</Text>
       {selectedTab === '재판 중' && post.createdAt && <Text color="#9E9E9E" typography="st13" fontWeight="regular" style={{ fontSize: '14px' }}>{formatDate(post.createdAt)}</Text>}
     </div>
-    <div style={{ marginBottom: '8px', lineHeight: '1.5', color: '#191F28', fontSize: '14px', wordBreak: 'break-word' }}>
+    <div style={{ marginBottom: '8px', lineHeight: '1.5', color: '#191F28', fontSize: '14px', wordBreak: 'break-word', whiteSpace: 'pre-wrap' }}>
       {post.content && post.content.length > 50 ? `${post.content.substring(0, 50)}...` : post.content}
     </div>
     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -48,13 +48,16 @@ const StatItem = ({ icon, count }: any) => (
   </div>
 );
 
-function HomePage() {
-  const location = useLocation();
+function HomePage({ defaultTab }: { defaultTab?: string }) {
   const navigate = useNavigate();
+  const location = useLocation();
   const navigationType = useNavigationType();
   const [isFabExpanded, setIsFabExpanded] = useState(false);
   
   const [selectedTab, setSelectedTab] = useState(() => {
+    // 0. 프롭스로 전달된 기본 탭 (Deep Link 대응)
+    if (defaultTab) return defaultTab;
+
     // 1. location.state에서 전달된 탭 (다른 페이지에서 돌아올 때)
     const stateTab = (location.state as any)?.selectedTab;
     if (stateTab) return stateTab;

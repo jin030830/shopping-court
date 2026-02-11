@@ -372,6 +372,42 @@ function CaseDetailPage() {
     } catch (e) { console.error(e); }
   };
 
+  // --- 배심원 번호 매핑 로직 ---
+  const jurorMap = useMemo(() => {
+    if (!post || !comments) return new Map<string, string>();
+    
+    const map = new Map<string, string>();
+    const interactions: { authorId: string; createdAt: any }[] = [];
+    
+    comments.forEach(comment => {
+      interactions.push({ authorId: comment.authorId, createdAt: comment.createdAt });
+      comment.replies.forEach(reply => {
+        interactions.push({ authorId: reply.authorId, createdAt: reply.createdAt });
+      });
+    });
+
+    // 시간순 정렬 (먼저 작성한 사람이 1번)
+    interactions.sort((a, b) => (a.createdAt?.toMillis() || 0) - (b.createdAt?.toMillis() || 0));
+
+    let jurorCount = 1;
+    interactions.forEach(({ authorId }) => {
+      if (authorId === post.authorId) return; // 글 작성자는 제외
+      if (!map.has(authorId)) {
+        map.set(authorId, `배심원 ${jurorCount}`);
+        jurorCount++;
+      }
+    });
+    
+    return map;
+  }, [post, comments]);
+
+  const getAuthorLabel = (authorId: string, authorNickname: string) => {
+    if (post && authorId === post.authorId) {
+       return `피고인 ${authorNickname.replace(/^배심원/, '')}`;
+    }
+    return jurorMap.get(authorId) || authorNickname;
+  };
+
   // --- 데이터 가공 ---
   const totalVotes = useMemo(() => (post?.innocentCount || 0) + (post?.guiltyCount || 0), [post]);
   const agreePercent = useMemo(() => totalVotes > 0 ? Math.round(((post?.innocentCount || 0) / totalVotes) * 100) : 50, [post, totalVotes]);
@@ -379,7 +415,7 @@ function CaseDetailPage() {
 
   const sortedComments = useMemo(() => {
     return [...comments].sort((a, b) => {
-      if (sortBy === 'latest') return (b.createdAt?.toMillis() || 0) - (a.createdAt?.toMillis() || 0);
+      if (sortBy === 'latest') return (a.createdAt?.toMillis() || 0) - (b.createdAt?.toMillis() || 0);
       return (b.likes || 0) - (a.likes || 0);
     });
   }, [comments, sortBy]);
@@ -419,7 +455,7 @@ function CaseDetailPage() {
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginLeft: '0px', marginTop: '10px' }}>
               <Asset.Image frameShape={{ width: 20, height: 20 }} backgroundColor="transparent" src="https://static.toss.im/ml-product/tosst-inapp_tdvjdh3nb4l5yg4xp9a734u4.png" aria-hidden={true} style={{ aspectRatio: '1/1' }} />
-              <span style={{ color: '#666', fontSize: '13px' }}>피고인 {post.authorNickname.replace(/^배심원/, '')}님</span>
+              <span style={{ color: '#666', fontSize: '13px' }}>피고인 {post.authorNickname.replace(/^배심원/, '')}</span>
             </div>
             
             <div style={{ position: 'relative', marginTop: '8px' }} ref={postMenuRef}>
@@ -442,7 +478,7 @@ function CaseDetailPage() {
           </div>
 
           <h2 style={{ color: '#191F28', fontSize: '20px', fontWeight: '700', marginBottom: '6px', textAlign: 'center'}}>{post.title}</h2>
-          <p style={{ color: '#191F28', fontSize: '15px', fontWeight: '400', marginBottom: '20px', lineHeight: '1.6', textAlign: 'left', paddingLeft: '8px' }}>{post.content}</p>
+          <p style={{ color: '#191F28', fontSize: '15px', fontWeight: '400', marginBottom: '20px', lineHeight: '1.6', textAlign: 'left', paddingLeft: '8px', whiteSpace: 'pre-wrap' }}>{post.content}</p>
 
           <div style={{ position: 'relative', marginBottom: '26px' }}>
             <div style={{ display: 'flex', gap: '12px' }}>
@@ -514,6 +550,7 @@ function CaseDetailPage() {
                   });
                 }}
                 onCancelReply={() => setReplyingTo(null)}
+                getAuthorLabel={getAuthorLabel}
               />
             ))}
           </div>
