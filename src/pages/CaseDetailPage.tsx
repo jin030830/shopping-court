@@ -148,7 +148,12 @@ function CaseDetailPage() {
 
       const previousPost = queryClient.getQueryData<CaseDocument>(caseKeys.detail(id!));
       const previousUserData = user ? queryClient.getQueryData<UserDocument | null>(['user', user.uid]) : null;
+      const previousUserVote = queryClient.getQueryData<VoteType | null>(caseKeys.userVote(id!, user?.uid || ''));
 
+      // 1. 투표 종류 즉시 반영 (진행바 노출 조건)
+      queryClient.setQueryData(caseKeys.userVote(id!, user?.uid || ''), voteType);
+
+      // 2. 게시물 카운트 낙관적 업데이트 (UI 가시성)
       queryClient.setQueryData(caseKeys.detail(id!), (old: CaseDocument | undefined) => {
         if (!old) return old;
         return {
@@ -165,26 +170,20 @@ function CaseDetailPage() {
         return Array.isArray(oldData) ? oldData.map(updateCase) : oldData;
       });
 
-      if (user) {
-        const today = getTodayDateString();
-        queryClient.setQueryData<UserDocument | null>(['user', user.uid], (prev: UserDocument | null | undefined) => {
-          if (!prev) return prev;
-          const stats = prev.dailyStats || { voteCount: 0, commentCount: 0, postCount: 0, lastActiveDate: today, isLevel1Claimed: false, isLevel2Claimed: false };
-          const isNewDay = stats.lastActiveDate !== today;
-          return {
-            ...prev,
-            dailyStats: { ...stats, voteCount: (isNewDay ? 0 : stats.voteCount) + 1, lastActiveDate: today }
-          };
-        });
-      }
-
-      return { previousPost, previousUserData };
+      return { previousPost, previousUserData, previousUserVote };
+    },
+    onError: (_err, _vars, context) => {
+      // 에러 발생 시 원복
+      if (context?.previousPost) queryClient.setQueryData(caseKeys.detail(id!), context.previousPost);
+      if (context?.previousUserData) queryClient.setQueryData(['user', user?.uid], context.previousUserData);
+      if (context?.previousUserVote !== undefined) queryClient.setQueryData(caseKeys.userVote(id!, user?.uid || ''), context.previousUserVote);
     },
     onSettled: () => {
+      // 백엔드 트리거가 숫자를 다 올릴 때까지 충분히 대기 후 무효화 (중복 방지 핵심)
       setTimeout(() => {
         queryClient.invalidateQueries({ queryKey: caseKeys.all, refetchType: 'all' });
         if (user) queryClient.invalidateQueries({ queryKey: ['user', user.uid] });
-      }, 500);
+      }, 2000); 
     }
   });
 
