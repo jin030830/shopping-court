@@ -85,6 +85,13 @@ export interface ReportData {
   createdAt: Timestamp;
 }
 
+export interface UserActivityData {
+  type: 'vote' | 'comment' | 'post';
+  caseId: string;
+  vote?: VoteType;
+  createdAt: Timestamp;
+}
+
 /**
  * 모든 '고민'을 Firestore에서 조회합니다.
  * @returns 모든 고민 문서의 배열
@@ -416,6 +423,7 @@ export const addVote = async (caseId: string, userId: string, vote: VoteType): P
   
   const caseRef = doc(db, 'cases', caseId);
   const voteRef = doc(db, 'cases', caseId, 'votes', userId);
+  const activityRef = doc(db, 'users', userId, 'activities', caseId);
 
   try {
     await runTransaction(db, async (transaction) => {
@@ -429,22 +437,31 @@ export const addVote = async (caseId: string, userId: string, vote: VoteType): P
         throw new Error('존재하지 않는 게시물입니다.');
       }
 
-      // 투표 기록 및 카운트 업데이트 (즉시 반영을 위해 클라이언트에서 처리)
+      // 1. 게시물 하위 투표 기록
       transaction.set(voteRef, {
         userId,
         vote,
         createdAt: serverTimestamp(),
       });
 
+      // 2. 유저 하위 활동 기록 (중복 방지를 위해 caseId를 문서 ID로 사용)
+      transaction.set(activityRef, {
+        type: 'vote',
+        caseId,
+        vote,
+        createdAt: serverTimestamp(),
+      });
+
+      // 3. 게시물의 투표 카운트 업데이트
       const countField = vote === 'guilty' ? 'guiltyCount' : 'innocentCount';
       transaction.update(caseRef, {
         [countField]: increment(1)
       });
     });
-    console.log('✅ 투표가 성공적으로 기록되었습니다.');
+    console.log('✅ 투표 및 활동 기록이 성공적으로 완료되었습니다.');
   } catch (error) {
     console.error('❌ 투표 처리 중 오류 발생:', error);
-    throw error; // UI에서 에러를 처리할 수 있도록 다시 던짐
+    throw error;
   }
 };
 
@@ -476,6 +493,7 @@ export const addComment = async (caseId: string, commentData: CommentData): Prom
   const caseRef = doc(db, 'cases', caseId);
   const commentsCollection = collection(db, 'cases', caseId, 'comments');
   const newCommentRef = doc(commentsCollection);
+  const activityRef = doc(db, 'users', commentData.authorId, 'activities', newCommentRef.id);
 
   try {
     await runTransaction(db, async (transaction) => {
@@ -487,7 +505,15 @@ export const addComment = async (caseId: string, commentData: CommentData): Prom
         createdAt: serverTimestamp(),
       });
 
-      // 2. 게시물의 전체 댓글 카운트 1 증가
+      // 2. 유저 하위 활동 기록
+      transaction.set(activityRef, {
+        type: 'comment',
+        caseId,
+        commentId: newCommentRef.id,
+        createdAt: serverTimestamp(),
+      });
+
+      // 3. 게시물의 전체 댓글 카운트 1 증가
       transaction.update(caseRef, {
         commentCount: increment(1)
       });
@@ -563,6 +589,7 @@ export const addReply = async (caseId: string, commentId: string, replyData: Rep
   const caseRef = doc(db, 'cases', caseId);
   const repliesCollection = collection(db, 'cases', caseId, 'comments', commentId, 'replies');
   const newReplyRef = doc(repliesCollection);
+  const activityRef = doc(db, 'users', replyData.authorId, 'activities', newReplyRef.id);
 
   try {
     await runTransaction(db, async (transaction) => {
@@ -574,7 +601,16 @@ export const addReply = async (caseId: string, commentId: string, replyData: Rep
         createdAt: serverTimestamp(),
       });
 
-      // 2. 게시물의 전체 댓글 카운트 1 증가
+      // 2. 유저 하위 활동 기록
+      transaction.set(activityRef, {
+        type: 'comment',
+        caseId,
+        commentId,
+        replyId: newReplyRef.id,
+        createdAt: serverTimestamp(),
+      });
+
+      // 3. 게시물의 전체 댓글 카운트 1 증가
       transaction.update(caseRef, {
         commentCount: increment(1)
       });
@@ -608,9 +644,12 @@ export const updateComment = async (caseId: string, commentId: string, content: 
  */
 export const deleteComment = async (caseId: string, commentId: string): Promise<void> => {
   if (!db) throw new Error('Firebase가 초기화되지 않았습니다.');
+  if (!auth?.currentUser) throw new Error('로그인이 필요합니다.');
   
+  const userId = auth.currentUser.uid;
   const caseRef = doc(db, 'cases', caseId);
   const commentRef = doc(db, 'cases', caseId, 'comments', commentId);
+  const userActivityRef = doc(db, 'users', userId, 'activities', commentId);
   const repliesCollection = collection(db, 'cases', caseId, 'comments', commentId, 'replies');
 
   try {
@@ -620,8 +659,9 @@ export const deleteComment = async (caseId: string, commentId: string): Promise<
     const totalToDelete = 1 + replyDocs.length; // 부모 댓글 + 대댓글 개수
 
     await runTransaction(db, async (transaction) => {
-      // 2. 부모 댓글 삭제
+      // 2. 부모 댓글 및 활동 기록 삭제
       transaction.delete(commentRef);
+      transaction.delete(userActivityRef);
 
       // 3. 모든 대댓글 삭제
       replyDocs.forEach((replyDoc) => {
@@ -664,21 +704,25 @@ export const updateReply = async (caseId: string, commentId: string, replyId: st
  */
 export const deleteReply = async (caseId: string, commentId: string, replyId: string): Promise<void> => {
   if (!db) throw new Error('Firebase가 초기화되지 않았습니다.');
-  
+  if (!auth?.currentUser) throw new Error('로그인이 필요합니다.');
+
+  const userId = auth.currentUser.uid;
   const caseRef = doc(db, 'cases', caseId);
   const replyRef = doc(db, 'cases', caseId, 'comments', commentId, 'replies', replyId);
+  const userActivityRef = doc(db, 'users', userId, 'activities', replyId);
 
   try {
     await runTransaction(db, async (transaction) => {
-      // 1. 대댓글 삭제
+      // 1. 대댓글 및 활동 기록 삭제
       transaction.delete(replyRef);
+      transaction.delete(userActivityRef);
 
       // 2. 게시물의 전체 댓글 카운트 1 차감
       transaction.update(caseRef, {
         commentCount: increment(-1)
       });
     });
-    console.log('✅ 대댓글이 성공적으로 삭제되었습니다.');
+    console.log('✅ 대댓글 및 활동 기록 정리 완료.');
   } catch (error) {
     console.error('❌ 대댓글 삭제 중 오류 발생:', error);
     throw error;

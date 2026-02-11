@@ -21,16 +21,8 @@ const getTodayDateString = (): string => {
 };
 
 /**
- * Timestamp를 KST 날짜 문자열로 변환
- */
-const timestampToDateString = (timestamp: admin.firestore.Timestamp): string => {
-  const date = timestamp.toDate();
-  const kstDate = new Date(date.getTime() + 9 * 60 * 60 * 1000);
-  return kstDate.toISOString().split('T')[0];
-};
-
-/**
  * 사용자 활동 통계를 업데이트하는 함수
+ * (단순 증감 대신 실제 활동 문서를 카운트하여 데이터 신뢰성 확보)
  */
 const updateUserStats = async (
   userId: string, 
@@ -43,6 +35,18 @@ const updateUserStats = async (
   const today = getTodayDateString();
 
   try {
+    // 1. 현재 해당 타입의 오늘자 실제 활동 문서 개수 조회
+    const activitiesCollection = userRef.collection('activities');
+    const startOfToday = new Date(today); // 로컬 시간 기준 00:00:00
+    const startOfTodayTimestamp = admin.firestore.Timestamp.fromDate(startOfToday);
+
+    const snapshot = await activitiesCollection
+      .where('type', '==', type)
+      .where('createdAt', '>=', startOfTodayTimestamp)
+      .get();
+    
+    const actualCount = snapshot.size;
+
     await db.runTransaction(async (transaction) => {
       const userDoc = await transaction.get(userRef);
       if (!userDoc.exists) return;
@@ -61,25 +65,15 @@ const updateUserStats = async (
         dailyStats = { lastActiveDate: today, voteCount: 0, commentCount: 0, postCount: 0, isLevel1Claimed: false, isLevel2Claimed: false };
       }
 
-      if (action === 'create') {
-        if (type === 'vote') dailyStats.voteCount = (dailyStats.voteCount || 0) + 1;
-        if (type === 'comment') dailyStats.commentCount = (dailyStats.commentCount || 0) + 1;
-        if (type === 'post') dailyStats.postCount = (dailyStats.postCount || 0) + 1;
-      } else if (action === 'delete') {
-        if (createdAt) {
-          const createdDate = timestampToDateString(createdAt);
-          if (createdDate === today) {
-             if (type === 'vote') dailyStats.voteCount = Math.max(0, (dailyStats.voteCount || 0) - 1);
-             if (type === 'comment') dailyStats.commentCount = Math.max(0, (dailyStats.commentCount || 0) - 1);
-             if (type === 'post') dailyStats.postCount = Math.max(0, (dailyStats.postCount || 0) - 1);
-          }
-        }
-      }
+      // 실제 데이터 기반으로 카운트 동기화
+      if (type === 'vote') dailyStats.voteCount = actualCount;
+      if (type === 'comment') dailyStats.commentCount = actualCount;
+      if (type === 'post') dailyStats.postCount = actualCount;
 
       transaction.update(userRef, { dailyStats });
     });
   } catch (error) {
-    functions.logger.error(`Failed to update user stats for ${userId}`, error);
+    functions.logger.error(`Failed to sync user stats for ${userId}`, error);
   }
 };
 
@@ -154,6 +148,16 @@ const updateCountAtomic = async (caseId: string, field: string, delta: number) =
     functions.logger.error(`[AtomicUpdate Error] ${caseId} ${field}`, e);
   }
 };
+
+export const onActivityCreate = functions.region('asia-northeast3').firestore.document('users/{userId}/activities/{activityId}').onCreate(async (snapshot, context) => {
+  const data = snapshot.data();
+  await updateUserStats(context.params.userId, data.type, 'create');
+});
+
+export const onActivityDelete = functions.region('asia-northeast3').firestore.document('users/{userId}/activities/{activityId}').onDelete(async (snapshot, context) => {
+  const data = snapshot.data();
+  await updateUserStats(context.params.userId, data.type, 'delete', data.createdAt);
+});
 
 export const onCaseCreate = functions.region('asia-northeast3').firestore.document('cases/{caseId}').onCreate(async (snapshot) => {
   const authorId = snapshot.data().authorId;

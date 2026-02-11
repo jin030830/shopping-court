@@ -219,7 +219,8 @@ export const tossUnlinkCallback = functions.region("asia-northeast3").https.onRe
 
 export { 
   onCaseCreate, onCaseDelete, onVoteCreate, onCommentCreate, 
-  onVoteDelete, onCommentDelete, onReplyCreate, onReplyDelete 
+  onVoteDelete, onCommentDelete, onReplyCreate, onReplyDelete,
+  onActivityCreate, onActivityDelete
 } from './triggers';
 export { closeExpiredCases } from './scheduled';
 export { claimMissionReward } from './mission';
