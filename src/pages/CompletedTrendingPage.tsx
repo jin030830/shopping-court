@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom';
-import { Asset, Text } from '@toss/tds-mobile';
+import { Asset, Text, Spacing } from '@toss/tds-mobile';
 import { useRef, useCallback, memo, useState, useEffect } from 'react';
 import { getCasesPaginated, type CaseDocument } from '../api/cases';
 import { adaptive } from '@toss/tds-colors';
@@ -14,30 +14,100 @@ const TrendingCaseItem = memo(({ post, navigate }: any) => {
   const dateStr = `${date.getMonth() + 1}/${date.getDate()} ${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}`;
 
   return (
-    <div onClick={() => navigate(`/case/${post.id}`, { state: { fromTab: '재판 완료' } })} style={{ backgroundColor: 'white', padding: '16px 20px', borderBottom: '1px solid #F0F0F0', cursor: 'pointer' }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
-        <div style={{ padding: '4px 10px', backgroundColor: bg, color, fontSize: '12px', fontWeight: '600', borderRadius: '4px' }}>{verdict}</div>
-        <Text color="#9E9E9E" typography="st13" style={{ fontSize: '14px' }}>{dateStr}</Text>
-      </div>
-      <div style={{ marginBottom: '4px' }}><Text display="block" color="#191F28" typography="t4" fontWeight="bold" style={{ textAlign: 'center', WebkitLineClamp: 2, display: '-webkit-box', WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{post.title}</Text></div>
-      <div style={{ 
-        marginBottom: '8px', 
-        lineHeight: '1.5', 
-        color: '#191F28', 
-        fontSize: '14px', 
-        wordBreak: 'break-word',
-        display: '-webkit-box',
-        WebkitLineClamp: 2,
-        WebkitBoxOrient: 'vertical',
-        overflow: 'hidden',
-        textOverflow: 'ellipsis',
-        whiteSpace: 'pre-wrap'
-      }}>
-        {post.content}
-      </div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><Asset.Icon frameShape={{ width: 15, height: 15 }} name="icon-user-two-mono" color="#5e403b" /><Text color="#5e403b" typography="st13" style={{ fontSize: '14px' }}>{vc}</Text></div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '3px' }}><Asset.Icon frameShape={{ width: 15, height: 15 }} name="icon-chat-bubble-mono" color="#5E403Bff" /><Text color="#5e403b" typography="st13" style={{ fontSize: '14px' }}>{post.commentCount ?? 0}</Text></div>
+    <div key={post.id}>
+      <div
+        onClick={() => navigate(`/case/${post.id}`, { state: { fromTab: '재판 완료' } })}
+        style={{
+          backgroundColor: 'white',
+          padding: '16px 20px',
+          borderTop: 'none',
+          borderBottom: '1px solid #F0F0F0',
+          cursor: 'pointer'
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+          <div style={{
+            padding: '4px 10px',
+            backgroundColor: bg,
+            color,
+            fontSize: '12px',
+            fontWeight: '600',
+            borderRadius: '4px',
+            whiteSpace: 'nowrap',
+            minWidth: 'fit-content',
+            display: 'inline-block'
+          }}>
+            {verdict}
+          </div>
+          {post.createdAt && (
+            <Text color="#9E9E9E" typography="st13" fontWeight="regular" style={{ flexShrink: 0, whiteSpace: 'nowrap', fontSize: '14px' }}>
+              {dateStr}
+            </Text>
+          )}
+        </div>
+
+        <div style={{ marginBottom: '4px' }}>
+          <Text 
+            display="block" 
+            color="#191F28" 
+            typography="t4" 
+            fontWeight="bold"
+            style={{ 
+              overflow: 'hidden', 
+              textOverflow: 'ellipsis',
+              display: '-webkit-box',
+              WebkitLineClamp: 2,
+              WebkitBoxOrient: 'vertical',
+              fontSize: '18px',
+              lineHeight: '1.4',
+              textAlign: 'center'
+            }}
+          >
+            {post.title}
+          </Text>
+        </div>
+
+        <div
+          style={{ 
+            marginBottom: '8px',
+            lineHeight: '1.5',
+            color: '#191F28ff',
+            fontSize: '14px',
+            wordBreak: 'break-word',
+            textAlign: 'left'
+          }}
+        >
+          {post.content && post.content.length > 50 ? `${post.content.substring(0, 50)}...` : post.content}
+        </div>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+            <Asset.Icon
+              frameShape={{ width: 15, height: 15 }}
+              backgroundColor="transparent"
+              name="icon-user-two-mono"
+              color="#5e403b"
+              aria-hidden={true}
+              ratio="1/1"
+            />
+            <Text color="#5e403b" typography="st13" fontWeight="medium" style={{ fontSize: '14px' }}>
+              {vc}
+            </Text>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
+            <Asset.Icon
+              frameShape={{ width: 15, height: 15 }}
+              backgroundColor="transparent"
+              name="icon-chat-bubble-mono"
+              color="#5E403Bff"
+              aria-hidden={true}
+              ratio="1/1"
+            />
+            <Text color="#5e403b" typography="st13" fontWeight="medium" style={{ fontSize: '14px' }}>
+              {post.commentCount ?? 0}
+            </Text>
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -50,7 +120,13 @@ function CompletedTrendingPage() {
 
   const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading, error } = useInfiniteQuery<{ cases: CaseDocument[], lastDoc: any }, Error>({
     queryKey: ['cases', 'CLOSED', 'trending'],
-    queryFn: ({ pageParam }) => getCasesPaginated({ status: 'CLOSED', limitCount: 15, orderByField: 'createdAt', orderDirection: 'desc', lastVisible: pageParam }),
+    queryFn: ({ pageParam }) => getCasesPaginated({ 
+      status: 'CLOSED', 
+      limitCount: 15, 
+      orderByField: 'hotScore', 
+      orderDirection: 'desc', 
+      lastVisible: pageParam 
+    }),
     getNextPageParam: (last) => last.cases.length === 15 ? last.lastDoc : undefined,
     initialPageParam: null
   });
@@ -65,11 +141,16 @@ function CompletedTrendingPage() {
     if (node) observer.current.observe(node);
   }, [isLoading, isFetchingNextPage, hasNextPage, fetchNextPage]);
 
-  useEffect(() => { sessionStorage.setItem('completedListFromTab', '재판 완료'); }, []);
+  useEffect(() => {
+    sessionStorage.setItem('completedListFromTab', '재판 완료');
+  }, []);
 
-  const pages = data?.pages as any[];
-  const allPosts = pages?.flatMap(p => p.cases) || [];
-  const filtered = allPosts.filter(p => {
+  const allPosts = data?.pages.flatMap(p => p.cases) || [];
+  
+  // CLOSED 상태이고 hotScore가 0보다 큰 것만 '화제의 재판'으로 간주 (내림차순 정렬은 쿼리에서 처리됨)
+  const trendingPosts = allPosts.filter(p => p.status === 'CLOSED' && (p.hotScore || 0) > 0);
+
+  const filtered = trendingPosts.filter(p => {
     if (search.trim() && !p.title.toLowerCase().includes(search.toLowerCase()) && !p.content.toLowerCase().includes(search.toLowerCase())) return false;
     if (filter === '전체') return true;
     const vc = (p.guiltyCount || 0) + (p.innocentCount || 0);
@@ -85,21 +166,39 @@ function CompletedTrendingPage() {
       </div>
 
       <div style={{ padding: '0 20px', marginBottom: '16px', position: 'relative' }}>
-        <div style={{ position: 'absolute', left: '36px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }}><Asset.Icon frameShape={{ width: 20, height: 20 }} name="icon-search-mono" color="#9E9E9E" /></div>
-        <input type="text" value={search} onChange={e => setSearch(e.target.value)} placeholder="관심 키워드 검색" style={{ width: '100%', padding: '12px 16px 12px 44px', border: '1px solid #E5E5E5', borderRadius: '8px', fontSize: '15px', backgroundColor: 'white', color: '#191F28', boxSizing: 'border-box' }} />
+        <div style={{ position: 'absolute', left: '36px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }}>
+          <Asset.Icon frameShape={{ width: 20, height: 20 }} name="icon-search-mono" color="#9E9E9E" />
+        </div>
+        <input 
+          type="text" 
+          value={search} 
+          onChange={e => setSearch(e.target.value)} 
+          placeholder="관심 키워드 검색" 
+          style={{ width: '100%', padding: '12px 16px 12px 44px', border: '1px solid #E5E5E5', borderRadius: '8px', fontSize: '15px', backgroundColor: 'white', color: '#191F28', boxSizing: 'border-box' }} 
+        />
       </div>
 
-      <div style={{ padding: '0 20px', marginBottom: '0px', display: 'flex', gap: '8px', borderBottom: '1px solid #F0F0F0', paddingBottom: '12px' }}>
+      <div style={{ padding: '0 20px', marginBottom: '8px', display: 'flex', gap: '8px', borderBottom: '1px solid #F0F0F0', paddingBottom: '12px' }}>
         {(['전체', '무죄', '유죄', '보류'] as const).map((opt) => (
           <button key={opt} onClick={() => setFilter(opt)} style={{ padding: '6px 16px', backgroundColor: filter === opt ? '#191F28' : '#F2F4F6', color: filter === opt ? 'white' : '#666', border: 'none', borderRadius: '20px', fontSize: '14px', fontWeight: filter === opt ? '600' : '400', cursor: 'pointer' }}>{opt}</button>
         ))}
       </div>
 
+      <Spacing size={8} />
+
       <div style={{ backgroundColor: 'white' }}>
-        {error ? <div style={{ padding: '40px', textAlign: 'center' }}><Text color="#D32F2F">오류가 발생했습니다.</Text></div> : isLoading ? <div style={{ padding: '40px', textAlign: 'center' }}><Text color="#6B7684">로딩 중...</Text></div> : filtered.length === 0 ? <div style={{ padding: '40px', textAlign: 'center' }}><Text color="#6B7684">표시할 게시물이 없습니다.</Text></div> : (
+        {error ? (
+          <div style={{ padding: '40px', textAlign: 'center' }}><Text color="#D32F2F">오류가 발생했습니다.</Text></div>
+        ) : isLoading ? (
+          <div style={{ padding: '40px', textAlign: 'center' }}><Text color="#6B7684">로딩 중...</Text></div>
+        ) : filtered.length === 0 ? (
+          <div style={{ padding: '40px', textAlign: 'center' }}><Text color="#6B7684">표시할 게시물이 없습니다.</Text></div>
+        ) : (
           <div>
             {filtered.map((p, idx) => (
-              <div key={p.id} ref={idx === filtered.length - 1 ? lastElementRef : null}><TrendingCaseItem post={p} navigate={navigate} /></div>
+              <div key={p.id} ref={idx === filtered.length - 1 ? lastElementRef : null}>
+                <TrendingCaseItem post={p} navigate={navigate} />
+              </div>
             ))}
             {isFetchingNextPage && <div style={{ padding: '20px', textAlign: 'center' }}><Text color="#6B7684">더 불러오는 중...</Text></div>}
           </div>
