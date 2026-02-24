@@ -1,4 +1,4 @@
-import * as functions from 'firebase-functions';
+import * as functions from 'firebase-functions/v1';
 import * as admin from 'firebase-admin';
 import { sendTossPush } from './toss';
 
@@ -10,7 +10,7 @@ const db = admin.firestore();
 export const closeExpiredCases = functions
   .region('asia-northeast3')
   .pubsub.schedule('every 10 minutes') // 10분 간격으로 실행
-  .onRun(async (context) => {
+  .onRun(async (context: functions.EventContext) => {
     functions.logger.log('Running scheduled job to close expired cases...');
 
     const now = new Date();

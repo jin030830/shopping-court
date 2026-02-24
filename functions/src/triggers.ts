@@ -1,4 +1,4 @@
-import * as functions from 'firebase-functions';
+import * as functions from 'firebase-functions/v1';
 import * as admin from 'firebase-admin';
 
 // DB 접근 헬퍼
@@ -57,7 +57,7 @@ export const syncCaseCounts = async (caseId: string) => {
       updatedAt: admin.firestore.FieldValue.serverTimestamp()
     });
   } catch (error) {
-    functions.logger.error(`[Sync Error] Failed to sync case ${caseId}:`, error);
+    console.error(`[Sync Error] Failed to sync case ${caseId}:`, error);
   }
 };
 
@@ -74,17 +74,14 @@ const updateUserStats = async (
 ) => {
   const db = getDb();
   const userRef = db.collection('users').doc(userId);
-  // 공통 KST 날짜 헬퍼 사용
   const today = getTodayDateString();
 
   try {
     let actualCount = -1;
 
-    // 1. 신버전 앱 대응: activities 컬렉션 조회
+    // 1. 활동 기록(activities) 기반 카운팅 시도 (신버전 대응)
     if (!forceIncrement) {
       const activitiesCollection = userRef.collection('activities');
-      
-      // KST 기준 오늘 00:00:00의 UTC Timestamp 계산
       const kstTodayStart = new Date(today + "T00:00:00+09:00");
       const startOfTodayTimestamp = admin.firestore.Timestamp.fromDate(kstTodayStart);
 
@@ -93,15 +90,19 @@ const updateUserStats = async (
         .where('createdAt', '>=', startOfTodayTimestamp)
         .get();
       
-      // 활동 기록이 하나라도 있다면 신버전 유저로 간주하여 정확한 개수 사용
+      // 활동 기록이 하나라도 있다면 신버전 유저로 간주
       if (snapshot.size > 0 || action === 'delete') {
         actualCount = snapshot.size;
+        console.info(`[UserStats] 신버전 유저 감지: ${userId}, ${type} 개수: ${actualCount}`);
       }
     }
 
     await db.runTransaction(async (transaction) => {
       const userDoc = await transaction.get(userRef);
-      if (!userDoc.exists) return;
+      if (!userDoc.exists) {
+        console.warn(`[UserStats] 유저 문서를 찾을 수 없음: ${userId}`);
+        return;
+      }
 
       const userData = userDoc.data();
       let dailyStats = userData?.dailyStats || {
@@ -113,84 +114,121 @@ const updateUserStats = async (
         isLevel2Claimed: false
       };
 
+      // 날짜가 바뀌었으면 초기화
       if (dailyStats.lastActiveDate !== today) {
+        console.info(`[UserStats] 날짜 변경 초기화: ${userId}, ${dailyStats.lastActiveDate} -> ${today}`);
         dailyStats = { lastActiveDate: today, voteCount: 0, commentCount: 0, postCount: 0, isLevel1Claimed: false, isLevel2Claimed: false };
       }
 
-      // 2. 카운트 결정 로직
+      // 2. 카운트 결정 및 업데이트
       if (actualCount !== -1) {
-        // 신버전: 실제 데이터 개수와 동기화
+        // 신버전: 실제 문서 개수와 일치시킴
         if (type === 'vote') dailyStats.voteCount = actualCount;
         if (type === 'comment') dailyStats.commentCount = actualCount;
         if (type === 'post') dailyStats.postCount = actualCount;
       } else if (action === 'create') {
-        // 구버전: 단순 +1 (활동 기록이 없는 경우)
+        // 구버전: 활동 기록이 없으므로 수동으로 +1
         if (type === 'vote') dailyStats.voteCount = (dailyStats.voteCount || 0) + 1;
         if (type === 'comment') dailyStats.commentCount = (dailyStats.commentCount || 0) + 1;
         if (type === 'post') dailyStats.postCount = (dailyStats.postCount || 0) + 1;
+        console.info(`[UserStats] 구버전 유저 수동 증가: ${userId}, ${type}`);
       }
 
       transaction.update(userRef, { dailyStats });
     });
   } catch (error) {
-    functions.logger.error(`Failed to sync user stats for ${userId}`, error);
+    console.error(`[UserStats Error] ${userId} 업데이트 실패:`, error);
   }
 };
 
-export const onActivityCreate = functions.region('asia-northeast3').firestore.document('users/{userId}/activities/{activityId}').onCreate(async (snapshot, context) => {
+export const onActivityCreate = functions.region('asia-northeast3').firestore.document('users/{userId}/activities/{activityId}').onCreate(async (snapshot: functions.firestore.QueryDocumentSnapshot, context: functions.EventContext) => {
   const data = snapshot.data();
   // 활동 기록이 생성되면 즉시 전체 카운트 모드로 업데이트
   await updateUserStats(context.params.userId, data.type, 'create');
 });
 
-export const onActivityDelete = functions.region('asia-northeast3').firestore.document('users/{userId}/activities/{activityId}').onDelete(async (snapshot, context) => {
+export const onActivityDelete = functions.region('asia-northeast3').firestore.document('users/{userId}/activities/{activityId}').onDelete(async (snapshot: functions.firestore.QueryDocumentSnapshot, context: functions.EventContext) => {
   const data = snapshot.data();
   await updateUserStats(context.params.userId, data.type, 'delete', data.createdAt);
 });
 
-export const onCaseCreate = functions.region('asia-northeast3').firestore.document('cases/{caseId}').onCreate(async (snapshot) => {
+export const onCaseCreate = functions.region('asia-northeast3').firestore.document('cases/{caseId}').onCreate(async (snapshot: functions.firestore.QueryDocumentSnapshot) => {
   const authorId = snapshot.data().authorId;
   // 게시물 생성은 구버전/신버전 공통으로 처리 가능하도록 +1 모드로 시작 (필요시 onActivityCreate가 보정)
   if (authorId) await updateUserStats(authorId, 'post', 'create', undefined, true);
 });
 
-export const onCaseDelete = functions.region('asia-northeast3').firestore.document('cases/{caseId}').onDelete(async (snapshot) => {
+export const onCaseDelete = functions.region('asia-northeast3').firestore.document('cases/{caseId}').onDelete(async (snapshot: functions.firestore.QueryDocumentSnapshot) => {
   const data = snapshot.data();
   if (data.authorId) await updateUserStats(data.authorId, 'post', 'delete', data.createdAt);
 });
 
-export const onVoteCreate = functions.region('asia-northeast3').firestore.document('cases/{caseId}/votes/{voteId}').onCreate(async (snapshot, context) => {
-  // 게시물 투표수 즉시 동기화
+/**
+ * 구버전 앱 유저를 위해 활동 기록(activities)을 백엔드에서 대리 생성합니다.
+ */
+const ensureActivityRecord = async (userId: string, type: 'vote' | 'comment' | 'post', caseId: string, activityId: string, extraData?: any) => {
+  const db = getDb();
+  // 넘겨받은 activityId를 문서 ID로 직접 사용하여 중복 생성을 원천 차단합니다.
+  const activityRef = db.collection('users').doc(userId).collection('activities').doc(activityId);
+
+  const doc = await activityRef.get();
+  if (!doc.exists) {
+    console.info(`[UserStats] 활동 기록 대리 생성: ${userId}, type: ${type}, id: ${activityId}`);
+    await activityRef.set({
+      type,
+      caseId,
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      ...extraData
+    });
+  }
+};
+
+export const onVoteCreate = functions.region('asia-northeast3').firestore.document('cases/{caseId}/votes/{voteId}').onCreate(async (snapshot: functions.firestore.QueryDocumentSnapshot, context: functions.EventContext) => {
+  const userId = context.params.voteId;
+  const caseId = context.params.caseId;
+  await syncCaseCounts(caseId);
+  // 투표는 유저당 1회이므로 caseId를 고유 활동 ID로 사용
+  await ensureActivityRecord(userId, 'vote', caseId, caseId, { vote: snapshot.data()?.vote });
+});
+
+export const onVoteDelete = functions.region('asia-northeast3').firestore.document('cases/{caseId}/votes/{voteId}').onDelete(async (snapshot: functions.firestore.QueryDocumentSnapshot, context: functions.EventContext) => {
+  const userId = context.params.voteId;
+  const caseId = context.params.caseId;
+  await syncCaseCounts(caseId);
+  await admin.firestore().collection('users').doc(userId).collection('activities').doc(caseId).delete();
+});
+
+export const onCommentCreate = functions.region('asia-northeast3').firestore.document('cases/{caseId}/comments/{commentId}').onCreate(async (snapshot: functions.firestore.QueryDocumentSnapshot, context: functions.EventContext) => {
+  const authorId = snapshot.data()?.authorId;
+  const caseId = context.params.caseId;
+  const commentId = context.params.commentId;
+  await syncCaseCounts(caseId);
+  // 댓글 ID를 활동 ID로 똑같이 사용하여 신버전 앱의 기록과 충돌(중복) 방지
+  if (authorId) await ensureActivityRecord(authorId, 'comment', caseId, commentId, { commentId });
+});
+
+export const onCommentDelete = functions.region('asia-northeast3').firestore.document('cases/{caseId}/comments/{commentId}').onDelete(async (snapshot: functions.firestore.QueryDocumentSnapshot, context: functions.EventContext) => {
   await syncCaseCounts(context.params.caseId);
 });
 
-export const onVoteDelete = functions.region('asia-northeast3').firestore.document('cases/{caseId}/votes/{voteId}').onDelete(async (snapshot, context) => {
-  await syncCaseCounts(context.params.caseId);
-});
-
-export const onCommentCreate = functions.region('asia-northeast3').firestore.document('cases/{caseId}/comments/{commentId}').onCreate(async (snapshot, context) => {
-  await syncCaseCounts(context.params.caseId);
-});
-
-export const onCommentDelete = functions.region('asia-northeast3').firestore.document('cases/{caseId}/comments/{commentId}').onDelete(async (snapshot, context) => {
-  await syncCaseCounts(context.params.caseId);
-});
-
-export const onCommentUpdate = functions.region('asia-northeast3').firestore.document('cases/{caseId}/comments/{commentId}').onUpdate(async (change, context) => {
+export const onCommentUpdate = functions.region('asia-northeast3').firestore.document('cases/{caseId}/comments/{commentId}').onUpdate(async (change: functions.Change<functions.firestore.QueryDocumentSnapshot>, context: functions.EventContext) => {
   const newData = change.after.data();
   const oldData = change.before.data();
-
-  // 삭제 상태 변경 시 게시물 수치 재동기화 (Soft Delete 대응)
   if (oldData.isDeleted !== newData.isDeleted) {
     await syncCaseCounts(context.params.caseId);
   }
 });
 
-export const onReplyCreate = functions.region('asia-northeast3').firestore.document('cases/{caseId}/comments/{commentId}/replies/{replyId}').onCreate(async (snapshot, context) => {
-  await syncCaseCounts(context.params.caseId);
+export const onReplyCreate = functions.region('asia-northeast3').firestore.document('cases/{caseId}/comments/{commentId}/replies/{replyId}').onCreate(async (snapshot: functions.firestore.QueryDocumentSnapshot, context: functions.EventContext) => {
+  const authorId = snapshot.data()?.authorId;
+  const caseId = context.params.caseId;
+  const replyId = context.params.replyId;
+  await syncCaseCounts(caseId);
+  // 대댓글 ID를 활동 ID로 똑같이 사용
+  if (authorId) await ensureActivityRecord(authorId, 'comment', caseId, replyId, { commentId: context.params.commentId, replyId });
 });
 
-export const onReplyDelete = functions.region('asia-northeast3').firestore.document('cases/{caseId}/comments/{commentId}/replies/{replyId}').onDelete(async (snapshot, context) => {
+export const onReplyDelete = functions.region('asia-northeast3').firestore.document('cases/{caseId}/comments/{commentId}/replies/{replyId}').onDelete(async (snapshot: functions.firestore.QueryDocumentSnapshot, context: functions.EventContext) => {
   await syncCaseCounts(context.params.caseId);
 });
 
@@ -198,7 +236,7 @@ export const onReplyDelete = functions.region('asia-northeast3').firestore.docum
  * [관리용] 기존 데이터 마이그레이션 시 생성된 activities의 날짜를 
  * 실제 원본 투표/댓글 생성 시간으로 보정합니다.
  */
-export const fixActivitiesTimestamp = functions.region('asia-northeast3').https.onCall(async (data, context) => {
+export const fixActivitiesTimestamp = functions.region('asia-northeast3').https.onCall(async (data: any, context: functions.https.CallableContext) => {
   const db = admin.firestore();
   const activitiesSnap = await db.collectionGroup('activities').get();
   

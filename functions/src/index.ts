@@ -1,4 +1,4 @@
-import * as functions from "firebase-functions";
+import * as functions from "firebase-functions/v1";
 import * as admin from "firebase-admin";
 import axios from "axios";
 import { 
@@ -66,7 +66,7 @@ export const requestPromotionReward = functions
     timeoutSeconds: 60,
     memory: "512MB"
   })
-  .https.onCall(async (data: { promotionCode: string; isWarmUp?: boolean }, context) => {
+  .https.onCall(async (data: { promotionCode: string; isWarmUp?: boolean }, context: functions.https.CallableContext) => {
     if (data.isWarmUp) return { success: true };
     if (!context.auth) throw new functions.https.HttpsError("unauthenticated", "로그인이 필요합니다.");
 
@@ -152,7 +152,7 @@ export const tossLogout = functions.region("asia-northeast3").https.onCall(async
   } catch { return { success: false }; }
 });
 
-export const tossUnlinkCallback = functions.region("asia-northeast3").https.onRequest(async (req, res) => {
+export const tossUnlinkCallback = functions.region("asia-northeast3").https.onRequest(async (req: functions.Request, res: functions.Response) => {
   try {
     const userKey = (req.method === 'GET' ? req.query.userKey : req.body?.userKey) as string;
     if (!userKey) {
@@ -217,7 +217,7 @@ export const tossUnlinkCallback = functions.region("asia-northeast3").https.onRe
   }
 });
 
-export const fixData = functions.region('asia-northeast3').https.onRequest(async (req, res) => {
+export const fixData = functions.region('asia-northeast3').https.onRequest(async (req: functions.Request, res: functions.Response) => {
   const db = admin.firestore();
   const activitiesSnap = await db.collectionGroup('activities').get();
   
@@ -285,14 +285,14 @@ export const fixData = functions.region('asia-northeast3').https.onRequest(async
   res.status(200).json({ success: true, fixedCount, affectedUsers: userIds.size });
 });
 
-export const fixActivitiesTimestamp = functions.region('asia-northeast3').https.onCall(async (data, context) => {
+export const fixActivitiesTimestamp = functions.region('asia-northeast3').https.onCall(async (data: any, context: functions.https.CallableContext) => {
   // 기존 onCall 함수는 구조 유지만 함
   return { message: "Use fixData instead" };
 });
 
 export { 
   onCaseCreate, onCaseDelete, onVoteCreate, onCommentCreate, 
-  onVoteDelete, onCommentDelete, onReplyCreate, onReplyDelete,
+  onVoteDelete, onCommentDelete, onCommentUpdate, onReplyCreate, onReplyDelete,
   onActivityCreate, onActivityDelete
 } from './triggers';
 export { closeExpiredCases } from './scheduled';

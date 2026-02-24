@@ -1,4 +1,4 @@
-import * as functions from 'firebase-functions';
+import * as functions from 'firebase-functions/v1';
 import * as admin from 'firebase-admin';
 
 // DB 접근 헬퍼
@@ -45,7 +45,7 @@ const checkAndResetDailyStats = (userData: any, today: string): any => {
  * 미션 보상 수령 Callable Function
  */
 export const claimMissionReward = functions.region('asia-northeast3')
-  .https.onCall(async (data: { missionType: string; isWarmUp?: boolean }, context) => {
+  .https.onCall(async (data: { missionType: string; isWarmUp?: boolean }, context: functions.https.CallableContext) => {
     // 0. Warm-up 요청 처리
     if (data.isWarmUp) {
       console.log(`[Warm-up] claimMissionReward instance warmed up.`);

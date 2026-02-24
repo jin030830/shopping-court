@@ -1,9 +1,24 @@
-import * as functions from "firebase-functions";
+import * as functions from "firebase-functions/v1";
+import { defineString, defineBoolean } from "firebase-functions/params";
 import axios from "axios";
 import * as fs from "fs";
 import * as https from "https";
 import * as path from "path";
 import * as dotenv from "dotenv";
+
+// 최신 파라미터 정의
+const tossAuthApiBase = defineString("TOSS_AUTH_API_BASE", {
+  default: "https://apps-in-toss-api.toss.im",
+  description: "Toss API Base URL"
+});
+const tossClientId = defineString("TOSS_CLIENT_ID", {
+  default: "shopping-court",
+  description: "Toss Client ID"
+});
+const tossTestMode = defineBoolean("TOSS_TEST_MODE", {
+  default: false,
+  description: "Toss API Test Mode"
+});
 
 // .env 파일 로드 (로컬 개발용)
 try {
@@ -18,13 +33,11 @@ try {
  * 환경 변수에서 토스 API 설정 가져오기
  */
 export function getTossApiConfig() {
-  const tossConfig = functions.config().toss;
-
-  const authApiBase = tossConfig?.auth_api_base || process.env.TOSS_AUTH_API_BASE || "https://apps-in-toss-api.toss.im";
-  const clientId = tossConfig?.client_id || process.env.TOSS_CLIENT_ID || "shopping-court";
+  const authApiBase = tossAuthApiBase.value();
+  const clientId = tossClientId.value();
   
   const isEmulator = process.env.FUNCTIONS_EMULATOR === "true";
-  const testMode = isEmulator && (process.env.TEST_MODE === "true" || tossConfig?.test_mode === "true");
+  const testMode = isEmulator && (process.env.TEST_MODE === "true" || tossTestMode.value());
 
   return {
     authApiBase,

@@ -117,10 +117,20 @@ function HomePage({ defaultTab }: { defaultTab?: string }) {
     refetchOnWindowFocus: true,
   });
 
-  // Query for '재판 완료' 대시보드
-  const { data: completedDashboard, isLoading: isLoadingCompleted, error: completedError } = useQuery<{ cases: CaseDocument[] }, Error>({
-    queryKey: caseKeys.list('CLOSED_DASHBOARD'),
-    queryFn: () => getCasesPaginated({ status: 'CLOSED', limitCount: 10 }) as any,
+  // Query for '화제의 재판' (CLOSED + hotScore desc)
+  const { data: hotClosedCases, isLoading: isLoadingHotClosed, error: hotClosedError } = useQuery<{ cases: CaseDocument[] }, Error>({
+    queryKey: [...caseKeys.list('CLOSED'), 'HOT_DASHBOARD'],
+    queryFn: () => getCasesPaginated({ status: 'CLOSED', limitCount: 10, orderByField: 'hotScore', orderDirection: 'desc' }) as any,
+    enabled: selectedTab === '재판 완료',
+    staleTime: 1000 * 10,
+    refetchInterval: 60000,
+    refetchOnWindowFocus: true,
+  });
+
+  // Query for '이전 재판' (CLOSED + voteEndAt desc)
+  const { data: recentClosedCases, isLoading: isLoadingRecentClosed, error: recentClosedError } = useQuery<{ cases: CaseDocument[] }, Error>({
+    queryKey: [...caseKeys.list('CLOSED'), 'RECENT_DASHBOARD'],
+    queryFn: () => getCasesPaginated({ status: 'CLOSED', limitCount: 10, orderByField: 'voteEndAt', orderDirection: 'desc' }) as any,
     enabled: selectedTab === '재판 완료',
     staleTime: 1000 * 10,
     refetchInterval: 60000,
@@ -160,8 +170,8 @@ function HomePage({ defaultTab }: { defaultTab?: string }) {
     if (navigationType !== 'POP') window.scrollTo(0, 0);
   }, [selectedTab, navigationType]);
 
-  const isLoading = isLoadingOpenCases || isLoadingHot || isLoadingCompleted;
-  const error = openCasesError || hotError || completedError;
+  const isLoading = isLoadingOpenCases || isLoadingHot || isLoadingHotClosed || isLoadingRecentClosed;
+  const error = openCasesError || hotError || hotClosedError || recentClosedError;
 
   return (
     <div style={{ backgroundColor: 'white', minHeight: '100vh', width: '100%', boxSizing: 'border-box' }}>
@@ -187,7 +197,7 @@ function HomePage({ defaultTab }: { defaultTab?: string }) {
         {error ? (
           <div style={{ padding: '40px', textAlign: 'center' }}><Text color="#D32F2F">게시물을 불러오는 중 오류가 발생했습니다. (인덱스 생성 중일 수 있습니다)</Text></div>
         ) : selectedTab === '재판 완료' ? (
-          <CompletedPostListMain posts={completedDashboard?.cases || []} navigate={navigate} />
+          <CompletedPostListMain hotPosts={hotClosedCases?.cases || []} recentPosts={recentClosedCases?.cases || []} navigate={navigate} />
         ) : (
           <div>
             {isLoading && <div style={{ padding: '40px', textAlign: 'center', minHeight: '80vh' }}><Text color="#6B7684">로딩 중...</Text></div>}
@@ -273,15 +283,14 @@ const FabItem = ({ onClick, icon, label, delay }: any) => (
   </div>
 );
 
-function CompletedPostListMain({ posts, navigate }: any) {
-  const processed = posts.map((p: any) => {
+function CompletedPostListMain({ hotPosts, recentPosts, navigate }: any) {
+  const processPost = (p: any) => {
     const vc = (p.guiltyCount || 0) + (p.innocentCount || 0);
-    return { ...p, verdict: vc > 0 ? (p.innocentCount > p.guiltyCount ? '무죄' : p.guiltyCount > p.innocentCount ? '유죄' : '보류') : '보류', hotScore: p.hotScore || (vc + (2 * (p.commentCount || 0))) };
-  });
-  // 대시보드용 정렬 (DB에서 limit 10으로 가져온 데이터 중 상위 5개씩 슬라이스)
-  // 화제의 재판 기록: 최신순 정렬 (createdAt 기준)
-  const hot = processed.sort((a: any, b: any) => (b.createdAt?.toMillis() || 0) - (a.createdAt?.toMillis() || 0)).slice(0, 5);
-  const prev = [...processed].sort((a: any, b: any) => (b.voteEndAt?.toMillis() || 0) - (a.voteEndAt?.toMillis() || 0)).slice(0, 5);
+    return { ...p, verdict: vc > 0 ? (p.innocentCount > p.guiltyCount ? '무죄' : p.guiltyCount > p.innocentCount ? '유죄' : '보류') : '보류' };
+  };
+  
+  const hot = hotPosts.map(processPost).slice(0, 5);
+  const prev = recentPosts.map(processPost).slice(0, 5);
 
   const renderCard = (p: any) => (
     <div key={p.id} onClick={() => navigate(`/case/${p.id}`, { state: { fromTab: '재판 완료' } })} style={{ backgroundColor: '#F7F3EE', borderRadius: '10px', padding: '16px', minWidth: '172px', width: '172px', height: '211px', marginRight: '12px', cursor: 'pointer', display: 'flex', flexDirection: 'column', gap: '12px', boxSizing: 'border-box', position: 'relative' }}>
