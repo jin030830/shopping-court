@@ -31,12 +31,12 @@ const CaseItem = memo(({ post, index, selectedTab, navigate }: any) => (
       <Text display="block" color="#191F28" typography="t4" fontWeight="bold" style={{ flex: 1, textAlign: 'center', WebkitLineClamp: 2, display: '-webkit-box', WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{post.title}</Text>
       {selectedTab === '재판 중' && post.createdAt && <Text color="#9E9E9E" typography="st13" fontWeight="regular" style={{ fontSize: '14px' }}>{formatDate(post.createdAt)}</Text>}
     </div>
-    <div style={{ 
-      marginBottom: '8px', 
-      lineHeight: '1.5', 
-      color: '#191F28', 
-      fontSize: '14px', 
-      wordBreak: 'break-word', 
+    <div style={{
+      marginBottom: '8px',
+      lineHeight: '1.5',
+      color: '#191F28',
+      fontSize: '14px',
+      wordBreak: 'break-word',
       whiteSpace: 'pre-wrap',
       display: '-webkit-box',
       WebkitLineClamp: 2,
@@ -47,7 +47,7 @@ const CaseItem = memo(({ post, index, selectedTab, navigate }: any) => (
       {post.content}
     </div>
     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-      <StatItem icon="icon-user-two-mono" count={(post.guiltyCount || 0) + (post.innocentCount || 0)} />
+      <StatItem icon="icon-user-two-mono" count={post.viewCount ?? ((post.guiltyCount || 0) + (post.innocentCount || 0))} />
       <StatItem icon="icon-chat-bubble-mono" count={post.commentCount ?? 0} />
     </div>
   </div>
@@ -65,7 +65,7 @@ function HomePage({ defaultTab }: { defaultTab?: string }) {
   const location = useLocation();
   const navigationType = useNavigationType();
   const [isFabExpanded, setIsFabExpanded] = useState(false);
-  
+
   const [selectedTab, setSelectedTab] = useState(() => {
     // 0. 프롭스로 전달된 기본 탭 (Deep Link 대응)
     if (defaultTab) return defaultTab;
@@ -73,17 +73,17 @@ function HomePage({ defaultTab }: { defaultTab?: string }) {
     // 1. location.state에서 전달된 탭 (다른 페이지에서 돌아올 때)
     const stateTab = (location.state as any)?.selectedTab;
     if (stateTab) return stateTab;
-    
+
     // 2. sessionStorage에서 임시 저장된 탭 (뒤로가기 대응)
     const tempTab = sessionStorage.getItem('caseDetailFromTab') || sessionStorage.getItem('completedListFromTab') || sessionStorage.getItem('pointMissionFromTab') || sessionStorage.getItem('createPostFromTab') || sessionStorage.getItem('myPostsFromTab');
     if (tempTab) return tempTab;
-    
+
     // 3. localStorage에서 마지막 선택된 탭 (새로고침 대응)
     const lastTab = localStorage.getItem('lastSelectedTab');
     if (lastTab && ['재판 중', 'HOT 게시판', '재판 완료'].includes(lastTab)) {
       return lastTab;
     }
-    
+
     // 4. 기본값
     return 'HOT 게시판';
   });
@@ -159,6 +159,7 @@ function HomePage({ defaultTab }: { defaultTab?: string }) {
     if (myPostsFromTab) {
       const stateTab = (location.state as any)?.selectedTab;
       if (!stateTab || stateTab !== myPostsFromTab) {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setSelectedTab(myPostsFromTab);
         // 사용 후 삭제
         sessionStorage.removeItem('myPostsFromTab');
@@ -176,7 +177,7 @@ function HomePage({ defaultTab }: { defaultTab?: string }) {
   return (
     <div style={{ backgroundColor: 'white', minHeight: '100vh', width: '100%', boxSizing: 'border-box' }}>
       <Banner navigate={navigate} selectedTab={selectedTab} />
-      
+
       <div style={{ padding: '0 20px', backgroundColor: 'white', position: 'sticky', top: 0, zIndex: 100 }}>
         <div style={{ display: 'flex', borderBottom: '1px solid #e5e5e5', justifyContent: 'space-between' }}>
           {['재판 중', 'HOT 게시판', '재판 완료'].map(tab => (
@@ -288,7 +289,7 @@ function CompletedPostListMain({ hotPosts, recentPosts, navigate }: any) {
     const vc = (p.guiltyCount || 0) + (p.innocentCount || 0);
     return { ...p, verdict: vc > 0 ? (p.innocentCount > p.guiltyCount ? '무죄' : p.guiltyCount > p.innocentCount ? '유죄' : '보류') : '보류' };
   };
-  
+
   const hot = hotPosts.map(processPost).slice(0, 5);
   const prev = recentPosts.map(processPost).slice(0, 5);
 
@@ -315,7 +316,7 @@ const CompletedSection = ({ title, iconSrc, iconName, posts, onMore, renderCard 
   const [showInfoPopup, setShowInfoPopup] = useState(false);
   const infoPopupRef = useRef<HTMLDivElement>(null);
   const isTrending = title === '화제의 재판 기록';
-  
+
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (infoPopupRef.current && !infoPopupRef.current.contains(event.target as Node)) {
@@ -329,7 +330,7 @@ const CompletedSection = ({ title, iconSrc, iconName, posts, onMore, renderCard 
       document.removeEventListener('mousedown', handleClickOutside);
     };
   }, [showInfoPopup]);
-  
+
   return (
     <div>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 20px', marginBottom: '16px', position: 'relative' }}>
@@ -338,8 +339,8 @@ const CompletedSection = ({ title, iconSrc, iconName, posts, onMore, renderCard 
           <Text display="block" color={adaptive.grey900} typography="t3" fontWeight="bold" style={{ fontSize: '22px' }}>{title}</Text>
           {isTrending && (
             <div ref={infoPopupRef} style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', marginLeft: '4px' }}>
-              <div 
-                onClick={() => setShowInfoPopup(!showInfoPopup)} 
+              <div
+                onClick={() => setShowInfoPopup(!showInfoPopup)}
                 style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
               >
                 <Asset.Icon
@@ -352,17 +353,17 @@ const CompletedSection = ({ title, iconSrc, iconName, posts, onMore, renderCard 
                 />
               </div>
               {showInfoPopup && (
-                <div style={{ 
-                  position: 'absolute', 
+                <div style={{
+                  position: 'absolute',
                   left: '50%',
                   bottom: '100%',
                   transform: 'translateX(-50%)',
                   marginBottom: '8px',
-                  backgroundColor: 'white', 
-                  padding: '8px 12px', 
-                  borderRadius: '8px', 
-                  boxShadow: '0px 2px 8px rgba(0, 0, 0, 0.15)', 
-                  zIndex: 1002, 
+                  backgroundColor: 'white',
+                  padding: '8px 12px',
+                  borderRadius: '8px',
+                  boxShadow: '0px 2px 8px rgba(0, 0, 0, 0.15)',
+                  zIndex: 1002,
                   whiteSpace: 'nowrap',
                   fontSize: '13px',
                   color: '#191F28',
@@ -392,11 +393,11 @@ const CompletedSection = ({ title, iconSrc, iconName, posts, onMore, renderCard 
           <Asset.Icon frameShape={Asset.frameShape.CleanW24} name="icon-arrow-left-big-mono" color="#9E9E9E" />
         </button>
       </div>
-    {posts.length > 0 ? (
-      <div style={{ overflowX: 'auto', padding: '0 20px', WebkitOverflowScrolling: 'touch' }}>
-        <div style={{ display: 'flex', flexDirection: 'row', gap: '0', paddingRight: '20px' }}>{posts.map(renderCard)}</div>
-      </div>
-    ) : <div style={{ padding: '20px', textAlign: 'center' }}><Text color="#6B7684">{title}이 없습니다.</Text></div>}
+      {posts.length > 0 ? (
+        <div style={{ overflowX: 'auto', padding: '0 20px', WebkitOverflowScrolling: 'touch' }}>
+          <div style={{ display: 'flex', flexDirection: 'row', gap: '0', paddingRight: '20px' }}>{posts.map(renderCard)}</div>
+        </div>
+      ) : <div style={{ padding: '20px', textAlign: 'center' }}><Text color="#6B7684">{title}이 없습니다.</Text></div>}
     </div>
   );
 };

@@ -51,6 +51,14 @@ service cloud.firestore {
               request.resource.data.innocentCount == resource.data.get('innocentCount', 0) + 1);
     }
 
+    // [함수] 조회수 업데이트 검증 (1씩 증가만 허용)
+    function isValidViewCountUpdate() {
+      let diff = request.resource.data.diff(resource.data);
+      // viewCount 필드만 변경되는 경우이거나, 뷰카운트+알파인 경우 다른 허용규칙(vote등)과 결합될 수 있으므로, 단독 업데이트를 가정합니다.
+      return diff.affectedKeys().hasOnly(['viewCount']) &&
+             request.resource.data.viewCount == resource.data.get('viewCount', 0) + 1;
+    }
+
     // users 컬렉션
     match /users/{userId} {
       allow read: if request.auth != null;
@@ -73,8 +81,9 @@ service cloud.firestore {
       allow create: if request.auth != null && isValidNewCase();
       
       allow update: if request.auth != null && (
-        (resource.data.authorId == request.auth.uid && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['guiltyCount', 'innocentCount', 'commentCount', 'hotScore'])) ||
-        isValidVoteUpdate()
+        (resource.data.authorId == request.auth.uid && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['guiltyCount', 'innocentCount', 'commentCount', 'hotScore', 'viewCount'])) ||
+        isValidVoteUpdate() ||
+        isValidViewCountUpdate()
       );
       
       allow delete: if request.auth != null && resource.data.authorId == request.auth.uid;

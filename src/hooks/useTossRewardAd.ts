@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState, useRef } from 'react';
 import { GoogleAdMob } from '@apps-in-toss/web-framework';
 
 // 전역 상태 관리를 위한 모듈 레벨 변수 (Singleton)
@@ -10,6 +10,8 @@ const MAX_RETRY = 5;
 export const useTossRewardAd = (adUnitId: string) => {
   const [, setTick] = useState(0); // 로컬 상태 강제 리렌더링용
   const forceUpdate = useCallback(() => setTick(t => t + 1), []);
+
+  const loadRef = useRef<() => void>();
 
   const load = useCallback(() => {
     if (!GoogleAdMob?.loadAppsInTossAdMob?.isSupported?.()) {
@@ -46,7 +48,7 @@ export const useTossRewardAd = (adUnitId: string) => {
             const delay = Math.pow(2, globalRetryCount) * 1000;
             setTimeout(() => {
               globalRetryCount += 1;
-              load();
+              loadRef.current?.();
             }, delay);
           }
         },
@@ -57,6 +59,8 @@ export const useTossRewardAd = (adUnitId: string) => {
       forceUpdate();
     }
   }, [adUnitId, forceUpdate]);
+
+  loadRef.current = load;
 
   const show = useCallback((onRewardEarned: () => void, onDismiss?: () => void) => {
     if (!GoogleAdMob?.showAppsInTossAdMob?.isSupported?.()) return;
@@ -70,12 +74,12 @@ export const useTossRewardAd = (adUnitId: string) => {
 
     try {
       console.log(`[AdMob] 광고 노출 시도: ${adUnitId}`);
-      
+
       const cleanupShow = GoogleAdMob.showAppsInTossAdMob({
         options: { adGroupId: adUnitId },
         onEvent: (event) => {
-          console.log(`[AdMob] Show Event: ${event.type}`, event.data);
-          
+          console.log(`[AdMob] Show Event: ${event.type}`, (event as any).data);
+
           if (event.type === 'userEarnedReward') {
             onRewardEarned();
           }
