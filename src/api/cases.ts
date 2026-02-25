@@ -83,6 +83,7 @@ export interface ReportData {
   caseId: string;
   commentId?: string;
   replyId?: string;
+  reason?: string; // 추가된 신고 사유
   createdAt: Timestamp;
 }
 
