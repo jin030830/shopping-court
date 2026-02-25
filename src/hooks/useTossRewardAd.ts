@@ -60,7 +60,9 @@ export const useTossRewardAd = (adUnitId: string) => {
     }
   }, [adUnitId, forceUpdate]);
 
-  loadRef.current = load;
+  useEffect(() => {
+    loadRef.current = load;
+  }, [load]);
 
   const show = useCallback((onRewardEarned: () => void, onDismiss?: () => void) => {
     if (!GoogleAdMob?.showAppsInTossAdMob?.isSupported?.()) return;
@@ -109,7 +111,8 @@ export const useTossRewardAd = (adUnitId: string) => {
   }, [adUnitId, load, forceUpdate]);
 
   useEffect(() => {
-    load();
+    const timer = setTimeout(() => load(), 0);
+    return () => clearTimeout(timer);
   }, [load]);
 
   return { isLoaded: globalIsLoaded, isLoading: globalIsLoading, show, load };

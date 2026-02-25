@@ -33,11 +33,24 @@ try {
  * 환경 변수에서 토스 API 설정 가져오기
  */
 export function getTossApiConfig() {
-  const authApiBase = tossAuthApiBase.value();
-  const clientId = tossClientId.value();
-  
+  let authApiBase = "https://apps-in-toss-api.toss.im";
+  let clientId = "shopping-court";
+
+  try {
+    authApiBase = process.env.TOSS_AUTH_API_BASE || tossAuthApiBase.value() || "https://apps-in-toss-api.toss.im";
+    clientId = process.env.TOSS_CLIENT_ID || tossClientId.value() || "shopping-court";
+  } catch (err) {
+    // Firebase params initialization error fallback
+  }
+
   const isEmulator = process.env.FUNCTIONS_EMULATOR === "true";
-  const testMode = isEmulator && (process.env.TEST_MODE === "true" || tossTestMode.value());
+  let testMode = false;
+
+  try {
+    testMode = isEmulator && (process.env.TEST_MODE === "true" || tossTestMode.value());
+  } catch (err) {
+    // fallback
+  }
 
   return {
     authApiBase,
@@ -75,7 +88,7 @@ export function createMtlsAgent(): https.Agent {
 function handleTossError(error: any, contextMsg: string): never {
   const responseData = error.response?.data;
   const statusCode = error.response?.status;
-  
+
   // 토스 에러 응답 구조 분석 (code 또는 error.errorCode 등)
   // 문서상 4자리 숫자 코드(4100 등)가 반환됨
   const errorCode = responseData?.code || responseData?.error?.errorCode || responseData?.error?.code;
@@ -148,7 +161,7 @@ export async function sendTossPush(
 
   try {
     const url = `${config.authApiBase}/api-partner/v1/apps-in-toss/messenger/send-message`;
-    
+
     const response = await axios.post(
       url,
       {
@@ -164,7 +177,7 @@ export async function sendTossPush(
         httpsAgent
       }
     );
-    
+
     console.log(`[Toss Push SUCCESS] Sent to ${userKey}. Response:`, response.data);
   } catch (error: any) {
     console.error(`[Toss Push ERROR] Failed to send to ${userKey}:`, error.response?.data || error.message);
@@ -187,7 +200,7 @@ export async function sendTestTossPush(
 
   try {
     const url = `${config.authApiBase}/api-partner/v1/apps-in-toss/messenger/send-test-message`;
-    
+
     console.log(`[Toss Test Push] Sending to ${userKey} with deploymentId: ${deploymentId}`);
 
     const requestBody: any = {
@@ -212,7 +225,7 @@ export async function sendTestTossPush(
         httpsAgent
       }
     );
-    
+
     console.log(`[Toss Test Push SUCCESS] Response:`, response.data);
   } catch (error: any) {
     console.error(`[Toss Test Push ERROR] Failed:`, error.response?.data || error.message);
@@ -233,7 +246,7 @@ export async function getPromotionKey(
 
   try {
     const url = `${config.authApiBase}/api-partner/v1/apps-in-toss/promotion/execute-promotion/get-key`;
-    
+
     const response = await axios.post(
       url,
       {
@@ -248,11 +261,11 @@ export async function getPromotionKey(
         httpsAgent
       }
     );
-    
+
     // [수정] 응답 구조에 맞게 경로 수정 (success.key)
     // 문서상 응답: { "resultType": "SUCCESS", "success": { "key": "..." } }
     const key = response.data.success?.key || response.data.promotionExecutionKey;
-    
+
     if (!key) {
       console.error(`[Toss Key Error] Response structure mismatch:`, JSON.stringify(response.data));
       throw new Error("Toss API 응답에서 Key를 찾을 수 없습니다.");
@@ -278,7 +291,7 @@ export async function executePromotion(
 
   try {
     const url = `${config.authApiBase}/api-partner/v1/apps-in-toss/promotion/execute-promotion`;
-    
+
     const response = await axios.post(
       url,
       {
@@ -295,7 +308,7 @@ export async function executePromotion(
         httpsAgent
       }
     );
-    
+
     return response.data;
   } catch (error: any) {
     handleTossError(error, `Promotion Execution Failed (user: ${userKey})`);

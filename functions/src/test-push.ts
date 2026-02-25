@@ -17,12 +17,14 @@ function askQuestion(query: string): Promise<string> {
 async function runTest() {
   console.log('🚀 토스 푸시 알림 전송 테스트 도구');
   console.log('-----------------------------------');
-  console.log('1. 일반 메시지 전송 (sendMessage)');
-  console.log('2. 테스트 메시지 전송 (sendTestMessage)');
-  
-  const mode = await askQuestion('선택하세요 (1 또는 2): ');
+  console.log('1. 일반 메시지 전송 (sendMessage) - 작성자 알림 (shopping-court-enduser)');
+  console.log('2. 테스트 메시지 전송 (sendTestMessage) - 작성자 알림');
+  console.log('3. 일반 메시지 전송 (sendMessage) - 투표자 알림 (shopping-court-participateend)');
+  console.log('4. 테스트 메시지 전송 (sendTestMessage) - 투표자 알림');
 
-  if (mode !== '1' && mode !== '2') {
+  const mode = await askQuestion('선택하세요 (1, 2, 3, 4): ');
+
+  if (!['1', '2', '3', '4'].includes(mode)) {
     console.log('❌ 잘못된 선택입니다.');
     rl.close();
     return;
@@ -35,24 +37,32 @@ async function runTest() {
     return;
   }
 
-  // context를 빈 객체로 고정
-  const context = {};
+  let caseId = 'case-test-1234';
+  if (mode === '3' || mode === '4') {
+    const inputCaseId = await askQuestion('Case ID (딥링크용)를 입력하세요 (기본값: case-test-1234): ');
+    if (inputCaseId) caseId = inputCaseId;
+  }
+
+  // mode에 따른 분기
+  const isVoter = mode === '3' || mode === '4';
+  const isTestMsg = mode === '2' || mode === '4';
+
+  const templateSetCode = isVoter ? 'shopping-court-participateend' : 'shopping-court-enduser';
+  const context: Record<string, string> = isVoter ? { caseId } : {};
 
   try {
-    if (mode === '1') {
-      console.log('\n📡 일반 메시지 전송 중...');
-      await sendTossPush(userKey, context);
+    if (!isTestMsg) {
+      console.log(`\n📡 일반 메시지 전송 중... 템플릿: ${templateSetCode}`);
+      await sendTossPush(userKey, context, templateSetCode);
     } else {
-      const deploymentId = await askQuestion('Deployment ID를 입력하세요: ');
+      const deploymentId = await askQuestion('Deployment ID를 입력하세요 (예: test1): ');
       if (!deploymentId) {
         console.log('❌ Deployment ID는 필수입니다.');
         rl.close();
         return;
       }
-      console.log('\n📡 테스트 메시지 전송 중...');
-      
-      // 템플릿 코드 포함하여 전송 (context는 빈 객체)
-      await sendTestTossPush(userKey, deploymentId, context, 'shopping-court-enduser');
+      console.log(`\n📡 테스트 메시지 전송 중... 템플릿: ${templateSetCode}`);
+      await sendTestTossPush(userKey, deploymentId, context, templateSetCode);
     }
   } catch (error) {
     console.error('❌ 테스트 중 오류 발생:', error);
