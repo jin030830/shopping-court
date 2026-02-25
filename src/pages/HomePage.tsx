@@ -7,6 +7,7 @@ import { adaptive } from '@toss/tds-colors';
 import pointMissionImage from '../assets/pansascale.png';
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import { caseKeys } from '../constants/queryKeys';
+import { CaseItemSkeleton } from '../components/Skeleton/CaseItemSkeleton';
 
 // 날짜 포맷팅 함수
 const formatDate = (timestamp: Timestamp): string => {
@@ -201,7 +202,11 @@ function HomePage({ defaultTab }: { defaultTab?: string }) {
           <CompletedPostListMain hotPosts={hotClosedCases?.cases || []} recentPosts={recentClosedCases?.cases || []} navigate={navigate} />
         ) : (
           <div>
-            {isLoading && <div style={{ padding: '40px', textAlign: 'center', minHeight: '80vh' }}><Text color="#6B7684">로딩 중...</Text></div>}
+            {isLoading && (
+              <div>
+                {[...Array(5)].map((_, i) => <CaseItemSkeleton key={`skeleton-${i}`} />)}
+              </div>
+            )}
             {selectedTab === '재판 중' && (openCasesData?.pages as any[])?.flatMap(p => p.cases).map((post, idx, arr) => (
               <div key={post.id} ref={idx === arr.length - 1 ? lastElementRef : null}>
                 <CaseItem post={post} selectedTab={selectedTab} navigate={navigate} />
