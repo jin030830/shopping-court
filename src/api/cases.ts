@@ -1,8 +1,8 @@
 import { db, auth } from './firebase';
-import { 
-  collection, 
-  addDoc, 
-  serverTimestamp, 
+import {
+  collection,
+  addDoc,
+  serverTimestamp,
   Timestamp,
   doc,
   getDoc,
@@ -38,6 +38,7 @@ export interface CaseDocument extends CaseData {
   guiltyCount: number;
   innocentCount: number;
   commentCount: number;
+  viewCount?: number; // 조회수
   voteEndAt: Timestamp;
   status: 'OPEN' | 'CLOSED';
   hotScore: number;
@@ -128,13 +129,13 @@ export const getCasesPaginated = async (options: {
   orderDirection?: 'asc' | 'desc';
 }) => {
   if (!db) throw new Error('Firebase가 초기화되지 않았습니다.');
-  
-  const { 
-    status, 
-    limitCount = 10, 
-    lastVisible, 
-    orderByField = 'createdAt', 
-    orderDirection = 'desc' 
+
+  const {
+    status,
+    limitCount = 10,
+    lastVisible,
+    orderByField = 'createdAt',
+    orderDirection = 'desc'
   } = options;
 
   try {
@@ -175,15 +176,15 @@ export const getCasesPaginated = async (options: {
  * @returns 게시물 배열과 마지막 문서 스냅샷
  */
 export const getCasesByAuthorPaginated = async (
-  userId: string, 
-  lastVisible?: any, 
+  userId: string,
+  lastVisible?: any,
   limitCount: number = 10
 ) => {
   if (!db) throw new Error('Firebase가 초기화되지 않았습니다.');
   try {
     const casesCollection = collection(db, 'cases');
     let q = query(
-      casesCollection, 
+      casesCollection,
       where('authorId', '==', userId),
       orderBy('createdAt', 'desc')
     );
@@ -220,7 +221,7 @@ export const getCasesByAuthor = async (userId: string): Promise<CaseDocument[]> 
   try {
     const casesCollection = collection(db, 'cases');
     const q = query(
-      casesCollection, 
+      casesCollection,
       where('authorId', '==', userId),
       orderBy('createdAt', 'desc')
     );
@@ -257,9 +258,9 @@ export const getUnclaimedHotCases = async (userId: string): Promise<CaseDocument
         id: doc.id,
         ...doc.data()
       } as CaseDocument))
-      .filter(caseItem => 
-        caseItem.status === 'CLOSED' && 
-        (caseItem.hotScore || 0) > 0 && 
+      .filter(caseItem =>
+        caseItem.status === 'CLOSED' &&
+        (caseItem.hotScore || 0) > 0 &&
         caseItem.isHotListed !== true
       );
   } catch (error) {
@@ -280,8 +281,8 @@ export const getHotCases = async (limitCount: number = 3): Promise<CaseDocument[
     const q = query(
       casesCollection,
       where('status', '==', 'OPEN'),
-      where('hotScore', '>', 0),
-      orderBy('hotScore', 'desc'),
+      where('viewCount', '>', 0),
+      orderBy('viewCount', 'desc'),
       orderBy('createdAt', 'asc'), // [Optimization] 동점 시 작성 시간이 빠른 순으로 정렬
       limit(limitCount)
     );
@@ -308,14 +309,15 @@ export const createCase = async (caseData: CaseData): Promise<string> => {
 
   try {
     const now = Timestamp.now();
-    // 48시간 후의 시간을 voteEndAt으로 설정
-    const voteEndTime = new Timestamp(now.seconds + 48 * 60 * 60, now.nanoseconds);
+    // 120시간(5일) 후의 시간을 voteEndAt으로 설정
+    const voteEndTime = new Timestamp(now.seconds + 120 * 60 * 60, now.nanoseconds);
 
     const docRef = await addDoc(collection(db, 'cases'), {
       ...caseData,
       guiltyCount: 0,
       innocentCount: 0,
       commentCount: 0,
+      viewCount: 0,
       status: 'OPEN',
       hotScore: 0,
       isHotListed: false, // Level 3 보상 수령 여부 초기화
@@ -328,6 +330,22 @@ export const createCase = async (caseData: CaseData): Promise<string> => {
   } catch (error) {
     console.error('❌ 고민 생성 중 오류 발생:', error);
     throw new Error('고민을 생성하는 데 실패했습니다.');
+  }
+};
+
+/**
+ * 게시물의 조회수를 1 증가시킵니다.
+ * @param caseId - 조회할 고민의 문서 ID
+ */
+export const incrementViewCount = async (caseId: string): Promise<void> => {
+  if (!db) return;
+  try {
+    const docRef = doc(db, 'cases', caseId);
+    await updateDoc(docRef, {
+      viewCount: increment(1)
+    });
+  } catch (error) {
+    console.error('❌ 조회수 증가 중 오류 발생:', error);
   }
 };
 
@@ -420,7 +438,7 @@ export const getUserVote = async (caseId: string, userId: string): Promise<VoteT
  */
 export const addVote = async (caseId: string, userId: string, vote: VoteType): Promise<void> => {
   if (!db) throw new Error('Firebase가 초기화되지 않았습니다.');
-  
+
   const caseRef = doc(db, 'cases', caseId);
   const voteRef = doc(db, 'cases', caseId, 'votes', userId);
   const activityRef = doc(db, 'users', userId, 'activities', caseId);
@@ -485,7 +503,7 @@ export const getComments = async (caseId: string): Promise<CommentDocument[]> =>
  */
 export const addComment = async (caseId: string, commentData: CommentData): Promise<string> => {
   if (!db) throw new Error('Firebase가 초기화되지 않았습니다.');
-  
+
   const commentsCollection = collection(db, 'cases', caseId, 'comments');
   const newCommentRef = doc(commentsCollection);
   const activityRef = doc(db, 'users', commentData.authorId, 'activities', newCommentRef.id);
@@ -577,7 +595,7 @@ export const getReplies = async (caseId: string, commentId: string): Promise<Rep
  */
 export const addReply = async (caseId: string, commentId: string, replyData: ReplyData): Promise<string> => {
   if (!db) throw new Error('Firebase가 초기화되지 않았습니다.');
-  
+
   const repliesCollection = collection(db, 'cases', caseId, 'comments', commentId, 'replies');
   const newReplyRef = doc(repliesCollection);
   const activityRef = doc(db, 'users', replyData.authorId, 'activities', newReplyRef.id);
@@ -633,7 +651,7 @@ export const updateComment = async (caseId: string, commentId: string, content: 
 export const deleteComment = async (caseId: string, commentId: string): Promise<void> => {
   if (!db) throw new Error('Firebase가 초기화되지 않았습니다.');
   if (!auth?.currentUser) throw new Error('로그인이 필요합니다.');
-  
+
   const userId = auth.currentUser.uid;
   const commentRef = doc(db, 'cases', caseId, 'comments', commentId);
   const userActivityRef = doc(db, 'users', userId, 'activities', commentId);

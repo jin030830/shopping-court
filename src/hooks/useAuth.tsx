@@ -27,7 +27,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const login = async () => {
     if (isLoggingIn) return;
-    
+
     setIsLoggingIn(true);
     try {
       const tossResult = await loginWithToss();
@@ -38,22 +38,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       const firebaseUser = await signInToFirebase(authData.customToken);
       const userDocument = await createOrUpdateUser(firebaseUser);
-      
+
       const storageData = {
         uid: firebaseUser.uid,
         nickname: userDocument.nickname,
         createdAt: userDocument.createdAt?.toDate().toISOString() || new Date().toISOString(),
         isLoggedIn: true,
       };
-      
+
       localStorage.setItem('shopping-court-user', JSON.stringify(storageData));
       localStorage.setItem('shopping-court-logged-in', 'true');
       window.dispatchEvent(new Event('storage'));
-      
+
       setUserData(userDocument);
       setIsVerified(true);
       setIsLoggingIn(false);
-      
+
     } catch (error) {
       console.error('Login error:', error);
       alert(error instanceof Error ? error.message : '로그인에 실패했어요.');
@@ -64,14 +64,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   useEffect(() => {
     if (!auth) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setIsLoading(false);
       return;
     }
-    
+
     // 앱 시작 시 연결 상태 확인 및 정리
     const checkAndCleanupAuth = async () => {
       if (!auth) return;
-      
+
       try {
         const currentUser = auth.currentUser;
         if (currentUser) {
@@ -87,7 +88,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             setIsLoading(false);
             return;
           }
-          
+
           const userDataFromFirestore = await getUserData(currentUser);
           if (!userDataFromFirestore) {
             console.log('[Auth] User data not found in Firestore (unlinked), forcing logout');
@@ -108,9 +109,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         console.error('[Auth] Error during auth check:', error);
       }
     };
-    
+
     checkAndCleanupAuth();
-    
+
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       setUser(firebaseUser);
       if (firebaseUser) {
@@ -130,10 +131,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             console.error('[Auth] Error during forced logout:', error);
           }
         }
-        
+
         // Firestore에서 사용자 데이터 확인
         const userDataFromFirestore = await getUserData(firebaseUser);
-        
+
         if (!userDataFromFirestore) {
           console.log('[Auth] User data not found in Firestore (unlinked), forcing logout');
           try {
@@ -153,7 +154,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (localData) {
           try {
             const parsedData = JSON.parse(localData);
-            
+
             // DB 데이터가 있으면 우선적으로 사용하고 로컬 스토리지 갱신
             if (userDataFromFirestore) {
               setUserData(userDataFromFirestore);
