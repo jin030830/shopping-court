@@ -4,11 +4,11 @@ import { useState, useEffect, useRef, useCallback, memo } from 'react';
 import { getCasesPaginated, getHotCases, type CaseDocument } from '../api/cases';
 import { Timestamp } from 'firebase/firestore';
 import { adaptive } from '@toss/tds-colors';
-import pointMissionImage from '../assets/pansascale.png';
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import { caseKeys } from '../constants/queryKeys';
 import { CaseItemSkeleton } from '../components/Skeleton/CaseItemSkeleton';
 import BottomTabBar from '../components/BottomTabBar';
+import { useAuth } from '../hooks/useAuth';
 
 // 날짜 포맷팅 함수
 const formatDate = (timestamp: Timestamp): string => {
@@ -66,6 +66,7 @@ function HomePage({ defaultTab }: { defaultTab?: string }) {
   const navigate = useNavigate();
   const location = useLocation();
   const navigationType = useNavigationType();
+  const { userData } = useAuth();
   const [isFabExpanded, setIsFabExpanded] = useState(false);
 
   const [selectedTab, setSelectedTab] = useState(() => {
@@ -179,7 +180,7 @@ function HomePage({ defaultTab }: { defaultTab?: string }) {
   return (
     <>
       <div style={{ backgroundColor: 'white', minHeight: '100vh', width: '100%', boxSizing: 'border-box', paddingBottom: '80px' }}>
-        <Banner navigate={navigate} selectedTab={selectedTab} />
+        <Banner userData={userData} navigate={navigate} selectedTab={selectedTab} />
 
         <div style={{ padding: '0 20px', backgroundColor: 'white', position: 'sticky', top: 0, zIndex: 100 }}>
           <div style={{ display: 'flex', borderBottom: '1px solid #e5e5e5', justifyContent: 'space-between' }}>
@@ -238,22 +239,61 @@ const TabButton = ({ label, isSelected, onClick }: any) => (
   </button>
 );
 
-const Banner = ({ navigate, selectedTab }: any) => (
-  <div style={{ backgroundColor: 'white', padding: '11px 20px', width: '100%', boxSizing: 'border-box' }}>
-    <div style={{ width: '100%', height: '147px', backgroundColor: '#FAF0E6', padding: '12px 12px', boxSizing: 'border-box', position: 'relative', overflow: 'hidden', borderRadius: '10px', boxShadow: '0px 4px 4px 0px rgba(0, 0, 0, 0.25)' }}>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', position: 'relative', zIndex: 1, height: '100%' }}>
-        <Text display="block" color="#191F28" typography="t2" fontWeight="bold" style={{ lineHeight: '1.4', fontSize: '20px', marginLeft: '14px', marginTop: '8px' }}>재판에 참여하고{"\n"}포인트를 모아보세요</Text>
-        <div style={{ position: 'absolute', bottom: '8px', left: '14px', cursor: 'pointer', zIndex: 2 }} onClick={() => { sessionStorage.setItem('pointMissionFromTab', selectedTab); navigate('/point-mission', { state: { fromTab: selectedTab } }); }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '4px', padding: '8px 12px 8px 18px', backgroundColor: '#5E403B', borderRadius: '10px', boxShadow: '0px 0px 4px 0px rgba(255, 255, 255, 1)' }}>
-            <Text display="block" color="white" typography="t6" fontWeight="bold">미션 확인하기</Text>
-            <Asset.Icon frameShape={Asset.frameShape.CleanW16} name="icon-arrow-right-mono" color="white" ratio="1/1" />
-          </div>
+const Banner = ({ userData, navigate, selectedTab }: any) => {
+  const currentPoints = userData?.totalExchangedPoints || 0;
+  const currentGavel = userData?.points || 0;
+
+  return (
+    <div style={{ backgroundColor: 'white', padding: '16px 20px 24px 20px', width: '100%', boxSizing: 'border-box', borderBottom: '1px solid #F0F0F0' }}>
+
+      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px' }}>
+        <Asset.Icon frameShape={{ width: 18, height: 18 }} backgroundColor="transparent" name="icon-point-yellow-full" aria-hidden={true} />
+        <Text color={adaptive.grey600} typography="t6" fontWeight="medium" style={{ fontSize: '15px' }}>
+          나의 포인트
+        </Text>
+      </div>
+
+      <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: '16px' }}>
+        <div style={{ display: 'flex', alignItems: 'baseline', gap: '2px' }}>
+          <Text display="block" color={adaptive.grey800} typography="t1" fontWeight="bold" style={{ fontSize: '38px', lineHeight: '1' }}>
+            {currentPoints}
+          </Text>
+          <Text display="block" color={adaptive.grey800} typography="t5" fontWeight="bold" style={{ fontSize: '22px' }}>
+            원
+          </Text>
+        </div>
+
+        <div
+          onClick={() => { sessionStorage.setItem('pointMissionFromTab', selectedTab); navigate('/point-mission', { state: { fromTab: selectedTab } }); }}
+          style={{
+            display: 'flex', alignItems: 'center', gap: '6px',
+            padding: '4px 12px 4px 8px', borderRadius: '30px',
+            border: '1px solid #E5E8EB',
+            cursor: 'pointer'
+          }}
+        >
+          <Asset.Icon frameShape={Asset.frameShape.CircleXSmall} backgroundColor={adaptive.greyOpacity100} name="icon-gavel" scale={0.66} aria-hidden={true} />
+          <Text color={adaptive.grey800} typography="t4" fontWeight="medium" style={{ fontSize: '16px' }}>
+            {currentGavel}
+          </Text>
         </div>
       </div>
-      <div style={{ position: 'absolute', bottom: '0px', right: '15px', width: '150px', height: '150px', backgroundImage: `url(${pointMissionImage})`, backgroundSize: 'contain', backgroundRepeat: 'no-repeat', backgroundPosition: 'bottom right', filter: 'drop-shadow(2px 4px 6px rgba(0, 0, 0, 0.3))' }} />
+
+      <div
+        style={{
+          width: 'calc(100% - 16px)', padding: '10px 0', margin: '0 8px',
+          background: 'linear-gradient(90deg, #F9F0E6 0%, #FFFFFF 50%, #F9F0E6 100%)', borderRadius: '8px',
+          display: 'flex', justifyContent: 'center', alignItems: 'center',
+          boxShadow: '0 2px 8px rgba(0, 0, 0, 0.08)'
+        }}
+      >
+        <Text color="#666666" typography="t7" fontWeight="medium" style={{ fontSize: '13px' }}>
+          판사봉 50개당 5원으로 전환 가능
+        </Text>
+      </div>
     </div>
-  </div>
-);
+  );
+};
 
 const TabHeader = ({ title, subtitle, color, icon, iconName, iconSrc, isGavel }: any) => (
   <div style={{ padding: '0 20px', background: 'linear-gradient(180deg, #FAF0E6 0%, #ffffff 100%)', paddingTop: '16px' }}>
