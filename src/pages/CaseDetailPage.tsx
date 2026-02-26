@@ -230,7 +230,7 @@ function CaseDetailPage() {
         const today = getTodayDateString();
         queryClient.setQueryData<UserDocument | null>(['user', user.uid], (prev: UserDocument | null | undefined) => {
           if (!prev) return prev;
-          const stats = prev.dailyStats || { voteCount: 0, commentCount: 0, postCount: 0, lastActiveDate: today, isLevel1Claimed: false, isLevel2Claimed: false };
+          const stats = prev.dailyStats || { voteCount: 0, commentCount: 0, postCount: 0, lastActiveDate: today, isLevel0Claimed: false, isLevel1Claimed: false, isLevel2Claimed: false };
           const isNewDay = stats.lastActiveDate !== today;
           return {
             ...prev,
@@ -280,7 +280,7 @@ function CaseDetailPage() {
         const today = getTodayDateString();
         queryClient.setQueryData<UserDocument | null>(['user', user.uid], (prev: UserDocument | null | undefined) => {
           if (!prev) return prev;
-          const stats = prev.dailyStats || { voteCount: 0, commentCount: 0, postCount: 0, lastActiveDate: today, isLevel1Claimed: false, isLevel2Claimed: false };
+          const stats = prev.dailyStats || { voteCount: 0, commentCount: 0, postCount: 0, lastActiveDate: today, isLevel0Claimed: false, isLevel1Claimed: false, isLevel2Claimed: false };
           const isNewDay = stats.lastActiveDate !== today;
           return {
             ...prev,
@@ -639,11 +639,10 @@ function CaseDetailPage() {
   );
 }
 
-const VoteResultView = ({ agree, disagree, total, isClosed }: { agree: number; disagree: number; total: number; isClosed: boolean }) => (
+const VoteResultView = ({ agree, disagree }: { agree: number; disagree: number; total: number; isClosed: boolean }) => (
   <div style={{ backgroundColor: 'white', padding: '20px 15px', borderRadius: '12px', width: '100%', boxSizing: 'border-box', maxWidth: '100%', overflow: 'hidden' }}>
     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
       <span style={{ color: '#1976D2', fontSize: '18px', fontWeight: '700' }}>{agree}%</span>
-      <span style={{ color: '#666', fontSize: '14px' }}>{isClosed ? `${total}명 재판 완료` : `${total}명 투표 중`}</span>
       <span style={{ color: '#D32F2F', fontSize: '18px', fontWeight: '700' }}>{disagree}%</span>
     </div>
     <div style={{ display: 'flex', height: '8px', borderRadius: '4px', overflow: 'hidden', backgroundColor: '#f0f0f0' }}>
