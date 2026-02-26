@@ -96,7 +96,6 @@ function HomePage({ defaultTab }: { defaultTab?: string }) {
   const location = useLocation();
   const navigationType = useNavigationType();
   const { userData } = useAuth();
-  const [isFabExpanded, setIsFabExpanded] = useState(false);
 
   const [selectedTab, setSelectedTab] = useState(() => {
     // 0. 프롭스로 전달된 기본 탭 (Deep Link 대응)
@@ -242,7 +241,6 @@ function HomePage({ defaultTab }: { defaultTab?: string }) {
           )}
         </div>
 
-        {selectedTab !== '재판 완료' && <Fab isExpanded={isFabExpanded} setIsExpanded={setIsFabExpanded} navigate={navigate} selectedTab={selectedTab} />}
         <Spacing size={24} />
         <style>{` @keyframes slideUp { from { opacity: 0; transform: translateY(20px) scale(0.8); } to { opacity: 1; transform: translateY(0) scale(1); } } `}</style>
       </div>
@@ -326,29 +324,6 @@ const TabHeader = ({ title, subtitle, color, icon, iconName, iconSrc, isGavel }:
       </div>
     </div>
     <div style={{ height: '1px', borderTop: '1px solid #F0F0F0', marginLeft: '-20px', marginRight: '-20px', width: 'calc(100% + 40px)' }} />
-  </div>
-);
-
-const Fab = ({ isExpanded, setIsExpanded, navigate, selectedTab }: any) => (
-  <div style={{ position: 'fixed', bottom: '36px', right: '32px', zIndex: 99999, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px' }}>
-    {isExpanded && (
-      <>
-        <FabItem onClick={() => { sessionStorage.setItem('myPostsFromTab', selectedTab); navigate('/my-posts', { state: { fromTab: selectedTab } }); setIsExpanded(false); }} icon="icon-user-mono" label="내가 쓴 글" delay="0.1s" />
-        <FabItem onClick={() => { setIsExpanded(false); sessionStorage.setItem('createPostFromTab', selectedTab); navigate('/create-post', { state: { fromTab: selectedTab } }); }} icon="icon-pencil-line-mono" label="글쓰기" />
-      </>
-    )}
-    <button onClick={() => setIsExpanded(!isExpanded)} style={{ width: '56px', height: '56px', borderRadius: '50%', backgroundColor: 'transparent', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}>
-      <Asset.Icon frameShape={Asset.frameShape.CircleXLarge} backgroundColor="#5e403b" name={isExpanded ? "icon-x-mono" : "icon-plus-thin-mono"} color="#fef6f1" scale={isExpanded ? 0.5 : 0.66} aria-hidden={true} />
-    </button>
-  </div>
-);
-
-const FabItem = ({ onClick, icon, label, delay }: any) => (
-  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', animation: `slideUp 0.3s ease-out ${delay || '0s'} both`, transformOrigin: 'bottom' }}>
-    <button onClick={onClick} style={{ width: '56px', height: '56px', borderRadius: '50%', backgroundColor: 'transparent', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}>
-      <Asset.Icon frameShape={Asset.frameShape.CircleXLarge} backgroundColor="#fef6f0" name={icon} color="#5e403b" scale={0.66} aria-hidden={true} />
-    </button>
-    <Text color="#5e403b" typography="st13" fontWeight="bold" style={{ marginTop: '2px', fontSize: '12px' }}>{label}</Text>
   </div>
 );
 
