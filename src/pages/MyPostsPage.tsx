@@ -7,6 +7,16 @@ import { adaptive } from '@toss/tds-colors';
 import { useAuth } from '../hooks/useAuth';
 import { useInfiniteQuery } from '@tanstack/react-query';
 
+const formatTimeAgo = (timestamp: any): string => {
+  const now = new Date();
+  const then = timestamp.toDate();
+  const diffMs = now.getTime() - then.getTime();
+  const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+  const diffDays = Math.floor(diffHours / 24);
+  if (diffDays >= 1) return `${diffDays}일 전`;
+  return `${Math.max(1, diffHours)}시간 전`;
+};
+
 const MyPostItem = memo(({ post, navigate, showVerdict }: any) => {
   let v: '무죄' | '유죄' | '보류' = '보류';
   if (showVerdict && post.status === 'CLOSED') {
@@ -15,39 +25,30 @@ const MyPostItem = memo(({ post, navigate, showVerdict }: any) => {
   }
   const bg = v === '무죄' ? '#E3F2FD' : v === '유죄' ? '#FFEBEE' : '#F2F4F6';
   const co = v === '무죄' ? '#1976D2' : v === '유죄' ? '#D32F2F' : '#6B7684';
-  const d = post.createdAt ? post.createdAt.toDate() : new Date();
-  const ds = `${d.getMonth() + 1}/${d.getDate()} ${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}`;
+  const timeLabel = post.createdAt ? formatTimeAgo(post.createdAt) : '';
+  const viewCount = post.viewCount || ((post.guiltyCount || 0) + (post.innocentCount || 0));
 
   return (
     <div onClick={() => navigate(`/case/${post.id}`, { state: { fromTab: '내가 쓴 글' } })} style={{ padding: '16px 20px', borderBottom: '1px solid #F0F0F0', cursor: 'pointer', backgroundColor: 'white' }}>
       {showVerdict && post.status === 'CLOSED' && (
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
           <div style={{ padding: '4px 10px', backgroundColor: bg, color: co, fontSize: '12px', fontWeight: '600', borderRadius: '4px' }}>{v}</div>
-          <Text color="#9E9E9E" typography="st13" style={{ fontSize: '14px' }}>{ds}</Text>
+          <Text color="#9E9E9E" typography="st13" style={{ fontSize: '13px' }}>{timeLabel}</Text>
         </div>
       )}
-      <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', marginBottom: '4px' }}>
-        <Text display="block" color="#191F28" typography="t4" fontWeight="bold" style={{ flex: 1, textAlign: 'center', WebkitLineClamp: 2, display: '-webkit-box', WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{post.title}</Text>
-        {!showVerdict && post.status === 'OPEN' && <Text color="#9E9E9E" typography="st13" style={{ fontSize: '14px' }}>{ds}</Text>}
+      <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', marginBottom: '8px' }}>
+        <Text display="block" color="#191F28" typography="t4" fontWeight="bold" style={{ flex: 1, textAlign: 'left', WebkitLineClamp: 2, display: '-webkit-box', WebkitBoxOrient: 'vertical', overflow: 'hidden', fontSize: '18px' }}>{post.title}</Text>
+        {!showVerdict && post.status === 'OPEN' && <Text color="#9E9E9E" typography="st13" style={{ fontSize: '13px', flexShrink: 0 }}>{timeLabel}</Text>}
       </div>
-      <div style={{ 
-        marginBottom: '8px', 
-        lineHeight: '1.5', 
-        color: '#191F28', 
-        fontSize: '14px', 
-        wordBreak: 'break-word',
-        display: '-webkit-box',
-        WebkitLineClamp: 2,
-        WebkitBoxOrient: 'vertical',
-        overflow: 'hidden',
-        textOverflow: 'ellipsis',
-        whiteSpace: 'pre-wrap'
-      }}>
+      <div style={{ marginBottom: '12px', lineHeight: '1.4', color: '#666666', fontSize: '14px', wordBreak: 'break-word', whiteSpace: 'pre-wrap', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden', textOverflow: 'ellipsis' }}>
         {post.content}
       </div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><Asset.Icon frameShape={{ width: 15, height: 15 }} name="icon-user-two-mono" color="#5e403b" /><Text color="#5e403b" typography="st13" style={{ fontSize: '14px' }}>{(post.guiltyCount || 0) + (post.innocentCount || 0)}</Text></div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '3px' }}><Asset.Icon frameShape={{ width: 15, height: 15 }} name="icon-chat-bubble-mono" color="#5E403Bff" /><Text color="#5e403b" typography="st13" style={{ fontSize: '14px' }}>{post.commentCount ?? 0}</Text></div>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <Text color="#9E9E9E" typography="st13" fontWeight="medium" style={{ fontSize: '13px' }}>조회수 {viewCount}</Text>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+          <Asset.Icon frameShape={{ width: 14, height: 14 }} backgroundColor="transparent" name="icon-chat-bubble-grayline-mono" color="#9E9E9E" aria-hidden={true} ratio="1/1" />
+          <Text color="#9E9E9E" typography="st13" fontWeight="medium" style={{ fontSize: '13px' }}>{post.commentCount ?? 0}</Text>
+        </div>
       </div>
     </div>
   );
@@ -61,19 +62,19 @@ function MyPostsPage() {
   // 뒤로가기 시 이전 탭으로 돌아가기
   useEffect(() => {
     const fromTab = (location.state as any)?.fromTab || sessionStorage.getItem('myPostsFromTab') || 'HOT 게시판';
-    
+
     // sessionStorage에 저장 (CaseDetailPage와 HomePage에서 사용)
     if (fromTab) {
       sessionStorage.setItem('myPostsFromTab', fromTab);
     }
-    
+
     // 브라우저 뒤로가기 버튼 처리
     const handlePopState = () => {
       // 뒤로가기 시 이전 탭으로 이동 (sessionStorage에서 읽어옴)
       const tabToGo = sessionStorage.getItem('myPostsFromTab') || 'HOT 게시판';
       navigate('/', { state: { selectedTab: tabToGo }, replace: false });
     };
-    
+
     window.addEventListener('popstate', handlePopState);
 
     return () => {
