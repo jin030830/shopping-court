@@ -10,57 +10,86 @@ import { CaseItemSkeleton } from '../components/Skeleton/CaseItemSkeleton';
 import BottomTabBar from '../components/BottomTabBar';
 import { useAuth } from '../hooks/useAuth';
 
-// 날짜 포맷팅 함수
-const formatDate = (timestamp: Timestamp): string => {
-  const date = timestamp.toDate();
-  return `${date.getMonth() + 1}/${date.getDate()} ${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}`;
+// 상대 시간 포맷팅 함수 (X일 전 / X시간 전)
+const formatTimeAgo = (timestamp: Timestamp): string => {
+  const now = new Date();
+  const then = timestamp.toDate();
+  const diffMs = now.getTime() - then.getTime();
+  const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+  const diffDays = Math.floor(diffHours / 24);
+
+  if (diffDays >= 1) return `${diffDays}일 전`;
+  const hours = Math.max(1, diffHours);
+  return `${hours}시간 전`;
 };
 
-// 게시물 아이템 컴포넌트
-const CaseItem = memo(({ post, index, selectedTab, navigate }: any) => (
-  <div onClick={() => navigate(`/case/${post.id}`, { state: { fromTab: selectedTab } })}
-    style={{ backgroundColor: 'white', padding: '16px 20px', borderBottom: '1px solid #F0F0F0', cursor: 'pointer' }}>
-    {selectedTab === 'HOT 게시판' && (
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '4px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-          <Asset.Icon frameShape={Asset.frameShape.CleanW20} backgroundColor="transparent" name="icon-emoji-fire" aria-hidden={true} ratio="1/1" />
-          <Text display="block" color="#FF6B6B" typography="t6" fontWeight="bold">TOP {index + 1}</Text>
-        </div>
-        {post.createdAt && <Text color="#9E9E9E" typography="st13" fontWeight="regular" style={{ fontSize: '14px' }}>{formatDate(post.createdAt)}</Text>}
+// 게시물 아이템 컴포넌트 (재판 중 리스트용)
+const CaseItem = memo(({ post, selectedTab, navigate }: any) => {
+  const viewCount = post.viewCount || ((post.guiltyCount || 0) + (post.innocentCount || 0));
+  return (
+    <div onClick={() => navigate(`/case/${post.id}`, { state: { fromTab: selectedTab } })}
+      style={{ backgroundColor: 'white', padding: '16px 20px', borderBottom: '1px solid #F0F0F0', cursor: 'pointer' }}>
+      <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', marginBottom: '8px' }}>
+        <Text display="block" color="#191F28" typography="t4" fontWeight="bold" style={{ flex: 1, textAlign: 'left', WebkitLineClamp: 2, display: '-webkit-box', WebkitBoxOrient: 'vertical', overflow: 'hidden', fontSize: '18px' }}>{post.title}</Text>
+        {selectedTab === '재판 중' && post.createdAt && <Text color="#9E9E9E" typography="st13" fontWeight="regular" style={{ fontSize: '13px', flexShrink: 0 }}>{formatTimeAgo(post.createdAt)}</Text>}
       </div>
-    )}
-    <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', marginBottom: '4px' }}>
-      <Text display="block" color="#191F28" typography="t4" fontWeight="bold" style={{ flex: 1, textAlign: 'center', WebkitLineClamp: 2, display: '-webkit-box', WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{post.title}</Text>
-      {selectedTab === '재판 중' && post.createdAt && <Text color="#9E9E9E" typography="st13" fontWeight="regular" style={{ fontSize: '14px' }}>{formatDate(post.createdAt)}</Text>}
+      <div style={{ marginBottom: '12px', lineHeight: '1.4', color: '#666666', fontSize: '14px', wordBreak: 'break-word', whiteSpace: 'pre-wrap', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+        {post.content}
+      </div>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <Text color="#9E9E9E" typography="st13" fontWeight="medium" style={{ fontSize: '13px' }}>조회수 {viewCount}</Text>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+          <Asset.Icon frameShape={{ width: 14, height: 14 }} backgroundColor="transparent" name="icon-chat-bubble-grayline-mono" color="#9E9E9E" aria-hidden={true} ratio="1/1" />
+          <Text color="#9E9E9E" typography="st13" fontWeight="medium" style={{ fontSize: '13px' }}>{post.commentCount ?? 0}</Text>
+        </div>
+      </div>
     </div>
-    <div style={{
-      marginBottom: '8px',
-      lineHeight: '1.5',
-      color: '#191F28',
-      fontSize: '14px',
-      wordBreak: 'break-word',
-      whiteSpace: 'pre-wrap',
-      display: '-webkit-box',
-      WebkitLineClamp: 2,
-      WebkitBoxOrient: 'vertical',
-      overflow: 'hidden',
-      textOverflow: 'ellipsis'
-    }}>
-      {post.content}
-    </div>
-    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-      <StatItem icon="icon-user-two-mono" count={post.viewCount ?? ((post.guiltyCount || 0) + (post.innocentCount || 0))} />
-      <StatItem icon="icon-chat-bubble-mono" count={post.commentCount ?? 0} />
-    </div>
-  </div>
-));
+  );
+});
 
-const StatItem = ({ icon, count }: any) => (
-  <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-    <Asset.Icon frameShape={{ width: 15, height: 15 }} backgroundColor="transparent" name={icon} color="#5e403b" aria-hidden={true} ratio="1/1" />
-    <Text color="#5e403b" typography="st13" fontWeight="medium" style={{ fontSize: '14px' }}>{count}</Text>
-  </div>
-);
+// HOT 게시판 카드 컴포넌트
+const HotCardItem = memo(({ post, index, navigate }: any) => {
+  const totalVotes = (post.guiltyCount || 0) + (post.innocentCount || 0);
+  const commentCount = post.commentCount ?? 0;
+  const viewCount = post.viewCount ?? 0;
+  const createdAtLabel = post.createdAt ? formatTimeAgo(post.createdAt) : '';
+
+  return (
+    <div style={{ display: 'flex', justifyContent: 'center', padding: '0 10px', marginTop: index === 0 ? 24 : 32 }}>
+      <div
+        onClick={() => navigate(`/case/${post.id}`, { state: { fromTab: 'HOT 게시판' } })}
+        style={{ width: '100%', maxWidth: 340, backgroundColor: '#F7F3EE', borderRadius: 10, boxShadow: '0px 4px 4px rgba(0, 0, 0, 0.25)', padding: '18px 18px 16px 18px', boxSizing: 'border-box', cursor: 'pointer' }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px' }}>
+          <Asset.Icon frameShape={Asset.frameShape.CleanW20} backgroundColor="transparent" name="icon-emoji-fire" aria-hidden={true} ratio="1/1" />
+          <Text display="block" color={adaptive.red500} typography="t6" fontWeight="bold">TOP {index + 1}</Text>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <Asset.Image frameShape={Asset.frameShape.CleanW20} backgroundColor="transparent" src="https://static.toss.im/ml-product/tosst-inapp_tdvjdh3nb4l5yg4xp9a734u4.png" aria-hidden={true} style={{ aspectRatio: '1/1' }} />
+            <Text color="#666666" typography="t7" fontWeight="regular" style={{ fontSize: '13px' }}>피고인 {post.authorNickname?.replace(/^배심원/, '') ?? '익명'}님</Text>
+          </div>
+          {createdAtLabel && <Text color="#666666" typography="st13" fontWeight="regular" style={{ fontSize: '13px' }}>{createdAtLabel}</Text>}
+        </div>
+        <Text display="block" color={adaptive.grey800} typography="t4" fontWeight="bold" textAlign="center" style={{ marginBottom: '6px', fontSize: '18px' }}>{post.title}</Text>
+        <Text display="block" color={adaptive.grey700} typography="t6" fontWeight="regular" style={{ marginBottom: '12px', whiteSpace: 'pre-wrap', lineHeight: 1.5 }}>{post.content}</Text>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '4px' }}>
+          <Text color="#9E9E9E" typography="st13" fontWeight="medium" style={{ fontSize: '13px' }}>조회수 {viewCount || totalVotes}</Text>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+            <Asset.Icon frameShape={{ width: 13, height: 13 }} backgroundColor="transparent" name="icon-chat-bubble-grayline-mono" color="#9E9E9E" aria-hidden={true} ratio="1/1" />
+            <Text color="#9E9E9E" typography="st13" fontWeight="medium" style={{ fontSize: '13px' }}>{commentCount}</Text>
+          </div>
+        </div>
+        <div style={{ marginLeft: -18, marginRight: -18, marginBottom: -16, marginTop: 6, padding: '10px 18px 12px 18px', backgroundColor: '#FFFBF7', borderTop: '1px solid #E5D7C7', borderBottomLeftRadius: 10, borderBottomRightRadius: 10 }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}>
+            <Text display="block" color={adaptive.grey800} typography="t5" fontWeight="bold" textAlign="center">재판 참여하기</Text>
+            <Asset.Icon frameShape={Asset.frameShape.CleanW16} backgroundColor="transparent" name="icon-arrow-right-textbutton-mono" color={adaptive.grey800} aria-hidden={true} ratio="1/1" />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+});
 
 function HomePage({ defaultTab }: { defaultTab?: string }) {
   const navigate = useNavigate();
@@ -216,7 +245,7 @@ function HomePage({ defaultTab }: { defaultTab?: string }) {
                 </div>
               ))}
               {selectedTab === 'HOT 게시판' && hotCases?.map((post, idx) => (
-                <CaseItem key={post.id} post={post} index={idx} selectedTab={selectedTab} navigate={navigate} />
+                <HotCardItem key={post.id} post={post} index={idx} navigate={navigate} />
               ))}
               {isFetchingNextOpenCases && <div style={{ padding: '20px', textAlign: 'center' }}><Text color="#6B7684">더 불러오는 중...</Text></div>}
             </div>
