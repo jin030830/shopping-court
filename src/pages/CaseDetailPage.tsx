@@ -3,13 +3,13 @@ import { useEffect, useState, useMemo, useRef } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import { Asset, Text } from '@toss/tds-mobile';
 import { adaptive } from '@toss/tds-colors';
-import { 
-  getCase, 
-  getUserVote, 
-  addVote, 
-  getComments, 
+import {
+  getCase,
+  getUserVote,
+  addVote,
+  getComments,
   getReplies,
-  addComment, 
+  addComment,
   addCommentLike,
   addReplyLike,
   addReply,
@@ -43,16 +43,16 @@ function CaseDetailPage() {
   const location = useLocation();
   const queryClient = useQueryClient();
   const { user, userData, login, isVerified } = useAuth();
-  
+
   const initialFromTab = (location.state as { fromTab?: string })?.fromTab || '재판 중';
   const [fromTab] = useState<string>(initialFromTab);
-  
+
   useEffect(() => {
     if (fromTab) {
       sessionStorage.setItem('caseDetailFromTab', fromTab);
     }
   }, [fromTab]);
-  
+
   const handleBack = () => {
     if (window.history.length > 1) {
       navigate(-1);
@@ -71,7 +71,7 @@ function CaseDetailPage() {
     queryKey: caseKeys.detail(id!),
     queryFn: () => (id ? getCase(id) : Promise.resolve(null)),
     enabled: !!id,
-    staleTime: 0, 
+    staleTime: 0,
     refetchOnWindowFocus: true,
   });
 
@@ -104,7 +104,7 @@ function CaseDetailPage() {
   const hasVoted = !!userVoteData;
   const isAuthor = user?.uid === post?.authorId;
   const selectedVote = userVoteData === 'innocent' ? 'agree' : userVoteData === 'guilty' ? 'disagree' : null;
-  
+
   const isVoteDisabled = hasVoted || post?.status === 'CLOSED';
 
   // UI States
@@ -175,7 +175,7 @@ function CaseDetailPage() {
       setTimeout(() => {
         queryClient.invalidateQueries({ queryKey: caseKeys.all, refetchType: 'all' });
         if (user) queryClient.invalidateQueries({ queryKey: ['user', user.uid] });
-      }, 2000); 
+      }, 2000);
     }
   });
 
@@ -188,7 +188,7 @@ function CaseDetailPage() {
 
       const previousComments = queryClient.getQueryData<CommentWithReplies[]>(caseKeys.comments(id!));
       const previousUserData = user ? queryClient.getQueryData<UserDocument | null>(['user', user.uid]) : null;
-      
+
       const optimisticComment: CommentWithReplies = {
         id: 'temp-' + Date.now(),
         ...newCommentData,
@@ -212,7 +212,7 @@ function CaseDetailPage() {
         const today = getTodayDateString();
         queryClient.setQueryData<UserDocument | null>(['user', user.uid], (prev: UserDocument | null | undefined) => {
           if (!prev) return prev;
-          const stats = prev.dailyStats || { voteCount: 0, commentCount: 0, postCount: 0, lastActiveDate: today, isLevel1Claimed: false, isLevel2Claimed: false };
+          const stats = prev.dailyStats || { voteCount: 0, commentCount: 0, postCount: 0, lastActiveDate: today, isLevel0Claimed: false, isLevel1Claimed: false, isLevel2Claimed: false };
           const isNewDay = stats.lastActiveDate !== today;
           return {
             ...prev,
@@ -262,7 +262,7 @@ function CaseDetailPage() {
         const today = getTodayDateString();
         queryClient.setQueryData<UserDocument | null>(['user', user.uid], (prev: UserDocument | null | undefined) => {
           if (!prev) return prev;
-          const stats = prev.dailyStats || { voteCount: 0, commentCount: 0, postCount: 0, lastActiveDate: today, isLevel1Claimed: false, isLevel2Claimed: false };
+          const stats = prev.dailyStats || { voteCount: 0, commentCount: 0, postCount: 0, lastActiveDate: today, isLevel0Claimed: false, isLevel1Claimed: false, isLevel2Claimed: false };
           const isNewDay = stats.lastActiveDate !== today;
           return {
             ...prev,
@@ -321,7 +321,7 @@ function CaseDetailPage() {
 
   const handleReport = (targetType: 'case' | 'comment' | 'reply', targetId: string, commentId?: string, replyId?: string) => {
     if (!user) { login(); return; }
-    
+
     reportMutation.mutate({
       reporterId: user.uid,
       targetType,
@@ -330,20 +330,20 @@ function CaseDetailPage() {
       commentId,
       replyId
     });
-    
+
     setShowPostMenu(false);
   };
 
   const handleLikeComment = async (commentId: string) => {
     if (!id || !user || !isVerified || post?.status === 'CLOSED') return;
     if (!hasVoted) { alert('투표 후 공감할 수 있어요!'); return; }
-    
+
     const comment = comments.find(c => c.id === commentId);
     if (comment?.likedBy?.includes(user.uid)) {
       alert('이미 공감한 댓글이에요!');
       return;
     }
-    
+
     try {
       await addCommentLike(id, commentId);
       queryClient.invalidateQueries({ queryKey: caseKeys.comments(id!) });
@@ -353,14 +353,14 @@ function CaseDetailPage() {
   const handleLikeReply = async (commentId: string, replyId: string) => {
     if (!id || !user || !isVerified || post?.status === 'CLOSED') return;
     if (!hasVoted) { alert('투표 후 공감할 수 있어요!'); return; }
-    
+
     const comment = comments.find(c => c.id === commentId);
     const reply = comment?.replies?.find(r => r.id === replyId);
     if (reply?.likedBy?.includes(user.uid)) {
       alert('이미 공감한 댓글이에요!');
       return;
     }
-    
+
     try {
       await addReplyLike(id, commentId, replyId);
       queryClient.invalidateQueries({ queryKey: caseKeys.comments(id!) });
@@ -370,10 +370,10 @@ function CaseDetailPage() {
   // --- 배심원 번호 매핑 로직 ---
   const jurorMap = useMemo(() => {
     if (!post || !comments) return new Map<string, string>();
-    
+
     const map = new Map<string, string>();
     const interactions: { authorId: string; createdAt: any }[] = [];
-    
+
     comments.forEach(comment => {
       interactions.push({ authorId: comment.authorId, createdAt: comment.createdAt });
       comment.replies.forEach(reply => {
@@ -392,13 +392,13 @@ function CaseDetailPage() {
         jurorCount++;
       }
     });
-    
+
     return map;
   }, [post, comments]);
 
   const getAuthorLabel = (authorId: string, authorNickname: string) => {
     if (post && authorId === post.authorId) {
-       return `피고인 ${authorNickname.replace(/^배심원/, '')}`;
+      return `피고인 ${authorNickname.replace(/^배심원/, '')}`;
     }
     return jurorMap.get(authorId) || authorNickname;
   };
@@ -464,7 +464,7 @@ function CaseDetailPage() {
               <Asset.Image frameShape={{ width: 20, height: 20 }} backgroundColor="transparent" src="https://static.toss.im/ml-product/tosst-inapp_tdvjdh3nb4l5yg4xp9a734u4.png" aria-hidden={true} style={{ aspectRatio: '1/1' }} />
               <span style={{ color: '#666', fontSize: '13px' }}>피고인 {post.authorNickname.replace(/^배심원/, '')}</span>
             </div>
-            
+
             <div style={{ position: 'relative', marginTop: '8px' }} ref={postMenuRef}>
               <button onClick={() => setShowPostMenu(!showPostMenu)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 <Asset.Icon frameShape={Asset.frameShape.CleanW20} name="icon-dots-mono" color="rgba(0, 19, 43, 0.58)" />
@@ -484,7 +484,7 @@ function CaseDetailPage() {
             </div>
           </div>
 
-          <h2 style={{ color: '#191F28', fontSize: '20px', fontWeight: '700', marginBottom: '6px', textAlign: 'center'}}>{post.title}</h2>
+          <h2 style={{ color: '#191F28', fontSize: '20px', fontWeight: '700', marginBottom: '6px', textAlign: 'center' }}>{post.title}</h2>
           <p style={{ color: '#191F28', fontSize: '15px', fontWeight: '400', marginBottom: '20px', lineHeight: '1.6', textAlign: 'left', paddingLeft: '8px', whiteSpace: 'pre-wrap' }}>{post.content}</p>
 
           <div style={{ position: 'relative', marginBottom: '26px' }}>
@@ -523,7 +523,7 @@ function CaseDetailPage() {
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
             {sortedComments.map((comment) => (
-              <CommentItem 
+              <CommentItem
                 key={comment.id}
                 comment={comment}
                 post={post}
@@ -533,27 +533,31 @@ function CaseDetailPage() {
                 onLike={handleLikeComment}
                 onReply={setReplyingTo}
                 onEdit={(cid: string, content: string) => updateComment(id!, cid, content).then(() => queryClient.invalidateQueries({ queryKey: caseKeys.comments(id!) }))}
-                onDelete={(cid: string) => { if(window.confirm('댓글을 삭제하시겠어요?')) deleteComment(id!, cid).then(() => { 
-                  queryClient.invalidateQueries({ queryKey: caseKeys.comments(id!) });
-                  queryClient.invalidateQueries({ queryKey: caseKeys.lists() });
-                  queryClient.invalidateQueries({ queryKey: caseKeys.userLists() });
-                }) }}
+                onDelete={(cid: string) => {
+                  if (window.confirm('댓글을 삭제하시겠어요?')) deleteComment(id!, cid).then(() => {
+                    queryClient.invalidateQueries({ queryKey: caseKeys.comments(id!) });
+                    queryClient.invalidateQueries({ queryKey: caseKeys.lists() });
+                    queryClient.invalidateQueries({ queryKey: caseKeys.userLists() });
+                  })
+                }}
                 onLikeReply={handleLikeReply}
                 onEditReply={(cid: string, rid: string, content: string) => updateReply(id!, cid, rid, content).then(() => queryClient.invalidateQueries({ queryKey: caseKeys.comments(id!) }))}
-                onDeleteReply={(cid: string, rid: string) => { if(window.confirm('답글을 삭제하시겠어요?')) deleteReply(id!, cid, rid).then(() => { 
-                  queryClient.invalidateQueries({ queryKey: caseKeys.comments(id!) });
-                  queryClient.invalidateQueries({ queryKey: caseKeys.lists() });
-                  queryClient.invalidateQueries({ queryKey: caseKeys.userLists() });
-                }) }}
+                onDeleteReply={(cid: string, rid: string) => {
+                  if (window.confirm('답글을 삭제하시겠어요?')) deleteReply(id!, cid, rid).then(() => {
+                    queryClient.invalidateQueries({ queryKey: caseKeys.comments(id!) });
+                    queryClient.invalidateQueries({ queryKey: caseKeys.lists() });
+                    queryClient.invalidateQueries({ queryKey: caseKeys.userLists() });
+                  })
+                }}
                 onReport={(type, targetId, cid, rid) => handleReport(type, targetId, cid, rid)}
                 isReplying={replyingTo === comment.id}
                 replyContent={replyContent}
                 onReplyContentChange={setReplyContent}
                 onReplySubmit={(cid: string) => {
                   if (!replyContent.trim() || !user || !userData || !userVoteData) return;
-                  addReplyMutation.mutate({ 
-                    commentId: cid, 
-                    replyData: { authorId: user.uid, authorNickname: userData.nickname, content: replyContent, vote: userVoteData } 
+                  addReplyMutation.mutate({
+                    commentId: cid,
+                    replyData: { authorId: user.uid, authorNickname: userData.nickname, content: replyContent, vote: userVoteData }
                   });
                 }}
                 onCancelReply={() => setReplyingTo(null)}
@@ -570,7 +574,7 @@ function CaseDetailPage() {
         addVoteMutation.mutate({ voteType: pendingVoteType === 'agree' ? 'innocent' : 'guilty' });
         setShowVoteConfirm(false);
       }} />}
-      
+
       {showDeleteConfirm && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0, 0, 0, 0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '20px' }}>
           <div style={{ backgroundColor: 'white', borderRadius: '16px', padding: '24px', width: '100%', maxWidth: '400px', boxSizing: 'border-box' }}>
@@ -605,11 +609,10 @@ function CaseDetailPage() {
   );
 }
 
-const VoteResultView = ({ agree, disagree, total, isClosed }: { agree: number; disagree: number; total: number; isClosed: boolean }) => (
+const VoteResultView = ({ agree, disagree }: { agree: number; disagree: number; total: number; isClosed: boolean }) => (
   <div style={{ backgroundColor: 'white', padding: '20px 15px', borderRadius: '12px', width: '100%', boxSizing: 'border-box', maxWidth: '100%', overflow: 'hidden' }}>
     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
       <span style={{ color: '#1976D2', fontSize: '18px', fontWeight: '700' }}>{agree}%</span>
-      <span style={{ color: '#666', fontSize: '14px' }}>{isClosed ? `${total}명 재판 완료` : `${total}명 투표 중`}</span>
       <span style={{ color: '#D32F2F', fontSize: '18px', fontWeight: '700' }}>{disagree}%</span>
     </div>
     <div style={{ display: 'flex', height: '8px', borderRadius: '4px', overflow: 'hidden', backgroundColor: '#f0f0f0' }}>
@@ -635,41 +638,41 @@ const SortButtons = ({ sortBy, onSortChange }: { sortBy: 'latest' | 'likes'; onS
 
 const CommentInput = ({ value, onChange, onSubmit, isPending }: { value: string; onChange: (v: string) => void; onSubmit: () => void; isPending: boolean }) => (
   <div style={{ marginBottom: '20px', width: '100%', boxSizing: 'border-box', display: 'block' }}>
-    <textarea 
-      value={value} 
-      onChange={(e) => onChange(e.target.value)} 
-      placeholder="의견을 남겨주세요..." 
-      style={{ 
-        width: '100%', 
+    <textarea
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      placeholder="의견을 남겨주세요..."
+      style={{
+        width: '100%',
         minWidth: '100%',
-        minHeight: '80px', 
-        padding: '12px', 
-        border: '1px solid #E5E5E5', 
-        borderRadius: '8px', 
-        fontSize: '14px', 
-        resize: 'none', 
-        boxSizing: 'border-box', 
-        backgroundColor: 'white', 
+        minHeight: '80px',
+        padding: '12px',
+        border: '1px solid #E5E5E5',
+        borderRadius: '8px',
+        fontSize: '14px',
+        resize: 'none',
+        boxSizing: 'border-box',
+        backgroundColor: 'white',
         color: '#191F28',
         display: 'block',
         marginBottom: '8px',
         lineHeight: '1.5',
         whiteSpace: 'pre-wrap',
         overflow: 'hidden'
-      }} 
+      }}
     />
     <div style={{ display: 'flex', justifyContent: 'flex-end', width: '100%' }}>
-      <button 
-        onClick={onSubmit} 
-        disabled={isPending} 
-        style={{ 
-          padding: '10px 20px', 
-          backgroundColor: '#3182F6', 
-          color: 'white', 
-          border: 'none', 
-          borderRadius: '8px', 
-          fontSize: '14px', 
-          fontWeight: '600', 
+      <button
+        onClick={onSubmit}
+        disabled={isPending}
+        style={{
+          padding: '10px 20px',
+          backgroundColor: '#3182F6',
+          color: 'white',
+          border: 'none',
+          borderRadius: '8px',
+          fontSize: '14px',
+          fontWeight: '600',
           cursor: isPending ? 'not-allowed' : 'pointer',
           opacity: isPending ? 0.7 : 1
         }}
@@ -698,10 +701,10 @@ const FullPageLoading = () => (
 const NotFoundView = ({ onBack }: { onBack: () => void }) => (
   <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, padding: '40px 20px', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', backgroundColor: '#F8F9FA', zIndex: 2000, overflow: 'hidden' }}>
     <div style={{ marginBottom: '24px' }}>
-      <Asset.Icon 
-        frameShape={{ width: 64, height: 64 }} 
-        name="icon-info-circle-mono" 
-        color="#B0B8C1" 
+      <Asset.Icon
+        frameShape={{ width: 64, height: 64 }}
+        name="icon-info-circle-mono"
+        color="#B0B8C1"
         style={{ transform: 'rotate(180deg)' }}
       />
     </div>

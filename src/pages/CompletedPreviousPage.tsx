@@ -21,11 +21,11 @@ const CompletedCaseItem = memo(({ post, navigate }: any) => {
         <Text color="#9E9E9E" typography="st13" style={{ fontSize: '14px' }}>{dateStr}</Text>
       </div>
       <div style={{ marginBottom: '4px' }}><Text display="block" color="#191F28" typography="t4" fontWeight="bold" style={{ textAlign: 'center', WebkitLineClamp: 2, display: '-webkit-box', WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{post.title}</Text></div>
-      <div style={{ 
-        marginBottom: '8px', 
-        lineHeight: '1.5', 
-        color: '#191F28', 
-        fontSize: '14px', 
+      <div style={{
+        marginBottom: '8px',
+        lineHeight: '1.5',
+        color: '#191F28',
+        fontSize: '14px',
         wordBreak: 'break-word',
         display: '-webkit-box',
         WebkitLineClamp: 2,
@@ -36,9 +36,14 @@ const CompletedCaseItem = memo(({ post, navigate }: any) => {
       }}>
         {post.content}
       </div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><Asset.Icon frameShape={{ width: 15, height: 15 }} name="icon-user-two-mono" color="#5e403b" /><Text color="#5e403b" typography="st13" style={{ fontSize: '14px' }}>{vc}</Text></div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '3px' }}><Asset.Icon frameShape={{ width: 15, height: 15 }} name="icon-chat-bubble-mono" color="#5E403Bff" /><Text color="#5e403b" typography="st13" style={{ fontSize: '14px' }}>{post.commentCount ?? 0}</Text></div>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <Text color="#9E9E9E" typography="st13" fontWeight="medium" style={{ fontSize: '13px' }}>
+          조회수 {post.viewCount || vc}
+        </Text>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+          <Asset.Icon frameShape={{ width: 14, height: 14 }} backgroundColor="transparent" name="icon-chat-bubble-grayline-mono" color="#9E9E9E" aria-hidden={true} ratio="1/1" />
+          <Text color="#9E9E9E" typography="st13" fontWeight="medium" style={{ fontSize: '13px' }}>{post.commentCount ?? 0}</Text>
+        </div>
       </div>
     </div>
   );
@@ -46,7 +51,9 @@ const CompletedCaseItem = memo(({ post, navigate }: any) => {
 
 function CompletedPreviousPage() {
   const navigate = useNavigate();
-  const [filter, setFilter] = useState<'전체' | '무죄' | '유죄' | '보류'>('전체');
+  const [sort, setSort] = useState<'최신순' | '인기순'>(
+    () => (sessionStorage.getItem('completedPreviousSort') as '최신순' | '인기순') || '최신순'
+  );
   const [search, setSearch] = useState('');
 
   const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading, error } = useInfiniteQuery<{ cases: CaseDocument[], lastDoc: any }, Error>({
@@ -70,13 +77,21 @@ function CompletedPreviousPage() {
 
   const pages = data?.pages as any[];
   const allPosts = pages?.flatMap(p => p.cases) || [];
-  const filtered = allPosts.filter(p => {
-    if (search.trim() && !p.title.toLowerCase().includes(search.toLowerCase()) && !p.content.toLowerCase().includes(search.toLowerCase())) return false;
-    if (filter === '전체') return true;
-    const vc = (p.guiltyCount || 0) + (p.innocentCount || 0);
-    const v = vc > 0 ? (p.innocentCount > p.guiltyCount ? '무죄' : p.guiltyCount > p.innocentCount ? '유죄' : '보류') : '보류';
-    return v === filter;
-  });
+  const filtered = allPosts
+    .filter(p => {
+      if (search.trim() && !p.title.toLowerCase().includes(search.toLowerCase()) && !p.content.toLowerCase().includes(search.toLowerCase())) return false;
+      return true;
+    })
+    .sort((a, b) => {
+      if (sort === '최신순') {
+        const aTime = a.voteEndAt?.toMillis?.() ?? 0;
+        const bTime = b.voteEndAt?.toMillis?.() ?? 0;
+        return bTime - aTime;
+      }
+      const aVotes = (a.guiltyCount || 0) + (a.innocentCount || 0);
+      const bVotes = (b.guiltyCount || 0) + (b.innocentCount || 0);
+      return bVotes - aVotes;
+    });
 
   return (
     <div style={{ backgroundColor: 'white', minHeight: '100vh', width: '100%', boxSizing: 'border-box' }}>
@@ -91,8 +106,23 @@ function CompletedPreviousPage() {
       </div>
 
       <div style={{ padding: '0 20px', marginBottom: '0px', display: 'flex', gap: '8px', borderBottom: '1px solid #F0F0F0', paddingBottom: '12px' }}>
-        {(['전체', '무죄', '유죄', '보류'] as const).map((opt) => (
-          <button key={opt} onClick={() => setFilter(opt)} style={{ padding: '6px 16px', backgroundColor: filter === opt ? '#191F28' : '#F2F4F6', color: filter === opt ? 'white' : '#666', border: 'none', borderRadius: '20px', fontSize: '14px', fontWeight: filter === opt ? '600' : '400', cursor: 'pointer' }}>{opt}</button>
+        {(['최신순', '인기순'] as const).map((opt) => (
+          <button
+            key={opt}
+            onClick={() => { setSort(opt); sessionStorage.setItem('completedPreviousSort', opt); }}
+            style={{
+              padding: '6px 16px',
+              backgroundColor: sort === opt ? '#191F28' : '#F2F4F6',
+              color: sort === opt ? 'white' : '#666',
+              border: 'none',
+              borderRadius: '20px',
+              fontSize: '14px',
+              fontWeight: sort === opt ? '600' : '400',
+              cursor: 'pointer'
+            }}
+          >
+            {opt}
+          </button>
         ))}
       </div>
 
