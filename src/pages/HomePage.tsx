@@ -149,16 +149,6 @@ function HomePage({ defaultTab }: { defaultTab?: string }) {
     refetchOnWindowFocus: true,
   });
 
-  // Query for '화제의 재판' (CLOSED + hotScore desc)
-  const { data: hotClosedCases, isLoading: isLoadingHotClosed, error: hotClosedError } = useQuery<{ cases: CaseDocument[] }, Error>({
-    queryKey: [...caseKeys.list('CLOSED'), 'HOT_DASHBOARD'],
-    queryFn: () => getCasesPaginated({ status: 'CLOSED', limitCount: 10, orderByField: 'hotScore', orderDirection: 'desc' }) as any,
-    enabled: selectedTab === '재판 완료',
-    staleTime: 1000 * 10,
-    refetchInterval: 60000,
-    refetchOnWindowFocus: true,
-  });
-
   // Query for '이전 재판' (CLOSED + voteEndAt desc)
   const { data: recentClosedCases, isLoading: isLoadingRecentClosed, error: recentClosedError } = useQuery<{ cases: CaseDocument[] }, Error>({
     queryKey: [...caseKeys.list('CLOSED'), 'RECENT_DASHBOARD'],
@@ -203,8 +193,8 @@ function HomePage({ defaultTab }: { defaultTab?: string }) {
     if (navigationType !== 'POP') window.scrollTo(0, 0);
   }, [selectedTab, navigationType]);
 
-  const isLoading = isLoadingOpenCases || isLoadingHot || isLoadingHotClosed || isLoadingRecentClosed;
-  const error = openCasesError || hotError || hotClosedError || recentClosedError;
+  const isLoading = isLoadingOpenCases || isLoadingHot || isLoadingRecentClosed;
+  const error = openCasesError || hotError || recentClosedError;
 
   return (
     <>
@@ -231,7 +221,7 @@ function HomePage({ defaultTab }: { defaultTab?: string }) {
           {error ? (
             <div style={{ padding: '40px', textAlign: 'center' }}><Text color="#D32F2F">게시물을 불러오는 중 오류가 발생했습니다. (인덱스 생성 중일 수 있습니다)</Text></div>
           ) : selectedTab === '재판 완료' ? (
-            <CompletedPostListMain hotPosts={hotClosedCases?.cases || []} recentPosts={recentClosedCases?.cases || []} navigate={navigate} />
+            <CompletedPostListMain recentPosts={recentClosedCases?.cases || []} navigate={navigate} />
           ) : (
             <div>
               {isLoading && (
@@ -362,13 +352,12 @@ const FabItem = ({ onClick, icon, label, delay }: any) => (
   </div>
 );
 
-function CompletedPostListMain({ hotPosts, recentPosts, navigate }: any) {
+function CompletedPostListMain({ recentPosts, navigate }: any) {
   const processPost = (p: any) => {
     const vc = (p.guiltyCount || 0) + (p.innocentCount || 0);
     return { ...p, verdict: vc > 0 ? (p.innocentCount > p.guiltyCount ? '무죄' : p.guiltyCount > p.innocentCount ? '유죄' : '보류') : '보류' };
   };
 
-  const hot = hotPosts.map(processPost).slice(0, 5);
   const prev = recentPosts.map(processPost).slice(0, 5);
 
   const renderCard = (p: any) => (
@@ -383,7 +372,6 @@ function CompletedPostListMain({ hotPosts, recentPosts, navigate }: any) {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '40px', backgroundColor: 'white', paddingBottom: '24px', paddingTop: '16px' }}>
-      <CompletedSection title="화제의 재판 기록" iconSrc="https://static.toss.im/2d-emojis/png/4x/u1F525.png" posts={hot} onMore={() => navigate('/completed-trending')} renderCard={renderCard} />
       <CompletedSection title="이전 재판 기록" iconName="icon-document-folder-yellow" posts={prev} onMore={() => navigate('/completed-previous')} renderCard={renderCard} />
       <style>{` div::-webkit-scrollbar { display: none; } `}</style>
     </div>
