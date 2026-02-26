@@ -245,7 +245,7 @@ function PointMissionPage() {
           const newUserData = { ...prev };
           newUserData.points = (newUserData.points || 0) + pendingMission.gavel;
           if (pendingMission.missionType === 'LEVEL_0') {
-            newUserData.dailyStats = { ...newUserData.dailyStats, isLevel0Claimed: true };
+            newUserData.isLevel0Claimed = true;
           } else if (pendingMission.missionType === 'LEVEL_1') {
             newUserData.dailyStats = { ...newUserData.dailyStats, isLevel1Claimed: true };
           } else if (pendingMission.missionType === 'LEVEL_2') {
@@ -307,7 +307,7 @@ function PointMissionPage() {
   } : rawDailyStats;
 
   const myPostCount = displayDailyStats.postCount || 0;
-  const isLevel0Claimed = displayDailyStats.isLevel0Claimed || false;
+  const isLevel0Claimed = userData?.isLevel0Claimed || false;
   const isLevel1Claimed = displayDailyStats.isLevel1Claimed;
   const isLevel2Claimed = displayDailyStats.isLevel2Claimed;
 

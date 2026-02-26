@@ -19,6 +19,7 @@ import {
   deleteReply,
   deleteCase,
   reportContent,
+  incrementViewCount,
   type CaseDocument,
   type CommentDocument,
   type ReplyDocument,
@@ -30,6 +31,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { caseKeys } from '../constants/queryKeys';
 import CountdownTimer from '../components/CountdownTimer';
 import CommentItem from '../components/CommentItem';
+import ReportBottomSheet from '../components/ReportBottomSheet';
 import { Timestamp } from 'firebase/firestore';
 
 // UI용 댓글 타입 (대댓글 포함)
@@ -65,6 +67,16 @@ function CaseDetailPage() {
       }
     }
   };
+
+  // [Effect] 게시물 진입 시 조회수 증가 (세션 동안 중복 증가 방지)
+  useEffect(() => {
+    if (!id) return;
+    const viewedKey = `viewed_case_${id}`;
+    if (!sessionStorage.getItem(viewedKey)) {
+      incrementViewCount(id).catch(console.error);
+      sessionStorage.setItem(viewedKey, 'true');
+    }
+  }, [id]);
 
   // [Query] 게시물 상세 정보 (진입 시마다 최신화)
   const { data: post, isInitialLoading: isLoadingPost } = useQuery<CaseDocument | null, Error>({
@@ -118,6 +130,12 @@ function CaseDetailPage() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showDeleteComplete, setShowDeleteComplete] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [reportTarget, setReportTarget] = useState<{
+    type: 'case' | 'comment' | 'reply';
+    targetId: string;
+    commentId?: string;
+    replyId?: string;
+  } | null>(null);
 
   // 메뉴 외부 클릭 감지 로직
   const postMenuRef = useRef<HTMLDivElement>(null);
@@ -322,15 +340,7 @@ function CaseDetailPage() {
   const handleReport = (targetType: 'case' | 'comment' | 'reply', targetId: string, commentId?: string, replyId?: string) => {
     if (!user) { login(); return; }
 
-    reportMutation.mutate({
-      reporterId: user.uid,
-      targetType,
-      targetId,
-      caseId: id!,
-      commentId,
-      replyId
-    });
-
+    setReportTarget({ type: targetType, targetId, commentId, replyId });
     setShowPostMenu(false);
   };
 
@@ -604,6 +614,26 @@ function CaseDetailPage() {
           <div style={{ color: '#666', fontSize: '20px', fontWeight: 'bold', marginBottom: '24px', textAlign: 'center' }}>삭제 완료했어요!</div>
           <button onClick={() => navigate('/')} style={{ padding: '12px 24px', backgroundColor: '#3182F6', color: 'white', border: 'none', borderRadius: '8px', fontSize: '15px', fontWeight: '600', minWidth: '120px' }}>홈으로</button>
         </div>
+      )}
+
+      {reportTarget && (
+        <ReportBottomSheet
+          isOpen={!!reportTarget}
+          onClose={() => setReportTarget(null)}
+          onSubmit={(reason) => {
+            if (!user) return;
+            reportMutation.mutate({
+              reporterId: user.uid,
+              targetType: reportTarget.type,
+              targetId: reportTarget.targetId,
+              caseId: id!,
+              commentId: reportTarget.commentId,
+              replyId: reportTarget.replyId,
+              reason,
+            });
+            setReportTarget(null);
+          }}
+        />
       )}
     </div>
   );

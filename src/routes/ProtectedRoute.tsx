@@ -3,11 +3,11 @@ import { useAuth } from '../hooks/useAuth';
 
 // 로딩 스피너 컴포넌트
 const FullPageSpinner = ({ message = '로딩 중...' }) => (
-  <div style={{ 
-    display: 'flex', 
-    flexDirection: 'column', 
-    justifyContent: 'center', 
-    alignItems: 'center', 
+  <div style={{
+    display: 'flex',
+    flexDirection: 'column',
+    justifyContent: 'center',
+    alignItems: 'center',
     height: '100vh',
     fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
   }}>
@@ -60,21 +60,22 @@ function ProtectedRoute({ children }: { children: React.ReactElement }) {
   }
 
   // 3. 로그인 진행 중 또는 시도 중
+  // eslint-disable-next-line react-hooks/refs
   if (isLoggingIn || attemptRef.current) {
     return <FullPageSpinner message="로그인 확인 중..." />;
   }
 
   // 4. 로그인 실패 또는 미로그인 상태 (UI에서 login 버튼 제공 가능)
   return (
-    <div style={{ 
-      display: 'flex', 
-      flexDirection: 'column', 
-      justifyContent: 'center', 
-      alignItems: 'center', 
-      height: '100vh' 
+    <div style={{
+      display: 'flex',
+      flexDirection: 'column',
+      justifyContent: 'center',
+      alignItems: 'center',
+      height: '100vh'
     }}>
       <p style={{ marginBottom: '16px' }}>로그인이 필요합니다.</p>
-      <button 
+      <button
         onClick={() => login()}
         style={{
           padding: '12px 20px',
