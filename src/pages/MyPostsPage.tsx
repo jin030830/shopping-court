@@ -17,6 +17,11 @@ const formatTimeAgo = (timestamp: any): string => {
   return `${Math.max(1, diffHours)}시간 전`;
 };
 
+const formatDate = (timestamp: any): string => {
+  const d = timestamp.toDate();
+  return `${d.getMonth() + 1}/${d.getDate()} ${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}`;
+};
+
 const MyPostItem = memo(({ post, navigate, showVerdict }: any) => {
   let v: '무죄' | '유죄' | '보류' = '보류';
   if (showVerdict && post.status === 'CLOSED') {
@@ -25,7 +30,9 @@ const MyPostItem = memo(({ post, navigate, showVerdict }: any) => {
   }
   const bg = v === '무죄' ? '#E3F2FD' : v === '유죄' ? '#FFEBEE' : '#F2F4F6';
   const co = v === '무죄' ? '#1976D2' : v === '유죄' ? '#D32F2F' : '#6B7684';
-  const timeLabel = post.createdAt ? formatTimeAgo(post.createdAt) : '';
+  const timeLabel = post.createdAt
+    ? (showVerdict ? formatDate(post.createdAt) : formatTimeAgo(post.createdAt))
+    : '';
   const viewCount = post.viewCount || ((post.guiltyCount || 0) + (post.innocentCount || 0));
 
   return (
