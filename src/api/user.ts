@@ -16,7 +16,19 @@ import { db, app } from './firebase'
 const functions = getFunctions(app, 'asia-northeast3');
 
 /**
- * 사용자 일일 활동 통계 (Level 1, 2 미션용)
+ * 사용자 누적 활동 통계 (무제한 보상 미션용)
+ */
+export interface CumulativeStats {
+  voteCount: number;
+  commentCount: number;
+  postCount: number;
+  voteClaimedCount: number;
+  commentClaimedCount: number;
+  postClaimedCount: number;
+}
+
+/**
+ * 사용자 일일 활동 통계 (하위 호환 및 기타 목적용 보존)
  */
 export interface UserDailyStats {
   lastActiveDate: string; // YYYY-MM-DD
@@ -48,8 +60,8 @@ export interface UserMissions {
 export interface UserDocument {
   tossUserKey: string
   nickname: string
-  dailyStats: UserDailyStats 
-  stats?: any 
+  dailyStats: UserDailyStats
+  stats?: CumulativeStats
   isLevel0Claimed: boolean
   missions: UserMissions
   points: number
@@ -99,15 +111,24 @@ export async function createOrUpdateUser(
     if (userSnap.exists()) {
       const existingData = userSnap.data() as any;
       const updates: any = { updatedAt: serverTimestamp() };
-      
+
+      // 마이그레이션: 기존에 stats가 없으면 초기화
+      if (!existingData.stats) {
+        updates.stats = {
+          voteCount: existingData.dailyStats?.voteCount || 0,
+          commentCount: existingData.dailyStats?.commentCount || 0,
+          postCount: existingData.dailyStats?.postCount || 0,
+          voteClaimedCount: 0,
+          commentClaimedCount: 0,
+          postClaimedCount: 0,
+        };
+      }
+
+      // 일일 접속 기록만 갱신 (미션 진행도는 초기화하지 않음)
       if (!existingData.dailyStats || existingData.dailyStats.lastActiveDate !== today) {
-        updates.dailyStats = { 
-          voteCount: 0, 
-          commentCount: 0, 
-          postCount: 0,
-          isLevel1Claimed: false,
-          isLevel2Claimed: false,
-          lastActiveDate: today 
+        updates.dailyStats = {
+          ...(existingData.dailyStats || {}),
+          lastActiveDate: today
         };
       }
 
@@ -124,6 +145,7 @@ export async function createOrUpdateUser(
         tossUserKey: firebaseUser.uid,
         nickname,
         dailyStats: { voteCount: 0, commentCount: 0, postCount: 0, isLevel1Claimed: false, isLevel2Claimed: false, lastActiveDate: today },
+        stats: { voteCount: 0, commentCount: 0, postCount: 0, voteClaimedCount: 0, commentClaimedCount: 0, postClaimedCount: 0 },
         isLevel0Claimed: false,
         missions: {
           firstEventMission: { claimed: false },
@@ -169,7 +191,7 @@ export async function warmUpClaimMissionReward(): Promise<void> {
 }
 
 export async function exchangeGavel(): Promise<void> {
-  const PROMOTION_CODE = '01KGA79JNAY2T8AWYCM9869TKS'; 
+  const PROMOTION_CODE = '01KGA79JNAY2T8AWYCM9869TKS';
   const requestPromotionReward = httpsCallable<{ promotionCode: string }, { success: boolean }>(functions, 'requestPromotionReward');
   const result = await requestPromotionReward({ promotionCode: PROMOTION_CODE });
   if (!result.data.success) throw new Error("토스 포인트 지급에 실패했습니다.");
