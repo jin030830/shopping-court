@@ -23,7 +23,7 @@ const ScrollRestoration = () => {
       scrollPositions.current[key] = window.scrollY;
       try {
         sessionStorage.setItem(`scroll-pos-${key}`, window.scrollY.toString());
-      } catch (e) { /* ignore */ }
+      } catch { /* ignore */ }
     };
 
     window.addEventListener('scroll', handleScroll);
@@ -33,9 +33,9 @@ const ScrollRestoration = () => {
   // 스크롤 위치 복원 (화면 그리기 직전에 실행)
   useLayoutEffect(() => {
     if (navigationType === 'POP') {
-      const savedPos = scrollPositions.current[key] || 
-                       parseInt(sessionStorage.getItem(`scroll-pos-${key}`) || '0', 10);
-      
+      const savedPos = scrollPositions.current[key] ||
+        parseInt(sessionStorage.getItem(`scroll-pos-${key}`) || '0', 10);
+
       if (savedPos > 0) {
         // 즉시 동기적으로 스크롤 (화면 그리기 전)
         window.scrollTo(0, savedPos);
@@ -44,7 +44,7 @@ const ScrollRestoration = () => {
         const timer = setTimeout(() => {
           window.scrollTo(0, savedPos);
         }, 0);
-        
+
         const timer2 = setTimeout(() => {
           window.scrollTo(0, savedPos);
         }, 50);

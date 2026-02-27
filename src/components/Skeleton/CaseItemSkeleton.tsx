@@ -27,24 +27,58 @@ export const CaseItemSkeleton = () => {
     return (
         <div style={{ backgroundColor: 'white', padding: '16px 20px', borderBottom: '1px solid #F0F0F0' }}>
             <SkeletonPulse />
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
-                {/* 제목 스켈레톤 */}
-                <SkeletonItem width="100%" height="24px" borderRadius="6px" />
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', marginBottom: '8px' }}>
+                {/* 제목 및 상대 시간 스켈레톤 */}
+                <SkeletonItem width="100%" height="24px" borderRadius="6px" style={{ flex: 1 }} />
+                <SkeletonItem width="50px" height="16px" borderRadius="4px" style={{ flexShrink: 0, marginTop: '4px' }} />
             </div>
 
             {/* 본문 두 줄 스켈레톤 */}
             <SkeletonItem width="100%" height="20px" borderRadius="4px" style={{ marginBottom: '6px' }} />
             <SkeletonItem width="80%" height="20px" borderRadius="4px" style={{ marginBottom: '12px' }} />
 
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                {/* 조회수/댓글 아이콘 대체 영역 */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                {/* 조회수 스켈레톤 */}
+                <SkeletonItem width="60px" height="15px" borderRadius="4px" />
+
+                {/* 아바타/댓글 카운트 스켈레톤 */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                    <SkeletonItem width="15px" height="15px" borderRadius="50%" />
-                    <SkeletonItem width="24px" height="14px" borderRadius="4px" />
+                    <SkeletonItem width="14px" height="14px" borderRadius="50%" />
+                    <SkeletonItem width="20px" height="15px" borderRadius="4px" />
                 </div>
+            </div>
+        </div>
+    );
+};
+
+export const CompletedCaseItemSkeleton = () => {
+    return (
+        <div style={{ backgroundColor: 'white', padding: '16px 20px', borderBottom: '1px solid #F0F0F0' }}>
+            <SkeletonPulse />
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+                {/* 판결 배지 스켈레톤 */}
+                <SkeletonItem width="40px" height="22px" borderRadius="4px" />
+                {/* 날짜 스켈레톤 */}
+                <SkeletonItem width="80px" height="16px" borderRadius="4px" />
+            </div>
+
+            {/* 가운데 정렬된 제목 스켈레톤 */}
+            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '4px' }}>
+                <SkeletonItem width="80%" height="24px" borderRadius="6px" />
+            </div>
+
+            {/* 본문 두 줄 스켈레톤 */}
+            <SkeletonItem width="100%" height="20px" borderRadius="4px" style={{ marginBottom: '6px' }} />
+            <SkeletonItem width="80%" height="20px" borderRadius="4px" style={{ marginBottom: '12px' }} />
+
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                {/* 조회수 스켈레톤 */}
+                <SkeletonItem width="60px" height="15px" borderRadius="4px" />
+
+                {/* 아바타/댓글 카운트 스켈레톤 */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                    <SkeletonItem width="15px" height="15px" borderRadius="50%" />
-                    <SkeletonItem width="24px" height="14px" borderRadius="4px" />
+                    <SkeletonItem width="14px" height="14px" borderRadius="50%" />
+                    <SkeletonItem width="20px" height="15px" borderRadius="4px" />
                 </div>
             </div>
         </div>

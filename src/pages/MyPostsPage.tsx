@@ -33,7 +33,7 @@ const MyPostItem = memo(({ post, navigate, showVerdict }: any) => {
   const timeLabel = post.createdAt
     ? (showVerdict ? formatDate(post.createdAt) : formatTimeAgo(post.createdAt))
     : '';
-  const viewCount = post.viewCount || ((post.guiltyCount || 0) + (post.innocentCount || 0));
+  const viewCount = Math.max(post.viewCount || 0, (post.guiltyCount || 0) + (post.innocentCount || 0));
 
   return (
     <div onClick={() => navigate(`/case/${post.id}`, { state: { fromTab: '내가 쓴 글' } })} style={{ padding: '16px 20px', borderBottom: '1px solid #F0F0F0', cursor: 'pointer', backgroundColor: 'white' }}>

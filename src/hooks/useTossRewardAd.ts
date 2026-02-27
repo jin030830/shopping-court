@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState, useRef } from 'react';
+import { useCallback, useState, useRef, useLayoutEffect } from 'react';
 import { GoogleAdMob } from '@apps-in-toss/web-framework';
 
 // 전역 상태 관리를 위한 모듈 레벨 변수 (Singleton)
@@ -60,7 +60,9 @@ export const useTossRewardAd = (adUnitId: string) => {
     }
   }, [adUnitId, forceUpdate]);
 
-  loadRef.current = load;
+  useLayoutEffect(() => {
+    loadRef.current = load;
+  }, [load]);
 
   const show = useCallback((onRewardEarned: () => void, onDismiss?: () => void) => {
     if (!GoogleAdMob?.showAppsInTossAdMob?.isSupported?.()) return;
@@ -107,10 +109,6 @@ export const useTossRewardAd = (adUnitId: string) => {
       if (onDismiss) onDismiss();
     }
   }, [adUnitId, load, forceUpdate]);
-
-  useEffect(() => {
-    load();
-  }, [load]);
 
   return { isLoaded: globalIsLoaded, isLoading: globalIsLoading, show, load };
 };

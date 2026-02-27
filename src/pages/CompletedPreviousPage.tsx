@@ -4,6 +4,7 @@ import { useRef, useCallback, memo, useState, useEffect } from 'react';
 import { getCasesPaginated, type CaseDocument } from '../api/cases';
 import { adaptive } from '@toss/tds-colors';
 import { useInfiniteQuery } from '@tanstack/react-query';
+import { CompletedCaseItemSkeleton } from '../components/Skeleton/CaseItemSkeleton';
 
 // 개별 게시물 아이템 (memo 사용)
 const CompletedCaseItem = memo(({ post, navigate }: any) => {
@@ -38,7 +39,7 @@ const CompletedCaseItem = memo(({ post, navigate }: any) => {
       </div>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <Text color="#9E9E9E" typography="st13" fontWeight="medium" style={{ fontSize: '13px' }}>
-          조회수 {post.viewCount || vc}
+          조회수 {Math.max(post.viewCount || 0, vc)}
         </Text>
         <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
           <Asset.Icon frameShape={{ width: 14, height: 14 }} backgroundColor="transparent" name="icon-chat-bubble-grayline-mono" color="#9E9E9E" aria-hidden={true} ratio="1/1" />
@@ -57,8 +58,14 @@ function CompletedPreviousPage() {
   const [search, setSearch] = useState('');
 
   const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading, error } = useInfiniteQuery<{ cases: CaseDocument[], lastDoc: any }, Error>({
-    queryKey: ['cases', 'CLOSED', 'previous'],
-    queryFn: ({ pageParam }) => getCasesPaginated({ status: 'CLOSED', limitCount: 15, orderByField: 'voteEndAt', orderDirection: 'desc', lastVisible: pageParam }),
+    queryKey: ['cases', 'CLOSED', 'previous', sort],
+    queryFn: ({ pageParam }) => getCasesPaginated({
+      status: 'CLOSED',
+      limitCount: 15,
+      orderByField: sort === '최신순' ? 'voteEndAt' : 'viewCount',
+      orderDirection: 'desc',
+      lastVisible: pageParam
+    }),
     getNextPageParam: (last) => last.cases.length === 15 ? last.lastDoc : undefined,
     initialPageParam: null
   });
@@ -90,7 +97,9 @@ function CompletedPreviousPage() {
       }
       const aVotes = (a.guiltyCount || 0) + (a.innocentCount || 0);
       const bVotes = (b.guiltyCount || 0) + (b.innocentCount || 0);
-      return bVotes - aVotes;
+      const aViews = Math.max(a.viewCount || 0, aVotes);
+      const bViews = Math.max(b.viewCount || 0, bVotes);
+      return bViews - aViews;
     });
 
   return (
@@ -127,7 +136,11 @@ function CompletedPreviousPage() {
       </div>
 
       <div style={{ backgroundColor: 'white' }}>
-        {error ? <div style={{ padding: '40px', textAlign: 'center' }}><Text color="#D32F2F">오류가 발생했습니다.</Text></div> : isLoading ? <div style={{ padding: '40px', textAlign: 'center' }}><Text color="#6B7684">로딩 중...</Text></div> : filtered.length === 0 ? <div style={{ padding: '40px', textAlign: 'center' }}><Text color="#6B7684">표시할 게시물이 없습니다.</Text></div> : (
+        {error ? <div style={{ padding: '40px', textAlign: 'center' }}><Text color="#D32F2F">오류가 발생했습니다.</Text></div> : isLoading ? (
+          <div>
+            {[...Array(5)].map((_, i) => <CompletedCaseItemSkeleton key={`skeleton-${i}`} />)}
+          </div>
+        ) : filtered.length === 0 ? <div style={{ padding: '40px', textAlign: 'center' }}><Text color="#6B7684">표시할 게시물이 없습니다.</Text></div> : (
           <div>
             {filtered.map((p, idx) => (
               <div key={p.id} ref={idx === filtered.length - 1 ? lastElementRef : null}><CompletedCaseItem post={p} navigate={navigate} /></div>
