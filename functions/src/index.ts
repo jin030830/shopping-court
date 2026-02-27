@@ -285,6 +285,25 @@ export const fixData = functions.region('asia-northeast3').https.onRequest(async
   res.status(200).json({ success: true, fixedCount, affectedUsers: userIds.size });
 });
 
+export const fixViewCount = functions.region('asia-northeast3').https.onRequest(async (req: functions.Request, res: functions.Response) => {
+  const db = admin.firestore();
+  const casesSnap = await db.collection('cases').get();
+
+  let fixedCount = 0;
+  for (const docSnap of casesSnap.docs) {
+    const docData = docSnap.data();
+    const computedViews = Math.max(docData.viewCount || 0, (docData.guiltyCount || 0) + (docData.innocentCount || 0));
+
+    // viewCount가 없거나 투표수 합보다 적으면 업데이트
+    if (docData.viewCount === undefined || docData.viewCount < computedViews) {
+      await docSnap.ref.update({ viewCount: computedViews });
+      fixedCount++;
+    }
+  }
+
+  res.status(200).json({ success: true, fixedCount, totalCases: casesSnap.size });
+});
+
 export const fixActivitiesTimestamp = functions.region('asia-northeast3').https.onCall(async (data: any, context: functions.https.CallableContext) => {
   // 기존 onCall 함수는 구조 유지만 함
   return { message: "Use fixData instead" };

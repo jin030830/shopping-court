@@ -25,7 +25,7 @@ const formatTimeAgo = (timestamp: Timestamp): string => {
 
 // 게시물 아이템 컴포넌트 (재판 중 리스트용)
 const CaseItem = memo(({ post, selectedTab, navigate }: any) => {
-  const viewCount = post.viewCount || ((post.guiltyCount || 0) + (post.innocentCount || 0));
+  const viewCount = Math.max(post.viewCount || 0, (post.guiltyCount || 0) + (post.innocentCount || 0));
   return (
     <div onClick={() => navigate(`/case/${post.id}`, { state: { fromTab: selectedTab } })}
       style={{ backgroundColor: 'white', padding: '16px 20px', borderBottom: '1px solid #F0F0F0', cursor: 'pointer' }}>
@@ -51,7 +51,7 @@ const CaseItem = memo(({ post, selectedTab, navigate }: any) => {
 const HotCardItem = memo(({ post, index, navigate }: any) => {
   const totalVotes = (post.guiltyCount || 0) + (post.innocentCount || 0);
   const commentCount = post.commentCount ?? 0;
-  const viewCount = post.viewCount ?? 0;
+  const viewCount = Math.max(post.viewCount || 0, totalVotes);
   const createdAtLabel = post.createdAt ? formatTimeAgo(post.createdAt) : '';
 
   return (
@@ -74,7 +74,7 @@ const HotCardItem = memo(({ post, index, navigate }: any) => {
         <Text display="block" color={adaptive.grey800} typography="t4" fontWeight="bold" textAlign="center" style={{ marginBottom: '6px', fontSize: '18px' }}>{post.title}</Text>
         <Text display="block" color={adaptive.grey700} typography="t6" fontWeight="regular" style={{ marginBottom: '12px', whiteSpace: 'pre-wrap', lineHeight: 1.5 }}>{post.content}</Text>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '4px' }}>
-          <Text color="#9E9E9E" typography="st13" fontWeight="medium" style={{ fontSize: '13px' }}>조회수 {viewCount || totalVotes}</Text>
+          <Text color="#9E9E9E" typography="st13" fontWeight="medium" style={{ fontSize: '13px' }}>조회수 {viewCount}</Text>
           <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
             <Asset.Icon frameShape={{ width: 13, height: 13 }} backgroundColor="transparent" name="icon-chat-bubble-grayline-mono" color="#9E9E9E" aria-hidden={true} ratio="1/1" />
             <Text color="#9E9E9E" typography="st13" fontWeight="medium" style={{ fontSize: '13px' }}>{commentCount}</Text>
