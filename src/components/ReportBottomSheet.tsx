@@ -111,7 +111,7 @@ const ReportBottomSheet: React.FC<ReportBottomSheetProps> = ({ isOpen, onClose, 
                                 setReason(e.target.value);
                             }
                         }}
-                        placeholder="사유 입력"
+                        placeholder=""
                         style={{
                             width: '100%',
                             minHeight: '60px',
