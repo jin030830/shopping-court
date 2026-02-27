@@ -160,7 +160,7 @@ export const tossUnlinkCallback = functions.region("asia-northeast3").https.onRe
       return;
     }
 
-    try { await admin.auth().deleteUser(userKey); } catch (e) { }
+    try { await admin.auth().deleteUser(userKey); } catch { /* ignore */ }
 
     const db = admin.firestore();
     const affectedCaseIds = new Set<string>();
@@ -228,7 +228,7 @@ export const fixData = functions.region('asia-northeast3').https.onRequest(async
   const startOfTodayTimestamp = admin.firestore.Timestamp.fromDate(kstTodayStart);
 
   let fixedCount = 0;
-  let userIds = new Set<string>();
+  const userIds = new Set<string>();
 
   // 1. 날짜 보정 로직
   for (const docSnap of activitiesSnap.docs) {
@@ -260,7 +260,7 @@ export const fixData = functions.region('asia-northeast3').https.onRequest(async
         await docSnap.ref.update({ createdAt: admin.firestore.Timestamp.fromDate(ancientDate) });
         fixedCount++;
       }
-    } catch (e) { }
+    } catch { /* ignore */ }
   }
 
   // 2. [핵심] 유저별 통계 강제 재계산

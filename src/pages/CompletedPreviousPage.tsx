@@ -4,6 +4,7 @@ import { useRef, useCallback, memo, useState, useEffect } from 'react';
 import { getCasesPaginated, type CaseDocument } from '../api/cases';
 import { adaptive } from '@toss/tds-colors';
 import { useInfiniteQuery } from '@tanstack/react-query';
+import { CompletedCaseItemSkeleton } from '../components/Skeleton/CaseItemSkeleton';
 
 // 개별 게시물 아이템 (memo 사용)
 const CompletedCaseItem = memo(({ post, navigate }: any) => {
@@ -127,7 +128,11 @@ function CompletedPreviousPage() {
       </div>
 
       <div style={{ backgroundColor: 'white' }}>
-        {error ? <div style={{ padding: '40px', textAlign: 'center' }}><Text color="#D32F2F">오류가 발생했습니다.</Text></div> : isLoading ? <div style={{ padding: '40px', textAlign: 'center' }}><Text color="#6B7684">로딩 중...</Text></div> : filtered.length === 0 ? <div style={{ padding: '40px', textAlign: 'center' }}><Text color="#6B7684">표시할 게시물이 없습니다.</Text></div> : (
+        {error ? <div style={{ padding: '40px', textAlign: 'center' }}><Text color="#D32F2F">오류가 발생했습니다.</Text></div> : isLoading ? (
+          <div>
+            {[...Array(5)].map((_, i) => <CompletedCaseItemSkeleton key={`skeleton-${i}`} />)}
+          </div>
+        ) : filtered.length === 0 ? <div style={{ padding: '40px', textAlign: 'center' }}><Text color="#6B7684">표시할 게시물이 없습니다.</Text></div> : (
           <div>
             {filtered.map((p, idx) => (
               <div key={p.id} ref={idx === filtered.length - 1 ? lastElementRef : null}><CompletedCaseItem post={p} navigate={navigate} /></div>

@@ -218,37 +218,42 @@ function PointMissionPage() {
     setIsClaiming(true);
     setShowRewardPopup(false);
 
-    showRewardAd(async () => {
-      try {
-        await claimMissionReward(user.uid, pendingMission.missionType, pendingMission.gavel);
+    if (showRewardAd) {
+      showRewardAd(async () => {
+        try {
+          await claimMissionReward(user.uid, pendingMission.missionType, pendingMission.gavel);
 
-        queryClient.setQueryData(['user', user.uid], (prev: UserDocument | undefined) => {
-          if (!prev) return prev;
-          const newUserData = { ...prev };
-          newUserData.points = (newUserData.points || 0) + pendingMission.gavel;
+          queryClient.setQueryData(['user', user.uid], (prev: UserDocument | undefined) => {
+            if (!prev) return prev;
+            const newUserData = { ...prev };
+            newUserData.points = (newUserData.points || 0) + pendingMission.gavel;
 
-          if (!newUserData.stats) {
-            newUserData.stats = { voteCount: 0, commentCount: 0, postCount: 0, voteClaimedCount: 0, commentClaimedCount: 0, postClaimedCount: 0 };
-          }
-          if (pendingMission.missionType === 'LEVEL_0') {
-            newUserData.stats.voteClaimedCount += 1;
-          } else if (pendingMission.missionType === 'LEVEL_1') {
-            newUserData.stats.commentClaimedCount += 1;
-          } else if (pendingMission.missionType === 'LEVEL_2') {
-            newUserData.stats.postClaimedCount += 1;
-          }
-          return newUserData;
-        });
+            if (!newUserData.stats) {
+              newUserData.stats = { voteCount: 0, commentCount: 0, postCount: 0, voteClaimedCount: 0, commentClaimedCount: 0, postClaimedCount: 0 };
+            }
+            if (pendingMission.missionType === 'LEVEL_0') {
+              newUserData.stats.voteClaimedCount += 1;
+            } else if (pendingMission.missionType === 'LEVEL_1') {
+              newUserData.stats.commentClaimedCount += 1;
+            } else if (pendingMission.missionType === 'LEVEL_2') {
+              newUserData.stats.postClaimedCount += 1;
+            }
+            return newUserData;
+          });
 
-        queryClient.invalidateQueries({ queryKey: ['user', user.uid] });
-      } catch (error) {
-        console.error('보상 수령 실패:', error);
-        alert('보상을 받는 중 오류가 발생했어요.');
-      } finally {
-        setIsClaiming(false);
-        setPendingMission(null);
-      }
-    });
+          queryClient.invalidateQueries({ queryKey: ['user', user.uid] });
+        } catch (error) {
+          console.error('보상 수령 실패:', error);
+          alert('보상을 받는 중 오류가 발생했어요.');
+        } finally {
+          setIsClaiming(false);
+          setPendingMission(null);
+        }
+      });
+    } else {
+      setIsClaiming(false);
+      setPendingMission(null);
+    }
   };
 
   const handleRewardCancel = () => {
