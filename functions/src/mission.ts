@@ -11,33 +11,34 @@ const getDb = () => {
   return admin.firestore();
 };
 
-/**
- * 오늘 날짜 문자열 반환 (KST 기준)
- */
-const getTodayDateString = (): string => {
-  const now = new Date();
-  const kstDate = new Date(now.getTime() + 9 * 60 * 60 * 1000);
-  return kstDate.toISOString().split('T')[0];
-};
+// Removed getTodayDateString as it is no longer used
 
 /**
- * 사용자 통계(일일) 확인 및 초기화 함수 (Lazy Initialization)
+ * 사용자 통계 확인 및 초기화 함수 (Lazy Initialization)
  * 트랜잭션 내에서 호출되어야 함
  */
-const checkAndResetDailyStats = (userData: any, today: string): any => {
-  const stats = userData?.dailyStats || {};
-  const lastActiveDate = stats.lastActiveDate;
+const getOrCreateStats = (userData: any): any => {
+  const stats = userData?.stats || {
+    voteCount: 0,
+    commentCount: 0,
+    postCount: 0,
+    voteClaimedCount: 0,
+    commentClaimedCount: 0,
+    postClaimedCount: 0,
+  };
 
-  if (lastActiveDate !== today) {
-    return {
-      lastActiveDate: today,
-      voteCount: 0,
-      commentCount: 0,
-      postCount: 0,
-      isLevel1Claimed: false,
-      isLevel2Claimed: false
-    };
+  // 마이그레이션 방어 코드: 기존 `dailyStats` 값을 누적 스탯의 초기값으로 가져오거나, 없으면 0
+  if (userData?.dailyStats && stats.voteCount === 0 && stats.commentCount === 0 && stats.postCount === 0) {
+    stats.voteCount = userData.dailyStats.voteCount || 0;
+    stats.commentCount = userData.dailyStats.commentCount || 0;
+    stats.postCount = userData.dailyStats.postCount || 0;
   }
+
+  // 기존에 ClaimedCount 필드가 없다면 0으로 초기화
+  stats.voteClaimedCount = stats.voteClaimedCount || 0;
+  stats.commentClaimedCount = stats.commentClaimedCount || 0;
+  stats.postClaimedCount = stats.postClaimedCount || 0;
+
   return stats;
 };
 
@@ -66,7 +67,6 @@ export const claimMissionReward = functions.region('asia-northeast3')
 
     const db = getDb();
     const userRef = db.collection('users').doc(userId);
-    const today = getTodayDateString();
 
     try {
       await db.runTransaction(async (transaction) => {
@@ -76,42 +76,42 @@ export const claimMissionReward = functions.region('asia-northeast3')
         }
 
         const userData = userDoc.data();
-        
-        // 2. 일일 통계 초기화 체크
-        const currentDailyStats = checkAndResetDailyStats(userData, today);
-        
-        // 3. 미션 달성 여부 및 중복 수령 확인
-        let rewardPoints = 0;
-        let isConditionMet = false;
-        let isAlreadyClaimed = false;
-        let updateField = '';
 
-        if (missionType === 'LEVEL_0') {
-          // Level 0: 일일(dailyStats) - 투표 1, 댓글 1, 게시글 1 (v1.7)
-          isConditionMet = currentDailyStats.voteCount >= 1 && currentDailyStats.commentCount >= 1 && currentDailyStats.postCount >= 1;
-          isAlreadyClaimed = userData?.isLevel0Claimed === true;
-          rewardPoints = 100;
-          updateField = 'isLevel0Claimed';
-        } else if (missionType === 'LEVEL_1') {
-          // Level 1: 일일(dailyStats) - 투표 5
-          isConditionMet = currentDailyStats.voteCount >= 5;
-          isAlreadyClaimed = currentDailyStats.isLevel1Claimed === true;
-          rewardPoints = 30;
-          updateField = 'dailyStats.isLevel1Claimed';
+        // 2. 누적 통계 초기화 체크
+        const currentStats = getOrCreateStats(userData);
+
+        // 3. 미션 달성 여부 및 남은 횟수(remainCount) 계산
+        let rewardPoints = 0;
+        let updateField = '';
+        let remainCount = 0;
+
+        if (missionType === 'LEVEL_1') {
+          // 과거 LEVEL_1: 투표 1회당 보상 1번
+          const totalEarned = Math.floor(currentStats.voteCount / 1);
+          remainCount = totalEarned - currentStats.voteClaimedCount;
+
+          rewardPoints = 50;
+          updateField = 'stats.voteClaimedCount';
         } else if (missionType === 'LEVEL_2') {
-          // Level 2: 일일(dailyStats) - 댓글 3
-          isConditionMet = currentDailyStats.commentCount >= 3;
-          isAlreadyClaimed = currentDailyStats.isLevel2Claimed === true;
-          rewardPoints = 60;
-          updateField = 'dailyStats.isLevel2Claimed';
+          // 과거 LEVEL_2: 댓글 1회당 보상 1번
+          const totalEarned = Math.floor(currentStats.commentCount / 1);
+          remainCount = totalEarned - currentStats.commentClaimedCount;
+
+          rewardPoints = 50;
+          updateField = 'stats.commentClaimedCount';
+        } else if (missionType === 'LEVEL_0') {
+          // 과거 LEVEL_0: 게시물 1회당 보상 1번
+          const totalEarned = Math.floor(currentStats.postCount / 1);
+          remainCount = totalEarned - currentStats.postClaimedCount;
+
+          rewardPoints = 100;
+          updateField = 'stats.postClaimedCount';
         } else if (missionType === 'LEVEL_3') {
           // Level 3: 화제의 재판 등재 (게시물당 1회 보상)
-          // [Ultra-Safe] 인덱스 오류를 방지하기 위해 작성자 ID로만 조회 후 메모리에서 필터링
           const potentialCases = await db.collection('cases')
             .where('authorId', '==', userId)
             .get();
 
-          // 조건: 종료됨(CLOSED) + 화제 점수 있음(>0) + 보상 미수령(isHotListed !== true)
           const targetCase = potentialCases.docs.find(doc => {
             const d = doc.data();
             return d.status === 'CLOSED' && (d.hotScore || 0) > 0 && d.isHotListed !== true;
@@ -122,38 +122,35 @@ export const claimMissionReward = functions.region('asia-northeast3')
           }
 
           rewardPoints = 100;
-          
-          // 해당 게시물에 보상 완료 표시 (트랜잭션 내에서 처리)
+          remainCount = 1; // 특수 미션은 남은 횟수 1로 취급하여 통과
           transaction.update(targetCase.ref, { isHotListed: true });
-          
-          // 유저 업데이트용 필드
-          updateField = ''; 
+          updateField = '';
         }
 
-        if (missionType !== 'LEVEL_3' && !isConditionMet) {
-          throw new functions.https.HttpsError('failed-precondition', '미션 조건을 달성하지 못했습니다.');
+        if (remainCount <= 0) {
+          throw new functions.https.HttpsError('failed-precondition', '미션 조건을 달성하지 못했거나, 이미 모든 보상을 수령했습니다.');
         }
 
-        if (missionType !== 'LEVEL_3' && isAlreadyClaimed) {
-          throw new functions.https.HttpsError('already-exists', '이미 보상을 수령했습니다.');
-        }
-
-        // 4. 보상 지급 및 상태 업데이트
+        // 4. 보상 지급 및 상태 업데이트 (트랜잭션 안전 보장)
         const updates: any = {
-          points: admin.firestore.FieldValue.increment(rewardPoints),
+          points: admin.firestore.FieldValue.increment(rewardPoints)
         };
-        
-        if (updateField) {
-          updates[updateField] = true;
+
+        if (updateField === 'stats.voteClaimedCount') {
+          updates['stats.voteClaimedCount'] = admin.firestore.FieldValue.increment(1);
+          updates['dailyStats.isLevel1Claimed'] = true; // 구버전 호환 (LEVEL_1 = 투표) - 참고: 과거 LEVEL_1이 투표였음
+        } else if (updateField === 'stats.commentClaimedCount') {
+          updates['stats.commentClaimedCount'] = admin.firestore.FieldValue.increment(1);
+          updates['dailyStats.isLevel2Claimed'] = true; // 구버전 호환 (LEVEL_2 = 댓글)
+        } else if (updateField === 'stats.postClaimedCount') {
+          updates['stats.postClaimedCount'] = admin.firestore.FieldValue.increment(1);
+          updates.isLevel0Claimed = true; // 구버전 호환 (LEVEL_0 = 사건접수)
         }
 
-        // 날짜가 바뀌어서 초기화된 경우 dailyStats 전체 업데이트
-        if (userData?.dailyStats?.lastActiveDate !== today) {
-          updates['dailyStats'] = currentDailyStats;
-          // 방금 수령한 플래그 다시 true로 설정 (초기화 객체에는 false로 되어있음)
-          if (missionType === 'LEVEL_1') updates['dailyStats'].isLevel1Claimed = true;
-          if (missionType === 'LEVEL_2') updates['dailyStats'].isLevel2Claimed = true;
-        }
+        // 전체 할당 대신 dot notation을 쓰도록 stats 갱신 방식 변경
+        updates['stats.voteCount'] = currentStats.voteCount;
+        updates['stats.commentCount'] = currentStats.commentCount;
+        updates['stats.postCount'] = currentStats.postCount;
 
         transaction.update(userRef, updates);
 

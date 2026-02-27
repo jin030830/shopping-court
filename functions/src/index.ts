@@ -1,12 +1,12 @@
 import * as functions from "firebase-functions/v1";
 import * as admin from "firebase-admin";
 import axios from "axios";
-import { 
-  getTossApiConfig, 
+import {
+  getTossApiConfig,
   createMtlsAgent
 } from "./toss";
-import { 
-  syncCaseCounts 
+import {
+  syncCaseCounts
 } from "./triggers";
 
 // Firebase Admin 초기화
@@ -79,7 +79,7 @@ export const requestPromotionReward = functions
 
     const userSnapshot = await admin.firestore().collection('users').doc(uid).get();
     if (!userSnapshot.exists) throw new functions.https.HttpsError("not-found", "사용자 정보를 찾을 수 없습니다.");
-    
+
     const tossUserKey = userSnapshot.data()?.tossUserKey;
     if (!tossUserKey) throw new functions.https.HttpsError("failed-precondition", "토스 연동 정보가 없습니다.");
 
@@ -160,7 +160,7 @@ export const tossUnlinkCallback = functions.region("asia-northeast3").https.onRe
       return;
     }
 
-    try { await admin.auth().deleteUser(userKey); } catch (e) {}
+    try { await admin.auth().deleteUser(userKey); } catch (e) { }
 
     const db = admin.firestore();
     const affectedCaseIds = new Set<string>();
@@ -212,15 +212,15 @@ export const tossUnlinkCallback = functions.region("asia-northeast3").https.onRe
     await db.collection('users').doc(userKey).delete();
 
     res.status(200).json({ success: true });
-  } catch (error) { 
-    res.status(200).json({ success: false }); 
+  } catch (error) {
+    res.status(200).json({ success: false });
   }
 });
 
 export const fixData = functions.region('asia-northeast3').https.onRequest(async (req: functions.Request, res: functions.Response) => {
   const db = admin.firestore();
   const activitiesSnap = await db.collectionGroup('activities').get();
-  
+
   const now = new Date();
   const kstNow = new Date(now.getTime() + 9 * 60 * 60 * 1000);
   const today = kstNow.toISOString().split('T')[0];
@@ -229,7 +229,7 @@ export const fixData = functions.region('asia-northeast3').https.onRequest(async
 
   let fixedCount = 0;
   let userIds = new Set<string>();
-  
+
   // 1. 날짜 보정 로직
   for (const docSnap of activitiesSnap.docs) {
     const activityData = docSnap.data();
@@ -239,7 +239,7 @@ export const fixData = functions.region('asia-northeast3').https.onRequest(async
 
     userIds.add(userId);
     let originalDoc: admin.firestore.DocumentSnapshot | null = null;
-    
+
     try {
       if (type === 'vote') {
         originalDoc = await db.collection('cases').doc(caseId).collection('votes').doc(userId).get();
@@ -260,7 +260,7 @@ export const fixData = functions.region('asia-northeast3').https.onRequest(async
         await docSnap.ref.update({ createdAt: admin.firestore.Timestamp.fromDate(ancientDate) });
         fixedCount++;
       }
-    } catch (e) {}
+    } catch (e) { }
   }
 
   // 2. [핵심] 유저별 통계 강제 재계산
@@ -269,7 +269,7 @@ export const fixData = functions.region('asia-northeast3').https.onRequest(async
     const todayActivities = await userRef.collection('activities')
       .where('createdAt', '>=', startOfTodayTimestamp)
       .get();
-    
+
     const voteCount = todayActivities.docs.filter(d => d.data().type === 'vote').length;
     const commentCount = todayActivities.docs.filter(d => d.data().type === 'comment').length;
     const postCount = todayActivities.docs.filter(d => d.data().type === 'post').length;
@@ -290,8 +290,8 @@ export const fixActivitiesTimestamp = functions.region('asia-northeast3').https.
   return { message: "Use fixData instead" };
 });
 
-export { 
-  onCaseCreate, onCaseDelete, onVoteCreate, onCommentCreate, 
+export {
+  onCaseCreate, onCaseDelete, onVoteCreate, onCommentCreate,
   onVoteDelete, onCommentDelete, onCommentUpdate, onReplyCreate, onReplyDelete,
   onActivityCreate, onActivityDelete
 } from './triggers';

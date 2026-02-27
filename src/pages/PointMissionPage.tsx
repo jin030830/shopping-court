@@ -27,8 +27,7 @@ interface MissionCardProps {
   description: string;
   reward: number;
   limitation: string;
-  conditionMet: boolean;
-  isClaimed: boolean;
+  claimableCount: number;
   missionType: string;
   buttonText?: string;
   onClaim: (missionType: string, reward: number) => void;
@@ -36,9 +35,9 @@ interface MissionCardProps {
 }
 
 const MissionCard = memo(({
-  title, description, reward, limitation, conditionMet, isClaimed, missionType, buttonText, onClaim, isClaiming
+  title, description, reward, limitation, claimableCount, missionType, buttonText, onClaim, isClaiming
 }: MissionCardProps) => {
-  const canClaim = conditionMet && !isClaimed;
+  const canClaim = claimableCount > 0;
   const animationName = 'pulse-gold';
 
   return (
@@ -65,8 +64,6 @@ const MissionCard = memo(({
 
             <div style={{ display: 'flex', alignItems: 'center', gap: '0px', justifyContent: 'flex-end', marginTop: 'auto' }}>
               {(() => {
-                const claimedLabel = '✓ 제출 완료';
-
                 const baseButtonStyle: CSSProperties = {
                   minWidth: '131px',
                   height: '27px',
@@ -83,65 +80,50 @@ const MissionCard = memo(({
                   transformOrigin: 'center',
                 };
 
-                if (isClaimed) {
+                if (!canClaim) {
                   return (
                     <button
                       aria-disabled={true}
                       style={{
                         ...baseButtonStyle,
-                        backgroundColor: '#8C6B57',
-                        color: '#ffffff',
-                        cursor: 'default',
+                        backgroundColor: '#6B7684',
+                        color: '#9E9E9E',
+                        cursor: 'not-allowed',
                         opacity: 1,
                         pointerEvents: 'none',
                       }}
                     >
-                      {claimedLabel}
+                      <Asset.Icon
+                        frameShape={Asset.frameShape.CleanW16}
+                        backgroundColor="transparent"
+                        name="icon-lock-mono"
+                        color="#9E9E9E"
+                        aria-hidden={true}
+                        ratio="1/1"
+                      />
+                      {buttonText || '받기'}
                     </button>
                   );
                 }
 
-                if (canClaim) {
-                  const finalButtonText = buttonText || '받기';
-
-                  return (
-                    <button
-                      onClick={() => onClaim(missionType, reward)}
-                      disabled={isClaiming}
-                      style={{
-                        ...baseButtonStyle,
-                        background: 'linear-gradient(120deg, #3a2e25 0%, #8c6b57 100%)',
-                        color: '#ffffff',
-                        cursor: isClaiming ? 'not-allowed' : 'pointer',
-                        opacity: isClaiming ? 0.6 : 1,
-                        animation: `${animationName} 2s infinite`,
-                      }}
-                    >
-                      {finalButtonText}
-                    </button>
-                  );
-                }
+                // canClaim (claimableCount > 0)
+                const defaultText = buttonText || '받기';
+                const finalButtonText = claimableCount > 1 ? `${defaultText} [${claimableCount}]` : defaultText;
 
                 return (
                   <button
-                    disabled={true}
+                    onClick={() => onClaim(missionType, reward)}
+                    disabled={isClaiming}
                     style={{
                       ...baseButtonStyle,
-                      backgroundColor: '#6B7684',
-                      color: '#9E9E9E',
-                      cursor: 'not-allowed',
-                      opacity: 1,
+                      background: 'linear-gradient(120deg, #3a2e25 0%, #8c6b57 100%)',
+                      color: '#ffffff',
+                      cursor: isClaiming ? 'not-allowed' : 'pointer',
+                      opacity: isClaiming ? 0.6 : 1,
+                      animation: `${animationName} 2s infinite`,
                     }}
                   >
-                    <Asset.Icon
-                      frameShape={Asset.frameShape.CleanW16}
-                      backgroundColor="transparent"
-                      name="icon-lock-mono"
-                      color="#9E9E9E"
-                      aria-hidden={true}
-                      ratio="1/1"
-                    />
-                    {buttonText || '받기'}
+                    {finalButtonText}
                   </button>
                 );
               })()}
@@ -244,12 +226,16 @@ function PointMissionPage() {
           if (!prev) return prev;
           const newUserData = { ...prev };
           newUserData.points = (newUserData.points || 0) + pendingMission.gavel;
+
+          if (!newUserData.stats) {
+            newUserData.stats = { voteCount: 0, commentCount: 0, postCount: 0, voteClaimedCount: 0, commentClaimedCount: 0, postClaimedCount: 0 };
+          }
           if (pendingMission.missionType === 'LEVEL_0') {
-            newUserData.isLevel0Claimed = true;
+            newUserData.stats.voteClaimedCount += 1;
           } else if (pendingMission.missionType === 'LEVEL_1') {
-            newUserData.dailyStats = { ...newUserData.dailyStats, isLevel1Claimed: true };
+            newUserData.stats.commentClaimedCount += 1;
           } else if (pendingMission.missionType === 'LEVEL_2') {
-            newUserData.dailyStats = { ...newUserData.dailyStats, isLevel2Claimed: true };
+            newUserData.stats.postClaimedCount += 1;
           }
           return newUserData;
         });
@@ -293,27 +279,22 @@ function PointMissionPage() {
     return <div style={{ padding: '20px', textAlign: 'center' }}>로딩 중...</div>;
   }
 
-  const rawDailyStats = userData?.dailyStats || { voteCount: 0, commentCount: 0, postCount: 0, lastActiveDate: today, isLevel0Claimed: false, isLevel1Claimed: false, isLevel2Claimed: false };
-  const isDateMismatched = rawDailyStats.lastActiveDate !== today;
+  // 누적 스탯 로드 (없으면 기본값 0)
+  const stats = userData?.stats || {
+    voteCount: userData?.dailyStats?.voteCount || 0,
+    commentCount: userData?.dailyStats?.commentCount || 0,
+    postCount: userData?.dailyStats?.postCount || 0,
+    voteClaimedCount: 0,
+    commentClaimedCount: 0,
+    postClaimedCount: 0
+  };
 
-  const displayDailyStats = isDateMismatched ? {
-    voteCount: 0,
-    commentCount: 0,
-    postCount: 0,
-    isLevel0Claimed: false,
-    isLevel1Claimed: false,
-    isLevel2Claimed: false,
-    lastActiveDate: today
-  } : rawDailyStats;
+  const myPostCount = stats.postCount;
 
-  const myPostCount = displayDailyStats.postCount || 0;
-  const isLevel0Claimed = userData?.isLevel0Claimed || false;
-  const isLevel1Claimed = displayDailyStats.isLevel1Claimed;
-  const isLevel2Claimed = displayDailyStats.isLevel2Claimed;
-
-  const level0ConditionMet = displayDailyStats.voteCount >= 1;
-  const level1ConditionMet = displayDailyStats.commentCount >= 1;
-  const level2ConditionMet = displayDailyStats.postCount >= 1;
+  // Level 별 미수령 가능 보상 건수 계산 (누적 횟수 기준 1당 1개 지급)
+  const level0ClaimableCount = Math.max(0, Math.floor(stats.voteCount / 1) - (stats.voteClaimedCount || 0));
+  const level1ClaimableCount = Math.max(0, Math.floor(stats.commentCount / 1) - (stats.commentClaimedCount || 0));
+  const level2ClaimableCount = Math.max(0, Math.floor(stats.postCount / 1) - (stats.postClaimedCount || 0));
 
   const currentGavel = userData?.points || 0;
   const canExchange = currentGavel >= 50;
@@ -399,11 +380,11 @@ function PointMissionPage() {
               <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', alignItems: 'center' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                   <Text color={adaptive.grey800} typography="t6" fontWeight="bold">✓ 투표 </Text>
-                  <Text color={adaptive.blue400} typography="t6" fontWeight="bold">{displayDailyStats.voteCount}</Text>
+                  <Text color={adaptive.blue400} typography="t6" fontWeight="bold">{stats.voteCount}</Text>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                   <Text color={adaptive.grey800} typography="t6" fontWeight="bold">✓ 댓글 </Text>
-                  <Text color={adaptive.blue400} typography="t6" fontWeight="bold">{displayDailyStats.commentCount}</Text>
+                  <Text color={adaptive.blue400} typography="t6" fontWeight="bold">{stats.commentCount}</Text>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                   <Text color={adaptive.grey800} typography="t6" fontWeight="bold">✓ 게시물 </Text>
@@ -417,9 +398,9 @@ function PointMissionPage() {
         <div style={{ width: 'calc(100% - 20px)', height: '1px', backgroundColor: '#E5D7C7', margin: '2px 10px 10px 10px' }} />
 
         <div style={{ width: '100%', paddingTop: '8px', paddingBottom: '0px', paddingLeft: '10px', paddingRight: '10px', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-          <MissionCard level={0} title="판결 한 표" description="사건을 읽고 당신의 판결을 내려주세요" reward={50} limitation="미션 : 투표 1회" conditionMet={level0ConditionMet} isClaimed={isLevel1Claimed} missionType="LEVEL_1" buttonText="판사봉 50개" onClaim={handleClaim} isClaiming={isClaiming} />
-          <MissionCard level={1} title="의견 제출하기" description="판결 이유를 댓글로 남겨 사건 해결을 도와주세요" reward={50} limitation="미션 : 댓글 1회" conditionMet={level1ConditionMet} isClaimed={isLevel2Claimed} missionType="LEVEL_2" buttonText="판사봉 50개" onClaim={handleClaim} isClaiming={isClaiming} />
-          <MissionCard level={2} title="사건 접수하기" description="소비 고민을 법정에 올리고 재판을 시작하세요" reward={100} limitation="미션 : 게시물 1개" conditionMet={level2ConditionMet} isClaimed={isLevel0Claimed} missionType="LEVEL_0" buttonText="판사봉 100개" onClaim={handleClaim} isClaiming={isClaiming} />
+          <MissionCard level={0} title="판결 한 표" description="사건을 읽고 당신의 판결을 내려주세요" reward={50} limitation="미션 : 투표 1회" claimableCount={level0ClaimableCount} missionType="LEVEL_1" buttonText="판사봉 50개" onClaim={handleClaim} isClaiming={isClaiming} />
+          <MissionCard level={1} title="의견 제출하기" description="판결 이유를 댓글로 남겨 사건 해결을 도와주세요" reward={50} limitation="미션 : 댓글 1회" claimableCount={level1ClaimableCount} missionType="LEVEL_2" buttonText="판사봉 50개" onClaim={handleClaim} isClaiming={isClaiming} />
+          <MissionCard level={2} title="사건 접수하기" description="소비 고민을 법정에 올리고 재판을 시작하세요" reward={100} limitation="미션 : 게시물 1개" claimableCount={level2ClaimableCount} missionType="LEVEL_0" buttonText="판사봉 100개" onClaim={handleClaim} isClaiming={isClaiming} />
         </div>
       </div>
 

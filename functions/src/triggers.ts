@@ -38,11 +38,11 @@ export const syncCaseCounts = async (caseId: string) => {
 
     const guiltyCount = votesSnap.docs.filter(d => d.data().vote === 'guilty').length;
     const innocentCount = votesSnap.docs.filter(d => d.data().vote === 'innocent').length;
-    
+
     // [수정] 삭제되지 않은 댓글만 카운트 (메모리 필터링이 대댓글 구조상 안전함)
     // 참고: 쿼리로 where('isDeleted', '!=', true)를 쓰려면 복합 인덱스가 필요할 수 있어 메모리 방식 유지
     const activeCommentsCount = commentsSnap.docs.filter(d => !d.data().isDeleted).length;
-    
+
     // 대댓글은 isDeleted 개념이 없다면 그대로, 있다면 필터링 (현재 구조상 대댓글은 즉시 삭제됨)
     const commentCount = activeCommentsCount + filteredReplies.length;
 
@@ -66,8 +66,8 @@ export const syncCaseCounts = async (caseId: string) => {
  * (신버전 앱은 activities 카운트, 구버전 앱은 단순 증감 지원)
  */
 const updateUserStats = async (
-  userId: string, 
-  type: 'vote' | 'comment' | 'post', 
+  userId: string,
+  type: 'vote' | 'comment' | 'post',
   action: 'create' | 'delete',
   createdAt?: admin.firestore.Timestamp,
   forceIncrement?: boolean // 구버전 대응용 플래그
@@ -89,7 +89,7 @@ const updateUserStats = async (
         .where('type', '==', type)
         .where('createdAt', '>=', startOfTodayTimestamp)
         .get();
-      
+
       // 활동 기록이 하나라도 있다면 신버전 유저로 간주
       if (snapshot.size > 0 || action === 'delete') {
         actualCount = snapshot.size;
@@ -120,7 +120,7 @@ const updateUserStats = async (
         dailyStats = { lastActiveDate: today, voteCount: 0, commentCount: 0, postCount: 0, isLevel1Claimed: false, isLevel2Claimed: false };
       }
 
-      // 2. 카운트 결정 및 업데이트
+      // 2. 카운트 결정 및 업데이트 (dailyStats 용)
       if (actualCount !== -1) {
         // 신버전: 실제 문서 개수와 일치시킴
         if (type === 'vote') dailyStats.voteCount = actualCount;
@@ -132,9 +132,39 @@ const updateUserStats = async (
         if (type === 'comment') dailyStats.commentCount = (dailyStats.commentCount || 0) + 1;
         if (type === 'post') dailyStats.postCount = (dailyStats.postCount || 0) + 1;
         console.info(`[UserStats] 구버전 유저 수동 증가: ${userId}, ${type}`);
+      } else if (action === 'delete') {
+        // 구버전: 삭제 대응
+        if (type === 'vote') dailyStats.voteCount = Math.max(0, (dailyStats.voteCount || 0) - 1);
+        if (type === 'comment') dailyStats.commentCount = Math.max(0, (dailyStats.commentCount || 0) - 1);
+        if (type === 'post') dailyStats.postCount = Math.max(0, (dailyStats.postCount || 0) - 1);
       }
 
-      transaction.update(userRef, { dailyStats });
+      // 3. 누적 카운트 (stats) 업데이트 로직 ("오늘부터 시작" 정책)
+      let stats = userData?.stats;
+      if (!stats) {
+        // 과거 데이터 소급 없이 '오늘'의 상태를 시작점으로 지정
+        stats = {
+          voteCount: dailyStats.voteCount || 0,
+          commentCount: dailyStats.commentCount || 0,
+          postCount: dailyStats.postCount || 0,
+          voteClaimedCount: 0,
+          commentClaimedCount: 0,
+          postClaimedCount: 0
+        };
+      } else {
+        // 이미 생성된 이후라면 이후 활동들에 대해 순수 증감
+        if (action === 'create') {
+          if (type === 'vote') stats.voteCount = (stats.voteCount || 0) + 1;
+          if (type === 'comment') stats.commentCount = (stats.commentCount || 0) + 1;
+          if (type === 'post') stats.postCount = (stats.postCount || 0) + 1;
+        } else if (action === 'delete') {
+          if (type === 'vote') stats.voteCount = Math.max(0, (stats.voteCount || 0) - 1);
+          if (type === 'comment') stats.commentCount = Math.max(0, (stats.commentCount || 0) - 1);
+          if (type === 'post') stats.postCount = Math.max(0, (stats.postCount || 0) - 1);
+        }
+      }
+
+      transaction.update(userRef, { dailyStats, stats });
     });
   } catch (error) {
     console.error(`[UserStats Error] ${userId} 업데이트 실패:`, error);
@@ -239,18 +269,18 @@ export const onReplyDelete = functions.region('asia-northeast3').firestore.docum
 export const fixActivitiesTimestamp = functions.region('asia-northeast3').https.onCall(async (data: any, context: functions.https.CallableContext) => {
   const db = admin.firestore();
   const activitiesSnap = await db.collectionGroup('activities').get();
-  
+
   let fixedCount = 0;
-  
+
   for (const docSnap of activitiesSnap.docs) {
     const activityData = docSnap.data();
     const { type, caseId, createdAt } = activityData;
     const userId = docSnap.ref.parent.parent?.id;
-    
+
     if (!userId || !caseId) continue;
 
     let originalDoc: admin.firestore.DocumentSnapshot | null = null;
-    
+
     if (type === 'vote') {
       originalDoc = await db.collection('cases').doc(caseId).collection('votes').doc(userId).get();
     } else if (type === 'comment') {
